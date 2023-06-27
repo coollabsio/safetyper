@@ -1,2 +1,2 @@
-# safetyper
-Issues &amp; requests for SafeTyper
+# SafeTyper
+You can report issues, requests features here for SafeTyper
