@@ -5,8 +5,11 @@ Or use any of the following options:
 You can reach us on the following platforms:
 
 Twitter: [@heyandras](https://twitter.com/heyandras)
+
 Telegram: [@andrasbacsai](https://t.me/andrasbacsai)
+
 Discord: [Invitation](https://coollabs.io/discord)
+
 Email: hi@coollabs.io
 
 ## Install
