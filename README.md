@@ -16,4 +16,4 @@ Currently submitting to most of the extension stores. WIP.
 
 ## How to get a license?
 
-[Click here](https://coollabs.lemonsqueezy.com/checkout?cart=d275fa38-61a0-49dc-8c17-0c465de754ca)
+[Click here](https://coollabs.lemonsqueezy.com/checkout?cart=5d571691-eadb-47a3-847e-28a1e53f7c3b)
