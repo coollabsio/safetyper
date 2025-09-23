@@ -1,0 +1,261 @@
+.draggable-indicator {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 8px;
+  color: #999;
+  font-style: italic;
+  pointer-events: none;
+  user-select: none;
+  z-index: 1;
+}
+
+.safetyper-icon {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  z-index: 999999;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.safetyper-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.safetyper-popup {
+  position: fixed;
+  z-index: 1000000;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 300px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 20px);
+  overflow: auto;
+  animation: fadeIn 0.2s ease;
+  cursor: grab;
+  user-select: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.safetyper-popup-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: calc(100vh - 60px);
+  overflow: auto;
+  position: relative;
+  padding: 16px;
+}
+
+.safetyper-popup-content h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  padding: 4px 0;
+  border-radius: 4px;
+}
+
+/* .safetyper-popup-content h3:hover {
+  background-color: #f5f5f5;
+} */
+
+.safetyper-check-btn,
+.safetyper-settings-btn,
+.safetyper-apply-btn,
+.safetyper-close-btn {
+  background: #4A90E2;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background 0.2s ease;
+  margin: 4px 0;
+}
+
+.safetyper-settings-btn {
+  background: #f8f9fa;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.safetyper-apply-btn {
+  background: #4CAF50;
+}
+
+.safetyper-close-btn {
+  background: #f8f9fa;
+  color: #333;
+  border: 1px solid #ddd;
+}
+
+.safetyper-check-btn:hover {
+  background: #357ABD;
+}
+
+.safetyper-settings-btn:hover,
+.safetyper-close-btn:hover {
+  background: #e9ecef;
+}
+
+.safetyper-apply-btn:hover {
+  background: #43A047;
+}
+
+.safetyper-check-btn:active,
+.safetyper-settings-btn:active,
+.safetyper-apply-btn:active,
+.safetyper-close-btn:active {
+  transform: scale(0.98);
+}
+
+.loading {
+  text-align: center;
+  font-size: 12px;
+  padding: 14px;
+  color: #666;
+}
+
+.error {
+  color: #e74c3c;
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.original-text,
+.corrected-text {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.original-text h4,
+.corrected-text h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+}
+
+.original-text p,
+.corrected-text p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.corrected-text {
+  background-color: #f8fff8;
+  border-color: #e0f0e0;
+}
+
+/* Diff highlighting styles */
+.diff-container {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 12px;
+  background-color: #fafafa;
+}
+
+.diff-container h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #666;
+  font-weight: 600;
+}
+
+.diff-text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.diff-words-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  line-height: 1.4;
+}
+
+.word-diff-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.original-word {
+  color: #c62828;
+  text-decoration: line-through;
+}
+
+.corrected-word {
+  color: #2e7d32;
+}
+
+.grammar-unchanged {
+  color: #333;
+}
+
+/* No changes message styles */
+.no-changes-message {
+  text-align: center;
+  padding: 20px;
+  background-color: #f1f8e9;
+  border-radius: 4px;
+  border: 1px solid #c8e6c9;
+}
+
+.success-icon {
+  font-size: 24px;
+  color: #4caf50;
+  margin-bottom: 8px;
+}
+
+.no-changes-message p {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+  font-weight: 500;
+}
