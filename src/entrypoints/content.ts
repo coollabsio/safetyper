@@ -1,3 +1,4 @@
+import '~/assets/fonts/fonts.css';
 import '../styles/content.css';
 import { browser } from 'wxt/browser';
 
@@ -232,19 +233,14 @@ export default defineContentScript({
         const isWhitespaceGroup = /\s+/.test(originalText) && originalText === correctedText;
 
         if (isWhitespaceGroup) {
-          // Just display whitespace as is
+          // Handle whitespace - <pre> will preserve it naturally
           html += escapeHtml(originalText);
         } else if (originalText === correctedText) {
           // No change - display normally
           html += `<span class="grammar-unchanged">${escapeHtml(originalText)}</span>`;
         } else {
           // Change detected - display with original and corrected versions side by side
-          html += `
-            <span class="word-diff-group">
-              <span class="original-word">${escapeHtml(originalText)}</span>
-              <span class="corrected-word">${escapeHtml(correctedText)}</span>
-            </span>
-          `;
+          html += `<span class="word-diff-group"><span class="original-word">${escapeHtml(originalText)}</span><span class="corrected-word">${escapeHtml(correctedText)}</span></span>`;
         }
       }
 
@@ -339,11 +335,11 @@ export default defineContentScript({
       // Position popup near the icon and ensure it fits within screen boundaries
       if (iconContainer) {
         const iconRect = iconContainer.getBoundingClientRect();
-        const popupWidth = 300; // Approximate width
+        const popupWidth = 450; // Approximate width
         const popupHeight = 200; // Approximate height
 
         // Calculate initial position
-        let left = iconRect.left - 150;
+        let left = iconRect.left - 200;
         let top = iconRect.bottom + 10;
 
         // Get viewport dimensions
@@ -578,11 +574,11 @@ export default defineContentScript({
               messages: [
                 {
                   role: "system",
-                  content: "You are a grammar checking assistant. Fix grammar and spelling errors in the provided text. Return ONLY the corrected text without any additional explanation, formatting, quotation marks, or markdown. Do not wrap the response in quotes or add any prefixes."
+                  content: "You are a grammar checking assistant. Fix grammar and spelling errors in the provided text. Return ONLY the corrected text with EXACTLY the same formatting, line breaks, paragraphs, and whitespace as the original. Do not add, remove, or modify any line breaks, indentation, spacing, or paragraph structure. Preserve every newline character and whitespace character exactly as they appear in the original. Do not wrap the response in quotes or add any prefixes or explanations."
                 },
                 {
                   role: "user",
-                  content: `Please fix the grammar and spelling in this text: "${text}"`
+                  content: `Please fix the grammar and spelling in this text while preserving EXACTLY the same formatting, line breaks, and structure as the original: "${text}"`
                 }
               ],
               temperature: 0.3,
@@ -601,7 +597,23 @@ export default defineContentScript({
           if (data.choices && data.choices.length > 0) {
             const choice = data.choices[0];
             if (choice.message && choice.message.content) {
-              correctedText = choice.message.content.trim();
+              // Remove only leading/trailing whitespace from the entire response,
+              // but preserve internal formatting
+              const rawCorrected = choice.message.content;
+              const trimmedCorrected = rawCorrected.trim();
+
+              // If the response has the same number of lines as the original,
+              // preserve the line structure
+              const originalLines = text.split('\n');
+              const correctedLines = trimmedCorrected.split('\n');
+
+              if (originalLines.length === correctedLines.length) {
+                // Same number of lines, preserve exact line breaks
+                correctedText = trimmedCorrected;
+              } else {
+                // Different number of lines, fall back to original logic
+                correctedText = trimmedCorrected;
+              }
             }
           }
 
@@ -619,35 +631,95 @@ export default defineContentScript({
                     <button class="safetyper-close-btn">Close</button>
                   </div>
                 `;
-              } else {
-                content.innerHTML = `
-                  <div class="results-container">
-                    <div class="diff-container">
-                      <h4>Changes:</h4>
-                      <div class="diff-text">${generateDiffHtml(text, correctedText)}</div>
-                    </div>
-                    <button class="safetyper-apply-btn">Apply Changes</button>
-                    <button class="safetyper-close-btn">Close</button>
-                  </div>
-                `;
-              }
+               } else {
+                 // Detect if this is a complex editor like Draft.js
+                 const isComplexEditor = activeInput && activeInput.contentEditable === 'true' &&
+                   activeInput.classList.contains('public-DraftEditor-content');
 
-              const applyBtn = content.querySelector('.safetyper-apply-btn');
-              const closeBtn = content.querySelector('.safetyper-close-btn');
+                 let buttonsHtml = '';
+                 if (isComplexEditor) {
+                   // Complex editor: only show copy button
+                   buttonsHtml = '<button class="safetyper-copy-btn">Copy to Clipboard</button>';
+                 } else {
+                   // Simple input: show both apply and copy buttons
+                   buttonsHtml = `
+                     <div class="button-group">
+                       <button class="safetyper-apply-btn">Apply Changes</button>
+                       <button class="safetyper-copy-btn">Copy to Clipboard</button>
+                     </div>
+                   `;
+                 }
 
-              if (applyBtn) {
-                applyBtn.addEventListener('click', () => {
-                  // Apply corrected text to input
-                  if (activeInput) {
-                    if (activeInput instanceof HTMLInputElement || activeInput instanceof HTMLTextAreaElement) {
-                      activeInput.value = correctedText;
-                    } else {
-                      activeInput.textContent = correctedText;
-                    }
-                  }
-                  closePopup();
-                });
-              }
+                 const instructions = isComplexEditor ?
+                   '<p class="editor-instruction">Complex editor detected. Copy the text and paste it manually to preserve formatting.</p>' : '';
+
+                 content.innerHTML = `
+                   <div class="results-container">
+                     <div class="diff-container">
+                       <h4>Changes:</h4>
+                       <div class="diff-text">${generateDiffHtml(text, correctedText)}</div>
+                       ${instructions}
+                     </div>
+                     ${buttonsHtml}
+                     <button class="safetyper-close-btn">Close</button>
+                   </div>
+                 `;
+               }
+
+               const applyBtn = content.querySelector('.safetyper-apply-btn');
+               const copyBtn = content.querySelector('.safetyper-copy-btn');
+               const closeBtn = content.querySelector('.safetyper-close-btn');
+
+               // Handle apply button (only for simple inputs)
+               if (applyBtn) {
+                 applyBtn.addEventListener('click', () => {
+                   if (activeInput) {
+                     if (activeInput instanceof HTMLInputElement || activeInput instanceof HTMLTextAreaElement) {
+                       activeInput.value = correctedText;
+                     } else if (activeInput.contentEditable === 'true') {
+                       // For contenteditable elements
+                       try {
+                         activeInput.focus();
+                         const selection = window.getSelection();
+                         const range = document.createRange();
+                         range.selectNodeContents(activeInput);
+                         selection?.removeAllRanges();
+                         selection?.addRange(range);
+                         document.execCommand('insertText', false, correctedText);
+                       } catch (error) {
+                         console.warn('Contenteditable update failed:', error);
+                         activeInput.textContent = correctedText;
+                       }
+                     } else {
+                       activeInput.textContent = correctedText;
+                     }
+                   }
+                   closePopup();
+                 });
+               }
+
+               // Handle copy button (for all input types)
+               if (copyBtn) {
+                 copyBtn.addEventListener('click', () => {
+                   // Ensure the text preserves exact formatting
+                   const textToCopy = correctedText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                   navigator.clipboard.writeText(textToCopy).then(() => {
+                     // Show success feedback
+                     const button = copyBtn as HTMLElement;
+                     const originalText = button.textContent;
+                     button.textContent = 'Copied!';
+                     button.style.backgroundColor = '#4CAF50';
+                     setTimeout(() => {
+                       button.textContent = originalText;
+                       button.style.backgroundColor = '';
+                     }, 2000);
+                   }).catch((error) => {
+                     console.warn('Clipboard copy failed:', error);
+                     // Fallback: show the text in an alert
+                     alert(`Copy this text and paste it manually:\n\n${textToCopy}`);
+                   });
+                 });
+               }
 
               if (closeBtn) {
                 closeBtn.addEventListener('click', closePopup);

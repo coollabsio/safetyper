@@ -218,8 +218,7 @@
     width: 100%;
     min-height: 400px;
     padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      sans-serif;
+    font-family: 'Inter', sans-serif;
   }
 
   header {
