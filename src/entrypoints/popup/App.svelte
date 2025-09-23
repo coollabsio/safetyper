@@ -64,15 +64,21 @@
   let isLoading = false;
   let showSavedPopup = false;
 
-  // Load settings on mount
-  onMount(async () => {
-    try {
-      selectedModel = await selectedModelStorage.getValue();
-      openRouterKey = (await openRouterKeyStorage.getValue()) || "";
-    } catch (error) {
-      console.error("Error loading settings:", error);
-    }
-  });
+   // Load settings on mount
+   onMount(async () => {
+     try {
+       selectedModel = await selectedModelStorage.getValue();
+       openRouterKey = (await openRouterKeyStorage.getValue()) || "";
+
+       // Auto-set API key from environment if not already set
+       if (!openRouterKey && import.meta.env.VITE_OPENROUTER_API_KEY) {
+         openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+         await openRouterKeyStorage.setValue(openRouterKey);
+       }
+     } catch (error) {
+       console.error("Error loading settings:", error);
+     }
+   });
 
   // Save settings
   async function saveSettings() {
@@ -157,7 +163,6 @@
       </div>
 
       <div class="setting-group">
-        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
         <label for="api-key-input" class="setting-label"
           >OpenRouter API Key</label
         >
@@ -218,7 +223,7 @@
     width: 100%;
     min-height: 400px;
     padding: 0;
-    font-family: 'Inter', sans-serif;
+    font-family: "Inter", sans-serif;
   }
 
   header {
