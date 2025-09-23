@@ -70,9 +70,9 @@
        selectedModel = await selectedModelStorage.getValue();
        openRouterKey = (await openRouterKeyStorage.getValue()) || "";
 
-       // Auto-set API key from environment if not already set
-       if (!openRouterKey && import.meta.env.VITE_OPENROUTER_API_KEY) {
-         openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
+        // Auto-set API key from environment if not already set (dev mode only)
+        if (!openRouterKey && import.meta.env.DEV && import.meta.env.VITE_OPENROUTER_API_KEY) {
+          openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
          await openRouterKeyStorage.setValue(openRouterKey);
        }
      } catch (error) {

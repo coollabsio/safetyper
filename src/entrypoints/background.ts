@@ -5,8 +5,8 @@ export default defineBackground(() => {
   console.log('OPENROUTER_API_KEY:', import.meta.env.OPENROUTER_API_KEY);
   console.log('VITE_OPENROUTER_API_KEY:', import.meta.env.VITE_OPENROUTER_API_KEY);
 
-  // Auto-inject API key from environment on startup
-  const apiKey = import.meta.env.OPENROUTER_API_KEY || import.meta.env.VITE_OPENROUTER_API_KEY;
+  // Auto-inject API key from environment on startup (dev mode only)
+  const apiKey = import.meta.env.DEV ? (import.meta.env.OPENROUTER_API_KEY || import.meta.env.VITE_OPENROUTER_API_KEY) : null;
   if (apiKey) {
     console.log('OpenRouter API key found:', apiKey.substring(0, 20) + '...');
     browser.storage.local.set({
