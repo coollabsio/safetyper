@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { storage } from "#imports";
+  import { browser } from "wxt/browser";
 
   // Define storage items for better type safety and easier management
   const selectedModelStorage = storage.defineItem<string>(
@@ -63,6 +64,7 @@
   let openRouterKey = "";
   let isLoading = false;
   let showSavedPopup = false;
+  let isApiKeyFromEnv = false;
 
    // Load settings on mount
    onMount(async () => {
@@ -73,19 +75,48 @@
         // Auto-set API key from environment if not already set (dev mode only)
         if (!openRouterKey && import.meta.env.DEV && import.meta.env.VITE_OPENROUTER_API_KEY) {
           openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-         await openRouterKeyStorage.setValue(openRouterKey);
+          await openRouterKeyStorage.setValue(openRouterKey);
+          isApiKeyFromEnv = true;
+       } else if (openRouterKey && import.meta.env.DEV && import.meta.env.VITE_OPENROUTER_API_KEY === openRouterKey) {
+          // Check if the stored key matches the env key
+          isApiKeyFromEnv = true;
        }
      } catch (error) {
        console.error("Error loading settings:", error);
      }
    });
 
+  // Validate API key format
+  function validateApiKey(key: string): { valid: boolean; error?: string } {
+    if (!key || key.trim() === '') {
+      return { valid: false, error: 'API key is required' };
+    }
+
+    // OpenRouter API keys should start with sk-or-v1- followed by 64 hex characters
+    const apiKeyRegex = /^sk-or-v1-[a-f0-9]{64}$/;
+    if (!apiKeyRegex.test(key.trim())) {
+      return { valid: false, error: 'Invalid API key format. OpenRouter keys should start with sk-or-v1-' };
+    }
+
+    return { valid: true };
+  }
+
   // Save settings
   async function saveSettings() {
     isLoading = true;
     try {
+      // Validate API key if provided
+      if (openRouterKey && openRouterKey.trim() !== '') {
+        const validation = validateApiKey(openRouterKey);
+        if (!validation.valid) {
+          alert(validation.error);
+          isLoading = false;
+          return;
+        }
+      }
+
       await selectedModelStorage.setValue(selectedModel);
-      await openRouterKeyStorage.setValue(openRouterKey);
+      await openRouterKeyStorage.setValue(openRouterKey.trim());
       // Show success message
       showSavedPopup = true;
       setTimeout(() => {
@@ -93,6 +124,7 @@
       }, 2000);
     } catch (error) {
       console.error("Error saving settings:", error);
+      alert("Failed to save settings. Please try again.");
     } finally {
       isLoading = false;
     }
@@ -106,6 +138,12 @@
   // Handle API key change
   function handleApiKeyChange(event: Event) {
     openRouterKey = (event.target as HTMLInputElement).value;
+  }
+
+  // Open test page
+  function openTestPage() {
+    const testUrl = browser.runtime.getURL('/test.html');
+    browser.tabs.create({ url: testUrl });
   }
 </script>
 
@@ -180,6 +218,11 @@
             target="_blank">OpenRouter</a
           >
         </p>
+        {#if isApiKeyFromEnv && import.meta.env.DEV}
+          <div class="env-indicator">
+            ✅ API key auto-loaded from .env file
+          </div>
+        {/if}
       </div>
 
       <div class="setting-group">
@@ -191,6 +234,18 @@
           {isLoading ? "Saving..." : "Save Settings"}
         </button>
       </div>
+
+      {#if import.meta.env.DEV}
+        <div class="setting-group dev-section">
+          <div class="dev-badge">Development Mode</div>
+          <button
+            class="test-button"
+            on:click={openTestPage}
+          >
+            🧪 Open Test Page
+          </button>
+        </div>
+      {/if}
     </div>
   </div>
 
@@ -372,5 +427,66 @@
     gap: 12px;
     font-weight: 500;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Development mode section */
+  .dev-section {
+    border-top: 2px solid #f0f0f0;
+    padding-top: 16px;
+    margin-top: 8px;
+  }
+
+  .dev-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .test-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  }
+
+  .test-button:hover {
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .test-button:active {
+    transform: translateY(0);
+  }
+
+  /* Environment variable indicator */
+  .env-indicator {
+    background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
   }
 </style>

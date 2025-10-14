@@ -8,9 +8,13 @@ export default defineConfig({
     action: {
       default_popup: 'popup.html',
     },
-    permissions: ['storage'],
+    permissions: ['storage', 'scripting', 'tabs'],
     host_permissions: [
-      'https://openrouter.ai/*'
+      'https://openrouter.ai/*',
+      '<all_urls>'
     ],
+    content_security_policy: {
+      extension_pages: "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline';"
+    },
   },
 });
