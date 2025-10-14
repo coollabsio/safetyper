@@ -6,11 +6,13 @@
 
 body {
   margin: 0;
-  font-family: 'Inter', sans-serif;
-  background: white;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #FAFAFA;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
   min-height: 400px;
-  background: white;
+  background: #FAFAFA;
 }
