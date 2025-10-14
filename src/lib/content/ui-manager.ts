@@ -326,6 +326,37 @@ export function closePopup(): void {
 }
 
 /**
+ * Ensure popup stays within viewport bounds
+ */
+function constrainPopupToViewport(popup: HTMLElement): void {
+  const rect = popup.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  let left = parseInt(popup.style.left) || 0;
+  let top = parseInt(popup.style.top) || 0;
+
+  // Adjust horizontal position
+  if (rect.right > viewportWidth) {
+    left = viewportWidth - rect.width - 10;
+  }
+  if (left < 0) {
+    left = 10;
+  }
+
+  // Adjust vertical position
+  if (rect.bottom > viewportHeight) {
+    top = viewportHeight - rect.height - 10;
+  }
+  if (top < 0) {
+    top = 10;
+  }
+
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+}
+
+/**
  * Handle grammar check button click
  */
 async function handleGrammarCheck(): Promise<void> {
@@ -364,6 +395,9 @@ async function handleGrammarCheck(): Promise<void> {
           <button class="safetyper-close-btn">Close</button>
         </div>
       `;
+
+      // Ensure popup stays within viewport after content update
+      setTimeout(() => constrainPopupToViewport(popup), 0);
     } else {
       // Show diff
       const isComplex = activeInput && isComplexEditor(activeInput);
@@ -391,6 +425,9 @@ async function handleGrammarCheck(): Promise<void> {
           <button class="safetyper-close-btn">Close</button>
         </div>
       `;
+
+      // Ensure popup stays within viewport after content update
+      setTimeout(() => constrainPopupToViewport(popup), 0);
 
       // Attach event listeners
       const applyBtn = content.querySelector('.safetyper-apply-btn');
@@ -441,6 +478,9 @@ async function handleGrammarCheck(): Promise<void> {
           <p class="error">Error checking grammar: ${escapeHtml(error.message || 'Unknown error')}</p>
           <button class="safetyper-close-btn">Close</button>
         `;
+
+        // Ensure popup stays within viewport after content update
+        setTimeout(() => constrainPopupToViewport(popup), 0);
 
         const closeBtn = content.querySelector('.safetyper-close-btn');
         if (closeBtn) {
