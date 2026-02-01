@@ -31,10 +31,10 @@ export function createIcon(): HTMLDivElement {
   iconContainer.setAttribute('tabindex', '0');
   iconContainer.innerHTML = `
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="10" cy="10" r="9" stroke="#292929" stroke-width="2" fill="none"/>
-      <path d="M6 8.5C6 8.5 8 6 10 6C12 6 14 8.5 14 8.5" stroke="#292929" stroke-width="1.5" stroke-linecap="round"/>
-      <path d="M10 10V14" stroke="#292929" stroke-width="1.5" stroke-linecap="round"/>
-      <circle cx="10" cy="14" r="0.5" fill="#292929"/>
+      <circle cx="10" cy="10" r="9" stroke="#6b16ed" stroke-width="2" fill="none"/>
+      <path d="M6 8.5C6 8.5 8 6 10 6C12 6 14 8.5 14 8.5" stroke="#6b16ed" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M10 10V14" stroke="#6b16ed" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="10" cy="14" r="0.5" fill="#6b16ed"/>
     </svg>
   `;
 
@@ -144,12 +144,12 @@ export function showPopup(e: Event): void {
     <div class="popup-header">
       <div class="drag-handle" title="Drag to move">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="4" cy="4" r="1.5" fill="#999"/>
-          <circle cx="12" cy="4" r="1.5" fill="#999"/>
-          <circle cx="4" cy="8" r="1.5" fill="#999"/>
-          <circle cx="12" cy="8" r="1.5" fill="#999"/>
-          <circle cx="4" cy="12" r="1.5" fill="#999"/>
-          <circle cx="12" cy="12" r="1.5" fill="#999"/>
+          <circle cx="4" cy="4" r="1.5" fill="#d4d4d4"/>
+          <circle cx="12" cy="4" r="1.5" fill="#d4d4d4"/>
+          <circle cx="4" cy="8" r="1.5" fill="#d4d4d4"/>
+          <circle cx="12" cy="8" r="1.5" fill="#d4d4d4"/>
+          <circle cx="4" cy="12" r="1.5" fill="#d4d4d4"/>
+          <circle cx="12" cy="12" r="1.5" fill="#d4d4d4"/>
         </svg>
       </div>
       <h3>SafeTyper</h3>

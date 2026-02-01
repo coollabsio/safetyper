@@ -161,23 +161,23 @@
           cx="12"
           cy="12"
           r="10"
-          stroke="#292929"
+          stroke="#6b16ed"
           stroke-width="2"
           fill="none"
         />
         <path
           d="M7 10C7 10 9.5 7 12 7C14.5 7 17 10 17 10"
-          stroke="#292929"
+          stroke="#6b16ed"
           stroke-width="2"
           stroke-linecap="round"
         />
         <path
           d="M12 12V17"
-          stroke="#292929"
+          stroke="#6b16ed"
           stroke-width="2"
           stroke-linecap="round"
         />
-        <circle cx="12" cy="17" r="1" fill="#292929" />
+        <circle cx="12" cy="17" r="1" fill="#6b16ed" />
       </svg>
       <h1>SafeTyper</h1>
     </div>
@@ -278,17 +278,17 @@
     width: 100%;
     min-height: 400px;
     padding: 0;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #FAFAFA;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #f9fafb;
   }
 
   header {
-    background: #FFFFFF;
-    color: #000000;
+    background: #fff;
+    color: #000;
     padding: 24px 24px 20px;
     text-align: center;
     width: 100%;
-    border-bottom: 1px solid #F0F0F0;
+    border-bottom: 1px solid #e5e5e5;
   }
 
   .logo-container {
@@ -300,16 +300,15 @@
 
   h1 {
     margin: 0;
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: -0.4px;
-    color: #000000;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #000;
   }
 
   .tagline {
     margin: 4px 0 0;
-    color: #666666;
-    font-size: 13px;
+    color: #737373;
+    font-size: 0.875rem;
     font-weight: 400;
   }
 
@@ -317,7 +316,7 @@
     padding: 24px;
     width: 100%;
     box-sizing: border-box;
-    background: #FAFAFA;
+    background: #f9fafb;
   }
 
   .content.full-width {
@@ -341,94 +340,104 @@
   }
 
   .setting-label {
-    font-size: 13px;
+    font-size: 0.875rem;
     font-weight: 500;
-    color: #292929;
-    margin-bottom: 4px;
-    letter-spacing: -0.1px;
+    color: #000;
   }
 
   .model-select,
   .api-key-input {
-    padding: 11px 14px;
-    border: 1px solid #E0E0E0;
-    border-radius: 6px;
-    font-size: 14px;
-    font-family: inherit;
-    background: #FFFFFF;
-    color: #000000;
+    display: block;
+    padding: 0.375rem 0.5rem;
     width: 100%;
+    font-size: 0.875rem;
+    font-family: inherit;
+    background: #fff;
+    color: #000;
+    border: 0;
+    border-radius: 0.125rem;
+    box-shadow: inset 4px 0 0 transparent, inset 0 0 0 2px #e5e5e5;
     box-sizing: border-box;
-    transition: all 0.15s ease;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: box-shadow 0.15s ease;
   }
 
   .model-select {
     cursor: pointer;
-  }
-
-  .model-select:hover,
-  .api-key-input:hover {
-    border-color: #C0C0C0;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%23000000'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1rem 1rem;
+    padding-right: 2.5rem;
   }
 
   .model-select:focus,
   .api-key-input:focus {
     outline: none;
-    border-color: #000000;
-    box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.06);
+    box-shadow: inset 4px 0 0 #6b16ed, inset 0 0 0 2px #e5e5e5;
+  }
+
+  .api-key-input::placeholder {
+    color: #d4d4d4;
   }
 
   .save-button {
-    background: #292929;
-    color: #FFFFFF;
-    border: none;
-    padding: 12px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+    padding: 0 0.5rem;
+    height: 2rem;
+    font-size: 0.875rem;
     font-weight: 500;
     font-family: inherit;
-    transition: all 0.15s ease;
+    text-transform: none;
+    color: #5a12c7;
+    background: #f5f0ff;
+    border: 2px solid #6b16ed;
+    border-radius: 0.125rem;
+    outline: 0;
+    cursor: pointer;
+    min-width: fit-content;
     width: 100%;
     box-sizing: border-box;
-    letter-spacing: -0.1px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
 
   .save-button:hover:not(:disabled) {
-    background: #1a1a1a;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+    background: #6b16ed;
+    color: #fff;
   }
 
-  .save-button:active:not(:disabled) {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  .save-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6b16ed;
   }
 
   .save-button:disabled {
-    background: #E5E5E5;
-    color: #A0A0A0;
     cursor: not-allowed;
-    box-shadow: none;
+    border-color: transparent;
+    background: transparent;
+    color: #d4d4d4;
   }
 
   .help-text {
-    font-size: 12px;
-    color: #666666;
+    font-size: 0.75rem;
+    color: #737373;
     margin: 2px 0 0;
     font-weight: 400;
   }
 
   .help-text a {
-    color: #000000;
+    color: #6b16ed;
     text-decoration: underline;
     text-underline-offset: 2px;
     text-decoration-thickness: 1px;
-    transition: opacity 0.15s ease;
+    transition: color 0.15s ease;
   }
 
   .help-text a:hover {
-    opacity: 0.6;
+    color: #000;
   }
 
   .saved-popup {
@@ -437,7 +446,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -446,32 +455,38 @@
   }
 
   .saved-popup-content {
-    background: #292929;
-    color: white;
+    background: #fff;
+    color: #000;
     padding: 16px 24px;
-    border-radius: 8px;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.125rem;
     display: flex;
     align-items: center;
     gap: 10px;
     font-weight: 500;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-    font-size: 14px;
+    box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08);
+    font-size: 0.875rem;
+  }
+
+  .saved-popup-content svg path {
+    stroke: #22C55E;
   }
 
   /* Development mode section */
   .dev-section {
-    border-top: 1px solid #E8E8E8;
+    border-top: 1px solid #e5e5e5;
     padding-top: 20px;
     margin-top: 8px;
   }
 
   .dev-badge {
-    background: #292929;
-    color: white;
+    background: #f5f0ff;
+    color: #5a12c7;
+    border: 1px solid #6b16ed;
     padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 600;
+    border-radius: 0.125rem;
+    font-size: 0.75rem;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     display: inline-block;
@@ -479,41 +494,45 @@
   }
 
   .test-button {
-    background: #FFFFFF;
-    color: #292929;
-    border: 1px solid #E0E0E0;
-    padding: 12px 20px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+    padding: 0 0.5rem;
+    height: 2rem;
+    font-size: 0.875rem;
     font-weight: 500;
     font-family: inherit;
-    transition: all 0.15s ease;
+    text-transform: none;
+    background: #fff;
+    color: #000;
+    border: 2px solid #e5e5e5;
+    border-radius: 0.125rem;
+    outline: 0;
+    cursor: pointer;
     width: 100%;
     box-sizing: border-box;
-    letter-spacing: -0.1px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: background-color 0.15s ease;
   }
 
   .test-button:hover {
-    background: #292929;
-    color: #FFFFFF;
-    border-color: #292929;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    background: #f5f5f5;
+    color: #000;
   }
 
-  .test-button:active {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  .test-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6b16ed;
   }
 
   /* Environment variable indicator */
   .env-indicator {
-    background: #F5F5F5;
-    color: #292929;
-    border: 1px solid #E8E8E8;
+    background: #fefce8;
+    color: #854d0e;
+    border: 1px solid #fde047;
     padding: 10px 14px;
-    border-radius: 6px;
-    font-size: 12px;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
     font-weight: 500;
     margin-top: 8px;
     display: flex;
