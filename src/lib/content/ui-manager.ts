@@ -453,9 +453,13 @@ async function handleGrammarCheck(): Promise<void> {
               const originalText = button.textContent;
               button.textContent = 'Copied!';
               button.style.backgroundColor = '#4CAF50';
+              button.style.color = '#fff';
+              button.style.borderColor = '#4CAF50';
               setTimeout(() => {
                 button.textContent = originalText;
                 button.style.backgroundColor = '';
+                button.style.color = '';
+                button.style.borderColor = '';
               }, 2000);
             })
             .catch((error) => {

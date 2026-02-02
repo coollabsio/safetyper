@@ -12,7 +12,7 @@ export function isEditableElement(element: HTMLElement): boolean {
   // Check for standard input types
   if (element.tagName === 'INPUT') {
     const inputType = (element as HTMLInputElement).type;
-    const isEditable = ['text', 'email', 'search', 'url', 'tel', 'password'].includes(inputType);
+    const isEditable = ['text', 'search', 'url', 'tel'].includes(inputType);
     if (import.meta.env.DEV && isEditable) {
       console.log('[SafeTyper DOM] Found editable INPUT:', inputType);
     }

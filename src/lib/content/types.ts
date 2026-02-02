@@ -50,11 +50,29 @@ export interface CheckGrammarResponse {
 }
 
 /**
+ * OpenRouter model from the API
+ */
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  pricing: { prompt: string; completion: string };
+}
+
+/**
+ * Cached models data with timestamp
+ */
+export interface CachedModelsData {
+  models: OpenRouterModel[];
+  fetchedAt: number;
+}
+
+/**
  * Storage schema for extension settings
  */
 export interface StorageSchema {
   openRouterKey?: string;
   selectedModel?: string;
+  cachedModels?: CachedModelsData;
 }
 
 /**

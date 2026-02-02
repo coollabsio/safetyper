@@ -129,6 +129,58 @@ export default defineBackground(() => {
     if (message.action === 'openPopup') {
       // Since we can't directly open the popup, we'll open a new tab with the popup page
       browser.tabs.create({ url: browser.runtime.getURL('/popup.html') });
+    } else if (message.action === 'fetchModels') {
+      const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+      (async () => {
+        try {
+          // Check cache first (unless force refresh)
+          if (!message.force) {
+            const stored = await browser.storage.local.get(['cachedModels']);
+            if (stored.cachedModels && Date.now() - stored.cachedModels.fetchedAt < CACHE_TTL) {
+              sendResponse({ success: true, data: stored.cachedModels.models });
+              return;
+            }
+          }
+
+          const response = await fetch('https://openrouter.ai/api/v1/models');
+          if (!response.ok) {
+            throw new Error(`Failed to fetch models: ${response.status}`);
+          }
+
+          const json = await response.json();
+          const models = json.data
+            .filter((m: any) => {
+              // Only text/chat models
+              const modality = m.architecture?.modality || '';
+              const isText = modality.includes('text');
+              // Exclude disabled models
+              const isAvailable = m.pricing?.prompt !== '-1';
+              return isText && isAvailable;
+            })
+            .map((m: any) => ({
+              id: m.id,
+              name: m.name || m.id,
+              pricing: {
+                prompt: m.pricing?.prompt || '0',
+                completion: m.pricing?.completion || '0',
+              },
+            }))
+            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+          // Cache in storage
+          await browser.storage.local.set({
+            cachedModels: { models, fetchedAt: Date.now() },
+          });
+
+          sendResponse({ success: true, data: models });
+        } catch (error: any) {
+          console.error('[Background] Failed to fetch models:', error);
+          sendResponse({ success: false, error: error.message });
+        }
+      })();
+
+      return true; // async response
     } else if (message.action === 'checkGrammar') {
       // Check rate limit
       const rateLimitStatus = checkRateLimit();
