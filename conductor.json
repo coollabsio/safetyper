@@ -1,0 +1,7 @@
+{
+    "scripts": {
+        "setup": "chmod +x ./scripts/conductor-setup.sh && ./scripts/conductor-setup.sh",
+        "run": "bun run dev"
+    },
+    "runScriptMode": "nonconcurrent"
+}
