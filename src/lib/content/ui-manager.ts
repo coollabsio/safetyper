@@ -92,7 +92,11 @@ export function positionIcon(element: HTMLElement): void {
   }
 
   // Only update DOM if position changed
-  if (!cachedPosition || cachedPosition.left !== position.left || cachedPosition.top !== position.top) {
+  if (
+    !cachedPosition ||
+    cachedPosition.left !== position.left ||
+    cachedPosition.top !== position.top
+  ) {
     iconContainer.style.left = `${position.left}px`;
     iconContainer.style.top = `${position.top}px`;
     stateManager.setCachedPosition(position);

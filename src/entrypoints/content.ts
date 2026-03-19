@@ -27,7 +27,7 @@ export default defineContentScript({
         hideIcon: !!hideIcon,
         isEditableElement: !!isEditableElement,
         isSignificantKeyEvent: !!isSignificantKeyEvent,
-        CONFIG: !!CONFIG
+        CONFIG: !!CONFIG,
       });
     }
 

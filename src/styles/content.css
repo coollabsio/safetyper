@@ -78,7 +78,11 @@
   animation: fadeIn 0.2s ease;
   cursor: grab;
   user-select: none;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   color: #000;
   font-size: 0.875rem;
   -webkit-font-smoothing: antialiased;
@@ -107,9 +111,16 @@
 }
 
 /* Scrollbar */
-.safetyper-popup-content::-webkit-scrollbar { width: 6px; height: 6px; }
-.safetyper-popup-content::-webkit-scrollbar-track { background: #e5e5e5; }
-.safetyper-popup-content::-webkit-scrollbar-thumb { background: #7317ff; }
+.safetyper-popup-content::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.safetyper-popup-content::-webkit-scrollbar-track {
+  background: #e5e5e5;
+}
+.safetyper-popup-content::-webkit-scrollbar-thumb {
+  background: #7317ff;
+}
 
 .popup-description {
   margin: 0;
@@ -133,7 +144,11 @@
   font-size: 0.875rem;
   font-weight: 700;
   color: #000;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   padding: 4px 0;
   border-radius: 0.125rem;
 }
@@ -150,7 +165,11 @@
   height: 2rem;
   font-size: 0.875rem;
   font-weight: 500;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   text-transform: none;
   color: #5a12c7;
   background: #f5f0ff;
@@ -160,7 +179,9 @@
   cursor: pointer;
   min-width: fit-content;
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .safetyper-check-btn:hover,
@@ -174,7 +195,9 @@
 .safetyper-apply-btn:focus-visible,
 .safetyper-copy-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6b16ed;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #6b16ed;
 }
 
 .popup-actions .safetyper-check-btn {
@@ -200,7 +223,11 @@
   height: 2rem;
   font-size: 0.875rem;
   font-weight: 500;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   text-transform: none;
   background: #fff;
   color: #000;
@@ -222,7 +249,9 @@
 .safetyper-settings-btn:focus-visible,
 .safetyper-close-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px #6b16ed;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #6b16ed;
 }
 
 /* Button group for multiple action buttons */
@@ -362,7 +391,7 @@
 
 .success-icon {
   font-size: 24px;
-  color: #22C55E;
+  color: #22c55e;
   margin-bottom: 8px;
 }
 

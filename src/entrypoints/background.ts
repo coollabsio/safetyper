@@ -18,18 +18,20 @@ export default defineBackground(() => {
       // So we need to register them programmatically
       const scripts = await browser.scripting.getRegisteredContentScripts();
       const scriptId = 'wxt:content-scripts/content.js';
-      const existingScript = scripts.find(s => s.id === scriptId);
+      const existingScript = scripts.find((s) => s.id === scriptId);
 
       if (!existingScript) {
         console.log('[Background] Registering content script...');
-        await browser.scripting.registerContentScripts([{
-          id: scriptId,
-          matches: ['<all_urls>'],
-          css: ['content-scripts/content.css'],
-          js: ['content-scripts/content.js'],
-          runAt: 'document_idle',
-          allFrames: false
-        }]);
+        await browser.scripting.registerContentScripts([
+          {
+            id: scriptId,
+            matches: ['<all_urls>'],
+            css: ['content-scripts/content.css'],
+            js: ['content-scripts/content.js'],
+            runAt: 'document_idle',
+            allFrames: false,
+          },
+        ]);
         console.log('[Background] ✅ Content script registered successfully');
       } else {
         console.log('[Background] Content script already registered, skipping');
@@ -53,7 +55,12 @@ export default defineBackground(() => {
       console.log(`[Background] Reloading ${tabs.length} tabs...`);
 
       for (const tab of tabs) {
-        if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+        if (
+          tab.id &&
+          tab.url &&
+          !tab.url.startsWith('chrome://') &&
+          !tab.url.startsWith('chrome-extension://')
+        ) {
           try {
             await browser.tabs.reload(tab.id);
           } catch (err) {
@@ -107,15 +114,20 @@ export default defineBackground(() => {
   }
 
   // Auto-inject API key from environment on startup (dev mode only)
-  const apiKey = import.meta.env.DEV ? (import.meta.env.OPENROUTER_API_KEY || import.meta.env.VITE_OPENROUTER_API_KEY) : null;
+  const apiKey = import.meta.env.DEV
+    ? import.meta.env.OPENROUTER_API_KEY || import.meta.env.VITE_OPENROUTER_API_KEY
+    : null;
   if (apiKey) {
-    browser.storage.local.set({
-      openRouterKey: apiKey
-    }).then(() => {
-      console.log('API key injected from environment (dev mode)');
-    }).catch((error) => {
-      console.error('Failed to inject API key:', error);
-    });
+    browser.storage.local
+      .set({
+        openRouterKey: apiKey,
+      })
+      .then(() => {
+        console.log('API key injected from environment (dev mode)');
+      })
+      .catch((error) => {
+        console.error('Failed to inject API key:', error);
+      });
   }
 
   // Listen for messages from content script
@@ -187,46 +199,49 @@ export default defineBackground(() => {
       if (!rateLimitStatus.allowed) {
         sendResponse({
           success: false,
-          error: 'Rate limit exceeded. Please wait a moment before trying again.'
+          error: 'Rate limit exceeded. Please wait a moment before trying again.',
         });
         return false;
       }
 
       // Handle grammar check request - retrieve API key securely from storage
-      browser.storage.local.get(['openRouterKey']).then(result => {
-        const apiKey = result.openRouterKey;
+      browser.storage.local
+        .get(['openRouterKey'])
+        .then((result) => {
+          const apiKey = result.openRouterKey;
 
-        if (!apiKey) {
-          sendResponse({ success: false, error: 'API key not configured' });
-          return;
-        }
+          if (!apiKey) {
+            sendResponse({ success: false, error: 'API key not configured' });
+            return;
+          }
 
-        // Validate API key format (OpenRouter keys start with sk-or-v1-)
-        if (!apiKey.match(/^sk-or-v1-[a-f0-9]{64}$/)) {
-          sendResponse({ success: false, error: 'Invalid API key format' });
-          return;
-        }
+          // Validate API key format (OpenRouter keys start with sk-or-v1-)
+          if (!apiKey.match(/^sk-or-v1-[a-f0-9]{64}$/)) {
+            sendResponse({ success: false, error: 'Invalid API key format' });
+            return;
+          }
 
-        fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': message.referer,
-          },
-          body: JSON.stringify(message.payload)
-        })
-          .then(response => {
-            if (!response.ok) {
-              throw new Error(`API request failed with status ${response.status}`);
-            }
-            return response.json();
+          fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+              'HTTP-Referer': message.referer,
+            },
+            body: JSON.stringify(message.payload),
           })
-          .then(data => sendResponse({ success: true, data }))
-          .catch(error => sendResponse({ success: false, error: error.message }));
-      }).catch(error => {
-        sendResponse({ success: false, error: 'Failed to retrieve API key' });
-      });
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error(`API request failed with status ${response.status}`);
+              }
+              return response.json();
+            })
+            .then((data) => sendResponse({ success: true, data }))
+            .catch((error) => sendResponse({ success: false, error: error.message }));
+        })
+        .catch((error) => {
+          sendResponse({ success: false, error: 'Failed to retrieve API key' });
+        });
 
       // Return true to indicate we'll respond asynchronously
       return true;

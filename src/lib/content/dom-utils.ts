@@ -65,7 +65,18 @@ export function isSignificantKeyEvent(event: KeyboardEvent): boolean {
   }
 
   // Ignore navigation keys
-  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) {
+  if (
+    [
+      'ArrowUp',
+      'ArrowDown',
+      'ArrowLeft',
+      'ArrowRight',
+      'Home',
+      'End',
+      'PageUp',
+      'PageDown',
+    ].includes(event.key)
+  ) {
     return false;
   }
 
@@ -76,7 +87,9 @@ export function isSignificantKeyEvent(event: KeyboardEvent): boolean {
 
   // Ignore specific control combinations that don't add text
   if (event.ctrlKey || event.metaKey) {
-    if (['a', 'c', 'v', 'x', 'z', 'y', 's', 'f', 'r', 'n', 't', 'w'].includes(event.key.toLowerCase())) {
+    if (
+      ['a', 'c', 'v', 'x', 'z', 'y', 's', 'f', 'r', 'n', 't', 'w'].includes(event.key.toLowerCase())
+    ) {
       return false;
     }
   }
@@ -215,7 +228,6 @@ export function calculatePopupPosition(
  */
 export function isComplexEditor(element: HTMLElement): boolean {
   return (
-    element.contentEditable === 'true' &&
-    element.classList.contains('public-DraftEditor-content')
+    element.contentEditable === 'true' && element.classList.contains('public-DraftEditor-content')
   );
 }
