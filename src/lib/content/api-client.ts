@@ -79,7 +79,11 @@ export async function checkGrammar(text: string): Promise<string> {
   }
 
   // Get selected model from storage (provider-aware)
-  const result = await browser.storage.local.get(['selectedProvider', 'selectedModel', 'groqSelectedModel']);
+  const result = await browser.storage.local.get([
+    'selectedProvider',
+    'selectedModel',
+    'groqSelectedModel',
+  ]);
   const provider: ApiProvider = result.selectedProvider || DEFAULT_PROVIDER;
   const model =
     provider === 'openrouter'

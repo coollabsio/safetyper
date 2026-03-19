@@ -295,7 +295,11 @@
     // Check if key came from env
     isApiKeyFromEnv = false;
     if (import.meta.env.DEV) {
-      if (newProvider === 'openrouter' && apiKey && apiKey === import.meta.env.VITE_OPENROUTER_API_KEY) {
+      if (
+        newProvider === 'openrouter' &&
+        apiKey &&
+        apiKey === import.meta.env.VITE_OPENROUTER_API_KEY
+      ) {
         isApiKeyFromEnv = true;
       } else if (newProvider === 'groq' && apiKey && apiKey === import.meta.env.VITE_GROQ_API_KEY) {
         isApiKeyFromEnv = true;
@@ -364,7 +368,13 @@
 <main>
   <header>
     <div class="logo-container">
-      <img src="/icon/48.png" width="24" height="24" alt="Safetyper" style="image-rendering: pixelated;" />
+      <img
+        src="/icon/48.png"
+        width="24"
+        height="24"
+        alt="Safetyper"
+        style="image-rendering: pixelated;"
+      />
       <h1>Safetyper</h1>
     </div>
     <p class="tagline">Grammar Check Assistant</p>
@@ -470,7 +480,9 @@
           oninput={handleApiKeyChange}
         />
         <p class="help-text">
-          Get your API key from <a href={providerConfig.keysUrl} target="_blank">{providerConfig.name}</a>
+          Get your API key from <a href={providerConfig.keysUrl} target="_blank"
+            >{providerConfig.name}</a
+          >
         </p>
         {#if isApiKeyFromEnv && import.meta.env.DEV}
           <div class="env-indicator">API key auto-loaded from .env file</div>

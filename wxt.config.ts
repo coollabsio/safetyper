@@ -4,7 +4,7 @@ import { defineConfig } from 'wxt';
 export default defineConfig({
   srcDir: 'src',
   modules: ['@wxt-dev/module-svelte'],
-  manifest: {
+  manifest: (env) => ({
     action: {
       default_popup: 'popup.html',
     },
@@ -23,5 +23,12 @@ export default defineConfig({
         matches: ['<all_urls>'],
       },
     ],
-  },
+    ...(env.browser === 'firefox' && {
+      browser_specific_settings: {
+        gecko: {
+          id: '{32e06eb9-ef89-4b9f-84e0-8413f42d070e}',
+        },
+      },
+    }),
+  }),
 });

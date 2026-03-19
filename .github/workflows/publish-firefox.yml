@@ -1,0 +1,73 @@
+name: Publish to Firefox Add-ons
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to Firefox Add-ons after build (uncheck to build only)'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate version
+        id: version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_VERSION="${{ github.ref_name }}"
+            TAG_VERSION="${TAG_VERSION#v}"
+            if [[ "$PACKAGE_VERSION" != "$TAG_VERSION" ]]; then
+              echo "::error::Tag version ($TAG_VERSION) does not match package.json version ($PACKAGE_VERSION)"
+              exit 1
+            fi
+          fi
+          echo "version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Type check
+        run: bun run check
+
+      - name: Build and zip extension
+        run: bun run zip:firefox
+
+      - name: Submit to Firefox Add-ons
+        if: github.event_name == 'push' || github.event.inputs.publish == 'true'
+        env:
+          FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+        run: |
+          npx wxt submit \
+            --firefox-zip .output/safetyper-${{ steps.version.outputs.version }}-firefox.zip \
+            --firefox-sources-zip .output/safetyper-${{ steps.version.outputs.version }}-sources.zip
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: .output/safetyper-${{ steps.version.outputs.version }}-firefox.zip
+          generate_release_notes: true
+          tag_name: ${{ github.ref_name }}

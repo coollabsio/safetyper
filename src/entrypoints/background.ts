@@ -155,7 +155,9 @@ export default defineBackground(() => {
         try {
           // Resolve provider
           const provider: ApiProvider =
-            message.provider || (await browser.storage.local.get(['selectedProvider'])).selectedProvider || DEFAULT_PROVIDER;
+            message.provider ||
+            (await browser.storage.local.get(['selectedProvider'])).selectedProvider ||
+            DEFAULT_PROVIDER;
           const providerConfig = PROVIDER_CONFIG[provider];
 
           // Check cache first (unless force refresh)
@@ -244,7 +246,10 @@ export default defineBackground(() => {
 
           // Validate API key format
           if (!providerConfig.keyRegex.test(apiKey)) {
-            sendResponse({ success: false, error: `Invalid ${providerConfig.name} API key format` });
+            sendResponse({
+              success: false,
+              error: `Invalid ${providerConfig.name} API key format`,
+            });
             return;
           }
 
