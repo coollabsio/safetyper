@@ -1,0 +1,122 @@
+name: Publish to Chrome Web Store
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Publish to Chrome Web Store after upload (uncheck to upload only)'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate version
+        id: version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            TAG_VERSION="${{ github.ref_name }}"
+            TAG_VERSION="${TAG_VERSION#v}"
+            if [[ "$PACKAGE_VERSION" != "$TAG_VERSION" ]]; then
+              echo "::error::Tag version ($TAG_VERSION) does not match package.json version ($PACKAGE_VERSION)"
+              exit 1
+            fi
+          fi
+          echo "version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Type check
+        run: bun run check
+
+      - name: Build and zip extension
+        run: bun run zip
+
+      - name: Upload to Chrome Web Store
+        id: upload
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+        run: |
+          # Get access token
+          TOKEN_RESPONSE=$(curl -s -X POST "https://oauth2.googleapis.com/token" \
+            -d "client_id=$CHROME_CLIENT_ID" \
+            -d "client_secret=$CHROME_CLIENT_SECRET" \
+            -d "refresh_token=$CHROME_REFRESH_TOKEN" \
+            -d "grant_type=refresh_token")
+
+          ACCESS_TOKEN=$(echo "$TOKEN_RESPONSE" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).access_token")
+
+          if [[ -z "$ACCESS_TOKEN" || "$ACCESS_TOKEN" == "undefined" ]]; then
+            echo "::error::Failed to obtain access token"
+            echo "$TOKEN_RESPONSE"
+            exit 1
+          fi
+
+          # Upload zip
+          UPLOAD_RESPONSE=$(curl -s -X PUT \
+            "https://www.googleapis.com/upload/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "x-goog-api-version: 2" \
+            -T ".output/safetyper-${{ steps.version.outputs.version }}-chrome.zip")
+
+          echo "Upload response: $UPLOAD_RESPONSE"
+
+          UPLOAD_STATUS=$(echo "$UPLOAD_RESPONSE" | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).uploadState")
+          if [[ "$UPLOAD_STATUS" != "SUCCESS" ]]; then
+            echo "::error::Upload failed with status: $UPLOAD_STATUS"
+            exit 1
+          fi
+
+          echo "access_token=$ACCESS_TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to Chrome Web Store
+        if: github.event_name == 'push' || github.event.inputs.publish == 'true'
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+        run: |
+          PUBLISH_RESPONSE=$(curl -s -X POST \
+            "https://www.googleapis.com/chromewebstore/v1.1/items/$CHROME_EXTENSION_ID/publish" \
+            -H "Authorization: Bearer ${{ steps.upload.outputs.access_token }}" \
+            -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0")
+
+          echo "Publish response: $PUBLISH_RESPONSE"
+
+          PUBLISH_STATUS=$(echo "$PUBLISH_RESPONSE" | node -p "try{JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')).status[0]}catch(e){'UNKNOWN'}")
+          if [[ "$PUBLISH_STATUS" != "OK" && "$PUBLISH_STATUS" != "PUBLISHED_WITH_FRICTION_WARNING" ]]; then
+            echo "::error::Publish failed with status: $PUBLISH_STATUS"
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: .output/safetyper-${{ steps.version.outputs.version }}-chrome.zip
+          generate_release_notes: true
+          tag_name: ${{ github.ref_name }}
