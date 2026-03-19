@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: center;
   padding: 4px;
-  border-radius: 0.125rem;
+  border-radius: 0.25rem;
   transition: background 0.15s ease;
   flex-shrink: 0;
 }
@@ -61,7 +61,7 @@
 
 .safetyper-icon:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 0 2px #6b16ed;
+  box-shadow: 0 0 0 2px #00c853;
 }
 
 .safetyper-popup {
@@ -69,7 +69,7 @@
   z-index: 1000000;
   background: #f9fafb;
   border: 1px solid #e5e5e5;
-  border-radius: 0.125rem;
+  border-radius: 0.25rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   width: 380px;
   max-width: calc(100vw - 20px);
@@ -150,7 +150,7 @@
     BlinkMacSystemFont,
     sans-serif;
   padding: 4px 0;
-  border-radius: 0.125rem;
+  border-radius: 0.25rem;
 }
 
 /* Buttons — Coolify highlighted (primary) */
@@ -174,7 +174,7 @@
   color: #5a12c7;
   background: #f5f0ff;
   border: 2px solid #6b16ed;
-  border-radius: 0.125rem;
+  border-radius: 0.25rem;
   outline: 0;
   cursor: pointer;
   min-width: fit-content;
@@ -210,6 +210,8 @@
   padding: 0 0.375rem !important;
   min-width: auto !important;
   flex: 0 0 auto !important;
+  border: none !important;
+  background: transparent !important;
 }
 
 /* Buttons — Coolify default (secondary) */
@@ -232,7 +234,7 @@
   background: #fff;
   color: #000;
   border: 2px solid #e5e5e5;
-  border-radius: 0.125rem;
+  border-radius: 0.25rem;
   outline: 0;
   cursor: pointer;
   min-width: fit-content;
@@ -270,7 +272,7 @@
   text-align: center;
   font-size: 0.875rem;
   padding: 14px;
-  color: #6b16ed;
+  color: #374151;
 }
 
 .error {
@@ -288,7 +290,7 @@
 .original-text,
 .corrected-text {
   border: 1px solid #e5e5e5;
-  border-radius: 0.125rem;
+  border-radius: 0.25rem;
   padding: 14px;
   background: #fff;
 }
@@ -321,7 +323,7 @@
 /* Diff highlighting styles */
 .diff-container {
   border: 1px solid #e5e5e5;
-  border-radius: 0.125rem;
+  border-radius: 0.25rem;
   padding: 14px;
   background-color: #fff;
 }
@@ -385,7 +387,7 @@
   text-align: center;
   padding: 20px;
   background-color: #f0fdf4;
-  border-radius: 0.125rem;
+  border-radius: 0.25rem;
   border: 1px solid #bbf7d0;
 }
 

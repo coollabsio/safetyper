@@ -33,14 +33,12 @@ export function createIcon(): HTMLDivElement {
   iconContainer.setAttribute('role', 'button');
   iconContainer.setAttribute('aria-label', 'Check grammar');
   iconContainer.setAttribute('tabindex', '0');
-  iconContainer.innerHTML = `
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="10" cy="10" r="9" stroke="#6b16ed" stroke-width="2" fill="none"/>
-      <path d="M6 8.5C6 8.5 8 6 10 6C12 6 14 8.5 14 8.5" stroke="#6b16ed" stroke-width="1.5" stroke-linecap="round"/>
-      <path d="M10 10V14" stroke="#6b16ed" stroke-width="1.5" stroke-linecap="round"/>
-      <circle cx="10" cy="14" r="0.5" fill="#6b16ed"/>
-    </svg>
-  `;
+  const iconImg = document.createElement('img');
+  iconImg.src = browser.runtime.getURL('/icon/32.png');
+  iconImg.width = 20;
+  iconImg.height = 20;
+  iconImg.style.imageRendering = 'pixelated';
+  iconContainer.appendChild(iconImg);
 
   iconContainer.addEventListener('click', showPopup);
   iconContainer.addEventListener('keypress', (e) => {
@@ -160,7 +158,7 @@ export function showPopup(e: Event): void {
           <circle cx="12" cy="12" r="1.5" fill="#d4d4d4"/>
         </svg>
       </div>
-      <h3>SafeTyper</h3>
+      <h3>Safetyper</h3>
       <div class="header-spacer"></div>
     </div>
     <div class="safetyper-popup-content">

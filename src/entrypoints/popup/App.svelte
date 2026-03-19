@@ -364,24 +364,8 @@
 <main>
   <header>
     <div class="logo-container">
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <circle cx="12" cy="12" r="10" stroke="#6b16ed" stroke-width="2" fill="none" />
-        <path
-          d="M7 10C7 10 9.5 7 12 7C14.5 7 17 10 17 10"
-          stroke="#6b16ed"
-          stroke-width="2"
-          stroke-linecap="round"
-        />
-        <path d="M12 12V17" stroke="#6b16ed" stroke-width="2" stroke-linecap="round" />
-        <circle cx="12" cy="17" r="1" fill="#6b16ed" />
-      </svg>
-      <h1>SafeTyper</h1>
+      <img src="/icon/48.png" width="24" height="24" alt="Safetyper" style="image-rendering: pixelated;" />
+      <h1>Safetyper</h1>
     </div>
     <p class="tagline">Grammar Check Assistant</p>
   </header>
@@ -546,12 +530,12 @@
   }
 
   header {
-    background: #fff;
+    background: #f9fafb;
     color: #000;
     padding: 16px 20px 14px;
     text-align: center;
     width: 100%;
-    border-bottom: 1px solid #e5e5e5;
+    border-bottom: none;
   }
 
   .logo-container {
@@ -617,7 +601,7 @@
     font-family: inherit;
     cursor: pointer;
     padding: 2px 6px;
-    border-radius: 0.125rem;
+    border-radius: 0.25rem;
     transition: background-color 0.15s ease;
   }
 
@@ -645,7 +629,7 @@
     background: #fff;
     color: #000;
     border: 0;
-    border-radius: 0.125rem;
+    border-radius: 0.25rem;
     box-shadow:
       inset 4px 0 0 transparent,
       inset 0 0 0 2px #e5e5e5;
@@ -689,7 +673,7 @@
     background: #fff;
     border: 2px solid #e5e5e5;
     border-top: 1px solid #e5e5e5;
-    border-radius: 0 0 0.25rem 0.25rem;
+    border-radius: 0 0 0.5rem 0.5rem;
     z-index: 100;
     list-style: none;
     padding: 0;
@@ -758,7 +742,7 @@
     background: #fff;
     color: #000;
     border: 0;
-    border-radius: 0.125rem;
+    border-radius: 0.25rem;
     box-shadow:
       inset 4px 0 0 transparent,
       inset 0 0 0 2px #e5e5e5;
@@ -788,7 +772,7 @@
     background: #fff;
     color: #000;
     border: 0;
-    border-radius: 0.125rem;
+    border-radius: 0.25rem;
     box-shadow:
       inset 4px 0 0 transparent,
       inset 0 0 0 2px #e5e5e5;
@@ -821,7 +805,7 @@
     color: #5a12c7;
     background: #f5f0ff;
     border: 2px solid #6b16ed;
-    border-radius: 0.125rem;
+    border-radius: 0.25rem;
     outline: 0;
     cursor: pointer;
     min-width: fit-content;
@@ -889,7 +873,7 @@
     color: #000;
     padding: 14px 20px;
     border: 1px solid #e5e5e5;
-    border-radius: 0.125rem;
+    border-radius: 0.25rem;
     display: flex;
     align-items: center;
     gap: 10px;

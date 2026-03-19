@@ -1,11 +1,11 @@
 {
-  "name": "safetyper",
+  "name": "Safetyper",
   "description": "AI-powered grammar and spelling checker for web browsers",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
-  "author": "SafeTyper Team",
-  "license": "MIT",
+  "author": "Andras Bacsai",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",

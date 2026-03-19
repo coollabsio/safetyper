@@ -17,5 +17,11 @@ export default defineConfig({
     content_security_policy: {
       extension_pages: "script-src 'self'; object-src 'self'; style-src 'self' 'unsafe-inline';"
     },
+    web_accessible_resources: [
+      {
+        resources: ['icon/*'],
+        matches: ['<all_urls>'],
+      },
+    ],
   },
 });

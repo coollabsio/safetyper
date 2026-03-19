@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeTyper Extension Test Page</title>
+    <title>Safetyper Extension Test Page</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -65,21 +65,36 @@
 </head>
 <body>
     <div class="container">
-        <h1>SafeTyper Extension Test Page</h1>
+        <h1>Safetyper Extension Test Page</h1>
         
         <div class="instructions">
             <h3>Testing Instructions:</h3>
             <ul>
-                <li>Focus on any input field below to see the SafeTyper icon appear</li>
+                <li>Focus on any input field below to see the Safetyper icon appear</li>
                 <li>Click the icon to open the grammar check popup</li>
                 <li>Try different types of inputs to test the extension functionality</li>
-                <li>Note: The password field should NOT show the SafeTyper icon (security feature)</li>
+                <li>Note: The password field should NOT show the Safetyper icon (security feature)</li>
             </ul>
         </div>
         
         <div class="input-group">
-            <label for="shortText">Short Text Input:</label>
+            <label for="tinyInput">Tiny Input (20px height):</label>
+            <input type="text" id="tinyInput" style="padding: 2px 8px; font-size: 11px; height: 20px;" value="Tiny input with grammer errors.">
+        </div>
+
+        <div class="input-group">
+            <label for="smallInput">Small Input (28px height):</label>
+            <input type="text" id="smallInput" style="padding: 4px 8px; font-size: 12px; height: 28px;" value="Small input with mispelled words.">
+        </div>
+
+        <div class="input-group">
+            <label for="shortText">Default Text Input:</label>
             <input type="text" id="shortText" value="This is a sentence with grammer errors and mispelled words.">
+        </div>
+
+        <div class="input-group">
+            <label for="largeInput">Large Input (48px height):</label>
+            <input type="text" id="largeInput" style="padding: 12px; font-size: 18px; height: 48px;" value="Large input to test icon sizing.">
         </div>
         
         <div class="input-group">
