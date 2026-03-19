@@ -85,7 +85,9 @@ export async function checkGrammar(text: string): Promise<string> {
   const cacheKey = getCacheKey(text, model);
   const cachedResult = cache.get(cacheKey);
   if (cachedResult) {
-    console.log('Using cached grammar check result');
+    if (import.meta.env.DEV) {
+      console.log('[SafeTyper] Using cached grammar check result');
+    }
     return cachedResult.correctedText;
   }
 

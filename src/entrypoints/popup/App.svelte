@@ -284,12 +284,17 @@
 
           {#if isDropdownOpen}
             <ul class="combobox-list" bind:this={listEl}>
-              {#each filteredModels as model, i}
+              {#each filteredModels as model, i (model.id)}
                 <li
                   class:highlighted={i === highlightedIndex}
                   class:selected={model.id === selectedModel}
                   onclick={() => selectModel(model)}
-                  onkeydown={() => {}}
+                  onkeydown={(e: KeyboardEvent) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      selectModel(model);
+                    }
+                  }}
                   role="option"
                   aria-selected={model.id === selectedModel}
                 >

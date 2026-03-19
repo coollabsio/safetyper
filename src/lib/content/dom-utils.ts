@@ -128,8 +128,7 @@ export function setTextContent(element: HTMLElement, text: string): void {
         selection?.removeAllRanges();
         selection?.addRange(range);
       }
-    } catch (error) {
-      console.warn('Contenteditable update failed:', error);
+    } catch {
       element.textContent = text;
     }
   } else {

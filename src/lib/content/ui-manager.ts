@@ -16,6 +16,10 @@ import {
   escapeHtml,
 } from './dom-utils';
 
+// Track document-level listeners for cleanup
+let activeDragEnd: (() => void) | null = null;
+let activeDragMove: ((e: MouseEvent) => void) | null = null;
+
 /**
  * Create floating icon element
  */
@@ -257,10 +261,6 @@ function makePopupDraggable(popupElement: HTMLDivElement): void {
   let initialLeft: number;
   let initialTop: number;
 
-  popupElement.addEventListener('mousedown', dragStart);
-  document.addEventListener('mouseup', dragEnd);
-  document.addEventListener('mousemove', drag);
-
   function dragStart(e: MouseEvent) {
     const target = e.target as Element;
     if (target.tagName === 'BUTTON' || target.tagName === 'A' || target.tagName === 'INPUT') {
@@ -303,6 +303,14 @@ function makePopupDraggable(popupElement: HTMLDivElement): void {
     popupElement.style.left = `${newLeft}px`;
     popupElement.style.top = `${newTop}px`;
   }
+
+  popupElement.addEventListener('mousedown', dragStart);
+  document.addEventListener('mouseup', dragEnd);
+  document.addEventListener('mousemove', drag);
+
+  // Store references for cleanup
+  activeDragEnd = dragEnd;
+  activeDragMove = drag;
 }
 
 /**
@@ -314,7 +322,7 @@ function openSettings(): void {
 }
 
 /**
- * Close popup
+ * Close popup and clean up all associated listeners
  */
 export function closePopup(): void {
   const popup = stateManager.getPopup();
@@ -322,6 +330,16 @@ export function closePopup(): void {
     popup.remove();
     stateManager.setPopup(null);
     document.removeEventListener('click', handleOutsideClick);
+
+    // Clean up drag listeners
+    if (activeDragEnd) {
+      document.removeEventListener('mouseup', activeDragEnd);
+      activeDragEnd = null;
+    }
+    if (activeDragMove) {
+      document.removeEventListener('mousemove', activeDragMove);
+      activeDragMove = null;
+    }
   }
 }
 
@@ -365,7 +383,22 @@ async function handleGrammarCheck(): Promise<void> {
 
   const text = getTextContent(activeInput);
   if (!text.trim()) {
-    alert('Please enter some text to check grammar.');
+    const popup = stateManager.getPopup();
+    if (popup) {
+      const content = popup.querySelector('.safetyper-popup-content');
+      if (content) {
+        content.innerHTML = `
+          <p class="popup-description error-message">Please enter some text to check grammar.</p>
+          <div class="popup-actions">
+            <button class="safetyper-close-btn">Close</button>
+          </div>
+        `;
+        const closeBtn = content.querySelector('.safetyper-close-btn');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', closePopup);
+        }
+      }
+    }
     return;
   }
 
@@ -380,9 +413,11 @@ async function handleGrammarCheck(): Promise<void> {
   try {
     const correctedText = await checkGrammar(text);
 
-    if (!popup) return;
+    // Re-fetch popup reference after async boundary
+    const currentPopup = stateManager.getPopup();
+    if (!currentPopup) return;
 
-    const content = popup.querySelector('.safetyper-popup-content');
+    const content = currentPopup.querySelector('.safetyper-popup-content');
     if (!content) return;
 
     // Check if no changes
@@ -397,7 +432,7 @@ async function handleGrammarCheck(): Promise<void> {
       `;
 
       // Ensure popup stays within viewport after content update
-      setTimeout(() => constrainPopupToViewport(popup), 0);
+      setTimeout(() => constrainPopupToViewport(currentPopup), 0);
     } else {
       // Show diff
       const isComplex = activeInput && isComplexEditor(activeInput);
@@ -427,7 +462,7 @@ async function handleGrammarCheck(): Promise<void> {
       `;
 
       // Ensure popup stays within viewport after content update
-      setTimeout(() => constrainPopupToViewport(popup), 0);
+      setTimeout(() => constrainPopupToViewport(currentPopup), 0);
 
       // Attach event listeners
       const applyBtn = content.querySelector('.safetyper-apply-btn');
@@ -462,9 +497,21 @@ async function handleGrammarCheck(): Promise<void> {
                 button.style.borderColor = '';
               }, 2000);
             })
-            .catch((error) => {
-              console.warn('Clipboard copy failed:', error);
-              alert(`Copy this text and paste it manually:\n\n${textToCopy}`);
+            .catch(() => {
+              // Fallback: show text in popup for manual copy
+              const fallbackPopup = stateManager.getPopup();
+              if (fallbackPopup) {
+                const fallbackContent = fallbackPopup.querySelector('.safetyper-popup-content');
+                if (fallbackContent) {
+                  fallbackContent.innerHTML = `
+                    <p class="popup-description">Clipboard access denied. Please copy the text below manually:</p>
+                    <textarea class="manual-copy-text" readonly style="width:100%;min-height:80px;font-size:13px;padding:8px;border:1px solid #e5e5e5;border-radius:4px;resize:vertical;">${escapeHtml(textToCopy)}</textarea>
+                    <div class="popup-actions"><button class="safetyper-close-btn">Close</button></div>
+                  `;
+                  const closeBtn = fallbackContent.querySelector('.safetyper-close-btn');
+                  if (closeBtn) closeBtn.addEventListener('click', closePopup);
+                }
+              }
             });
         });
       }
@@ -473,18 +520,22 @@ async function handleGrammarCheck(): Promise<void> {
         closeBtn.addEventListener('click', closePopup);
       }
     }
-  } catch (error: any) {
-    console.error('Grammar check error:', error);
-    if (popup) {
-      const content = popup.querySelector('.safetyper-popup-content');
+  } catch (error: unknown) {
+    if (import.meta.env.DEV) {
+      console.error('Grammar check error:', error);
+    }
+    const errorPopup = stateManager.getPopup();
+    if (errorPopup) {
+      const content = errorPopup.querySelector('.safetyper-popup-content');
       if (content) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
         content.innerHTML = `
-          <p class="error">Error checking grammar: ${escapeHtml(error.message || 'Unknown error')}</p>
+          <p class="error">Error checking grammar: ${escapeHtml(message)}</p>
           <button class="safetyper-close-btn">Close</button>
         `;
 
         // Ensure popup stays within viewport after content update
-        setTimeout(() => constrainPopupToViewport(popup), 0);
+        setTimeout(() => constrainPopupToViewport(errorPopup), 0);
 
         const closeBtn = content.querySelector('.safetyper-close-btn');
         if (closeBtn) {

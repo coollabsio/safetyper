@@ -3,6 +3,7 @@
  */
 
 import type { ContentScriptState, Position } from './types';
+import { CONFIG } from './config';
 
 /**
  * Create and manage content script state
@@ -108,8 +109,7 @@ export class StateManager {
 
   addTypingSpeedMeasurement(timeDiff: number): void {
     this.state.typingSpeedHistory.push(timeDiff);
-    // Keep only last measurements (configured in CONFIG.TYPING_HISTORY_SIZE)
-    if (this.state.typingSpeedHistory.length > 10) {
+    if (this.state.typingSpeedHistory.length > CONFIG.TYPING_HISTORY_SIZE) {
       this.state.typingSpeedHistory.shift();
     }
   }

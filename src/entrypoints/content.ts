@@ -13,11 +13,10 @@ import { CONFIG } from '~/lib/content/config';
 export default defineContentScript({
   matches: ['<all_urls>'],
   main() {
-    // IMMEDIATE log to verify script loads - ALWAYS visible
-    console.log('🚀 SAFETYPER CONTENT SCRIPT STARTING...');
-    console.log('🚀 Timestamp:', new Date().toISOString());
-    console.log('🚀 Location:', window.location.href);
-    console.log('🚀 DEV mode:', import.meta.env.DEV);
+    if (import.meta.env.DEV) {
+      console.log('[SafeTyper] Content script starting...');
+      console.log('[SafeTyper] Location:', window.location.href);
+    }
 
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Content script main() started');
@@ -105,7 +104,7 @@ export default defineContentScript({
         // Update active input if needed
         if (stateManager.getActiveInput() !== activeElement) {
           stateManager.setActiveInput(activeElement);
-          const iconContainer = stateManager.getIconContainer() || createIcon();
+          if (!stateManager.getIconContainer()) createIcon();
         }
 
         // Show and position icon with adaptive debouncing
@@ -224,8 +223,6 @@ export default defineContentScript({
     // Log initialization
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] ✅ Content script fully initialized and ready');
-    } else {
-      console.log('SafeTyper content script initialized');
     }
   },
 });
