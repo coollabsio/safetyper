@@ -57,6 +57,7 @@ jobs:
       - name: Submit to Firefox Add-ons
         if: github.event_name == 'push' || github.event.inputs.publish == 'true'
         env:
+          FIREFOX_EXTENSION_ID: '{32e06eb9-ef89-4b9f-84e0-8413f42d070e}'
           FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
           FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
         run: |
