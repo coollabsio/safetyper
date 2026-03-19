@@ -1,3 +1,6 @@
+import type { ApiProvider } from '@/lib/content/types';
+import { DEFAULT_PROVIDER, PROVIDER_CONFIG } from '@/lib/content/config';
+
 export default defineBackground(() => {
   console.log('Background script initialized', { id: browser.runtime.id });
 
@@ -113,21 +116,25 @@ export default defineBackground(() => {
     return { allowed: true, remaining: RATE_LIMIT - requestTimestamps.length };
   }
 
-  // Auto-inject API key from environment on startup (dev mode only)
-  const apiKey = import.meta.env.DEV
-    ? import.meta.env.OPENROUTER_API_KEY || import.meta.env.VITE_OPENROUTER_API_KEY
-    : null;
-  if (apiKey) {
-    browser.storage.local
-      .set({
-        openRouterKey: apiKey,
-      })
-      .then(() => {
-        console.log('API key injected from environment (dev mode)');
-      })
-      .catch((error) => {
-        console.error('Failed to inject API key:', error);
-      });
+  // Auto-inject API keys from environment on startup (dev mode only)
+  if (import.meta.env.DEV) {
+    const devKeys: Record<string, string> = {};
+    const openRouterKey =
+      import.meta.env.OPENROUTER_API_KEY || import.meta.env.VITE_OPENROUTER_API_KEY;
+    const groqKey = import.meta.env.VITE_GROQ_API_KEY;
+    if (openRouterKey) devKeys.openRouterKey = openRouterKey;
+    if (groqKey) devKeys.groqKey = groqKey;
+
+    if (Object.keys(devKeys).length > 0) {
+      browser.storage.local
+        .set(devKeys)
+        .then(() => {
+          console.log('API keys injected from environment (dev mode):', Object.keys(devKeys));
+        })
+        .catch((error) => {
+          console.error('Failed to inject API keys:', error);
+        });
+    }
   }
 
   // Listen for messages from content script
@@ -146,43 +153,61 @@ export default defineBackground(() => {
 
       (async () => {
         try {
+          // Resolve provider
+          const provider: ApiProvider =
+            message.provider || (await browser.storage.local.get(['selectedProvider'])).selectedProvider || DEFAULT_PROVIDER;
+          const providerConfig = PROVIDER_CONFIG[provider];
+
           // Check cache first (unless force refresh)
           if (!message.force) {
-            const stored = await browser.storage.local.get(['cachedModels']);
-            if (stored.cachedModels && Date.now() - stored.cachedModels.fetchedAt < CACHE_TTL) {
-              sendResponse({ success: true, data: stored.cachedModels.models });
+            const stored = await browser.storage.local.get([providerConfig.cachedModelsStorageKey]);
+            const cached = stored[providerConfig.cachedModelsStorageKey];
+            if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
+              sendResponse({ success: true, data: cached.models });
               return;
             }
           }
 
-          const response = await fetch('https://openrouter.ai/api/v1/models');
+          const response = await fetch(providerConfig.modelsEndpoint);
           if (!response.ok) {
             throw new Error(`Failed to fetch models: ${response.status}`);
           }
 
           const json = await response.json();
-          const models = json.data
-            .filter((m: any) => {
-              // Only text/chat models
-              const modality = m.architecture?.modality || '';
-              const isText = modality.includes('text');
-              // Exclude disabled models
-              const isAvailable = m.pricing?.prompt !== '-1';
-              return isText && isAvailable;
-            })
-            .map((m: any) => ({
-              id: m.id,
-              name: m.name || m.id,
-              pricing: {
-                prompt: m.pricing?.prompt || '0',
-                completion: m.pricing?.completion || '0',
-              },
-            }))
-            .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          let models;
+
+          if (provider === 'openrouter') {
+            models = json.data
+              .filter((m: any) => {
+                const modality = m.architecture?.modality || '';
+                const isText = modality.includes('text');
+                const isAvailable = m.pricing?.prompt !== '-1';
+                return isText && isAvailable;
+              })
+              .map((m: any) => ({
+                id: m.id,
+                name: m.name || m.id,
+                pricing: {
+                  prompt: m.pricing?.prompt || '0',
+                  completion: m.pricing?.completion || '0',
+                },
+              }))
+              .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          } else {
+            // Groq models endpoint returns {data: [{id, object, created, owned_by}]}
+            models = json.data
+              .filter((m: any) => m.object === 'model' && m.active !== false)
+              .map((m: any) => ({
+                id: m.id,
+                name: m.id,
+                pricing: { prompt: '0', completion: '0' },
+              }))
+              .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          }
 
           // Cache in storage
           await browser.storage.local.set({
-            cachedModels: { models, fetchedAt: Date.now() },
+            [providerConfig.cachedModelsStorageKey]: { models, fetchedAt: Date.now() },
           });
 
           sendResponse({ success: true, data: models });
@@ -206,28 +231,34 @@ export default defineBackground(() => {
 
       // Handle grammar check request - retrieve API key securely from storage
       browser.storage.local
-        .get(['openRouterKey'])
+        .get(['selectedProvider', 'openRouterKey', 'groqKey'])
         .then((result) => {
-          const apiKey = result.openRouterKey;
+          const provider: ApiProvider = result.selectedProvider || DEFAULT_PROVIDER;
+          const providerConfig = PROVIDER_CONFIG[provider];
+          const apiKey = result[providerConfig.keyStorageKey];
 
           if (!apiKey) {
             sendResponse({ success: false, error: 'API key not configured' });
             return;
           }
 
-          // Validate API key format (OpenRouter keys start with sk-or-v1-)
-          if (!apiKey.match(/^sk-or-v1-[a-f0-9]{64}$/)) {
-            sendResponse({ success: false, error: 'Invalid API key format' });
+          // Validate API key format
+          if (!providerConfig.keyRegex.test(apiKey)) {
+            sendResponse({ success: false, error: `Invalid ${providerConfig.name} API key format` });
             return;
           }
 
-          fetch('https://openrouter.ai/api/v1/chat/completions', {
+          const headers: Record<string, string> = {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          };
+          if (providerConfig.requiresReferer) {
+            headers['HTTP-Referer'] = message.referer;
+          }
+
+          fetch(providerConfig.chatEndpoint, {
             method: 'POST',
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-              'HTTP-Referer': message.referer,
-            },
+            headers,
             body: JSON.stringify(message.payload),
           })
             .then((response) => {

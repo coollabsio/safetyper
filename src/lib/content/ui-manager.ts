@@ -182,9 +182,10 @@ export function showPopup(e: Event): void {
 
   makePopupDraggable(popup);
 
-  // Check if API key exists
-  browser.storage.local.get(['openRouterKey']).then((result) => {
-    const hasApiKey = !!result.openRouterKey;
+  // Check if API key exists for the active provider
+  browser.storage.local.get(['selectedProvider', 'openRouterKey', 'groqKey']).then((result) => {
+    const provider = result.selectedProvider || 'openrouter';
+    const hasApiKey = provider === 'openrouter' ? !!result.openRouterKey : !!result.groqKey;
 
     if (popup) {
       const content = popup.querySelector('.safetyper-popup-content');
@@ -214,7 +215,7 @@ export function showPopup(e: Event): void {
           }
         } else {
           content.innerHTML = `
-            <p class="popup-description error-message">Please set your OpenRouter API key to get started</p>
+            <p class="popup-description error-message">Please set your API key in Settings to get started</p>
             <div class="popup-actions">
               <button class="safetyper-settings-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

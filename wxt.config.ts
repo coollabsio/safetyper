@@ -11,6 +11,7 @@ export default defineConfig({
     permissions: ['storage', 'scripting', 'tabs'],
     host_permissions: [
       'https://openrouter.ai/*',
+      'https://api.groq.com/*',
       '<all_urls>'
     ],
     content_security_policy: {

@@ -4,13 +4,14 @@
 
 import { browser } from 'wxt/browser';
 import type {
+  ApiProvider,
   CheckGrammarMessage,
   CheckGrammarResponse,
   OpenRouterRequestPayload,
   CacheEntry,
   ApiCache,
 } from './types';
-import { DEFAULT_MODEL, CACHE_CONFIG, CONFIG } from './config';
+import { CACHE_CONFIG, CONFIG, DEFAULT_PROVIDER, PROVIDER_CONFIG } from './config';
 
 /**
  * Simple cache implementation for API responses
@@ -77,9 +78,13 @@ export async function checkGrammar(text: string): Promise<string> {
     );
   }
 
-  // Get selected model from storage
-  const result = await browser.storage.local.get(['selectedModel']);
-  const model = result.selectedModel || DEFAULT_MODEL;
+  // Get selected model from storage (provider-aware)
+  const result = await browser.storage.local.get(['selectedProvider', 'selectedModel', 'groqSelectedModel']);
+  const provider: ApiProvider = result.selectedProvider || DEFAULT_PROVIDER;
+  const model =
+    provider === 'openrouter'
+      ? result.selectedModel || PROVIDER_CONFIG.openrouter.defaultModel
+      : result.groqSelectedModel || PROVIDER_CONFIG.groq.defaultModel;
 
   // Check cache first
   const cacheKey = getCacheKey(text, model);

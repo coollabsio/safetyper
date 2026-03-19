@@ -2,7 +2,7 @@
  * Configuration constants for SafeTyper content script
  */
 
-import type { Config } from './types';
+import type { ApiProvider, Config } from './types';
 
 /**
  * Configuration constants
@@ -35,6 +35,43 @@ export const CONFIG: Config = {
  * Default LLM model
  */
 export const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+
+/**
+ * Default API provider
+ */
+export const DEFAULT_PROVIDER: ApiProvider = 'openrouter';
+
+/**
+ * Provider-specific configuration
+ */
+export const PROVIDER_CONFIG = {
+  openrouter: {
+    name: 'OpenRouter',
+    defaultModel: 'google/gemini-2.5-flash',
+    chatEndpoint: 'https://openrouter.ai/api/v1/chat/completions',
+    modelsEndpoint: 'https://openrouter.ai/api/v1/models',
+    keyPrefix: 'sk-or-v1-',
+    keyRegex: /^sk-or-v1-[a-f0-9]{64}$/,
+    keyStorageKey: 'openRouterKey' as const,
+    modelStorageKey: 'selectedModel' as const,
+    cachedModelsStorageKey: 'cachedModels' as const,
+    keysUrl: 'https://openrouter.ai/keys',
+    requiresReferer: true,
+  },
+  groq: {
+    name: 'Groq',
+    defaultModel: 'llama-3.3-70b-versatile',
+    chatEndpoint: 'https://api.groq.com/openai/v1/chat/completions',
+    modelsEndpoint: 'https://api.groq.com/openai/v1/models',
+    keyPrefix: 'gsk_',
+    keyRegex: /^gsk_[A-Za-z0-9]{48,}$/,
+    keyStorageKey: 'groqKey' as const,
+    modelStorageKey: 'groqSelectedModel' as const,
+    cachedModelsStorageKey: 'groqCachedModels' as const,
+    keysUrl: 'https://console.groq.com/keys',
+    requiresReferer: false,
+  },
+} as const satisfies Record<ApiProvider, object>;
 
 /**
  * Cache configuration

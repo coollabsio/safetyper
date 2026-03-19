@@ -2,7 +2,12 @@
   import { onMount, onDestroy } from 'svelte';
   import { storage } from '#imports';
   import { browser } from 'wxt/browser';
-  import type { OpenRouterModel } from '../../lib/content/types';
+  import type { ApiProvider, OpenRouterModel } from '../../lib/content/types';
+  import { PROVIDER_CONFIG, DEFAULT_PROVIDER } from '../../lib/content/config';
+
+  const selectedProviderStorage = storage.defineItem<ApiProvider>('local:selectedProvider', {
+    fallback: 'openrouter',
+  });
 
   const selectedModelStorage = storage.defineItem<string>('local:selectedModel', {
     fallback: 'google/gemini-2.5-flash',
@@ -10,8 +15,14 @@
 
   const openRouterKeyStorage = storage.defineItem<string>('local:openRouterKey');
 
-  // Fallback models when API is unreachable
-  const FALLBACK_MODELS: OpenRouterModel[] = [
+  const groqSelectedModelStorage = storage.defineItem<string>('local:groqSelectedModel', {
+    fallback: 'llama-3.3-70b-versatile',
+  });
+
+  const groqKeyStorage = storage.defineItem<string>('local:groqKey');
+
+  // Fallback models per provider
+  const OPENROUTER_FALLBACK_MODELS: OpenRouterModel[] = [
     {
       id: 'google/gemini-2.5-flash',
       name: 'Google: Gemini 2.5 Flash',
@@ -39,15 +50,46 @@
     },
   ];
 
+  const GROQ_FALLBACK_MODELS: OpenRouterModel[] = [
+    {
+      id: 'llama-3.3-70b-versatile',
+      name: 'llama-3.3-70b-versatile',
+      pricing: { prompt: '0', completion: '0' },
+    },
+    {
+      id: 'llama-3.1-8b-instant',
+      name: 'llama-3.1-8b-instant',
+      pricing: { prompt: '0', completion: '0' },
+    },
+    {
+      id: 'gemma2-9b-it',
+      name: 'gemma2-9b-it',
+      pricing: { prompt: '0', completion: '0' },
+    },
+    {
+      id: 'mixtral-8x7b-32768',
+      name: 'mixtral-8x7b-32768',
+      pricing: { prompt: '0', completion: '0' },
+    },
+  ];
+
+  function getFallbackModels(provider: ApiProvider): OpenRouterModel[] {
+    return provider === 'openrouter' ? OPENROUTER_FALLBACK_MODELS : GROQ_FALLBACK_MODELS;
+  }
+
   // State
+  let selectedProvider: ApiProvider = 'openrouter';
   let selectedModel = 'google/gemini-2.5-flash';
-  let openRouterKey = '';
+  let apiKey = '';
   let isLoading = false;
   let showSavedPopup = false;
   let isApiKeyFromEnv = false;
 
+  $: providerConfig = PROVIDER_CONFIG[selectedProvider];
+  $: showPricing = selectedProvider === 'openrouter';
+
   // Model combobox state
-  let allModels: OpenRouterModel[] = FALLBACK_MODELS;
+  let allModels: OpenRouterModel[] = OPENROUTER_FALLBACK_MODELS;
   let isLoadingModels = false;
   let searchQuery = '';
   let isDropdownOpen = false;
@@ -161,18 +203,19 @@
     try {
       const response = await browser.runtime.sendMessage({
         action: 'fetchModels',
+        provider: selectedProvider,
         force,
       });
       if (response?.success && response.data?.length > 0) {
         allModels = response.data;
         // Auto-reset if selected model no longer exists
         if (!allModels.find((m) => m.id === selectedModel)) {
-          selectedModel = 'google/gemini-2.5-flash';
+          selectedModel = providerConfig.defaultModel;
         }
       }
     } catch (error) {
       console.error('Failed to fetch models:', error);
-      // Keep fallback models
+      allModels = getFallbackModels(selectedProvider);
     } finally {
       isLoadingModels = false;
     }
@@ -183,11 +226,10 @@
     if (!key || key.trim() === '') {
       return { valid: false, error: 'API key is required' };
     }
-    const apiKeyRegex = /^sk-or-v1-[a-f0-9]{64}$/;
-    if (!apiKeyRegex.test(key.trim())) {
+    if (!providerConfig.keyRegex.test(key.trim())) {
       return {
         valid: false,
-        error: 'Invalid API key format. OpenRouter keys should start with sk-or-v1-',
+        error: `Invalid API key format. ${providerConfig.name} keys should start with ${providerConfig.keyPrefix}`,
       };
     }
     return { valid: true };
@@ -196,16 +238,25 @@
   async function saveSettings() {
     isLoading = true;
     try {
-      if (openRouterKey && openRouterKey.trim() !== '') {
-        const validation = validateApiKey(openRouterKey);
+      if (apiKey && apiKey.trim() !== '') {
+        const validation = validateApiKey(apiKey);
         if (!validation.valid) {
           alert(validation.error);
           isLoading = false;
           return;
         }
       }
-      await selectedModelStorage.setValue(selectedModel);
-      await openRouterKeyStorage.setValue(openRouterKey.trim());
+
+      await selectedProviderStorage.setValue(selectedProvider);
+
+      if (selectedProvider === 'openrouter') {
+        await selectedModelStorage.setValue(selectedModel);
+        await openRouterKeyStorage.setValue(apiKey.trim());
+      } else {
+        await groqSelectedModelStorage.setValue(selectedModel);
+        await groqKeyStorage.setValue(apiKey.trim());
+      }
+
       showSavedPopup = true;
       setTimeout(() => {
         showSavedPopup = false;
@@ -219,7 +270,41 @@
   }
 
   function handleApiKeyChange(event: Event) {
-    openRouterKey = (event.target as HTMLInputElement).value;
+    apiKey = (event.target as HTMLInputElement).value;
+  }
+
+  async function handleProviderChange(event: Event) {
+    const newProvider = (event.target as HTMLSelectElement).value as ApiProvider;
+    selectedProvider = newProvider;
+    const config = PROVIDER_CONFIG[newProvider];
+
+    // Load the new provider's settings from storage
+    try {
+      if (newProvider === 'openrouter') {
+        selectedModel = (await selectedModelStorage.getValue()) || config.defaultModel;
+        apiKey = (await openRouterKeyStorage.getValue()) || '';
+      } else {
+        selectedModel = (await groqSelectedModelStorage.getValue()) || config.defaultModel;
+        apiKey = (await groqKeyStorage.getValue()) || '';
+      }
+    } catch {
+      selectedModel = config.defaultModel;
+      apiKey = '';
+    }
+
+    // Check if key came from env
+    isApiKeyFromEnv = false;
+    if (import.meta.env.DEV) {
+      if (newProvider === 'openrouter' && apiKey && apiKey === import.meta.env.VITE_OPENROUTER_API_KEY) {
+        isApiKeyFromEnv = true;
+      } else if (newProvider === 'groq' && apiKey && apiKey === import.meta.env.VITE_GROQ_API_KEY) {
+        isApiKeyFromEnv = true;
+      }
+    }
+
+    // Load models for the new provider
+    allModels = getFallbackModels(newProvider);
+    await fetchModels();
   }
 
   function openTestPage() {
@@ -229,20 +314,37 @@
 
   onMount(async () => {
     try {
-      selectedModel = await selectedModelStorage.getValue();
-      openRouterKey = (await openRouterKeyStorage.getValue()) || '';
+      selectedProvider = (await selectedProviderStorage.getValue()) || DEFAULT_PROVIDER;
+      const config = PROVIDER_CONFIG[selectedProvider];
 
-      if (!openRouterKey && import.meta.env.DEV && import.meta.env.VITE_OPENROUTER_API_KEY) {
-        openRouterKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-        await openRouterKeyStorage.setValue(openRouterKey);
-        isApiKeyFromEnv = true;
-      } else if (
-        openRouterKey &&
-        import.meta.env.DEV &&
-        import.meta.env.VITE_OPENROUTER_API_KEY === openRouterKey
-      ) {
-        isApiKeyFromEnv = true;
+      if (selectedProvider === 'openrouter') {
+        selectedModel = (await selectedModelStorage.getValue()) || config.defaultModel;
+        apiKey = (await openRouterKeyStorage.getValue()) || '';
+      } else {
+        selectedModel = (await groqSelectedModelStorage.getValue()) || config.defaultModel;
+        apiKey = (await groqKeyStorage.getValue()) || '';
       }
+
+      // Check for dev env auto-injection
+      if (import.meta.env.DEV) {
+        const envKey =
+          selectedProvider === 'openrouter'
+            ? import.meta.env.VITE_OPENROUTER_API_KEY
+            : import.meta.env.VITE_GROQ_API_KEY;
+        if (!apiKey && envKey) {
+          apiKey = envKey;
+          if (selectedProvider === 'openrouter') {
+            await openRouterKeyStorage.setValue(apiKey);
+          } else {
+            await groqKeyStorage.setValue(apiKey);
+          }
+          isApiKeyFromEnv = true;
+        } else if (apiKey && envKey && apiKey === envKey) {
+          isApiKeyFromEnv = true;
+        }
+      }
+
+      allModels = getFallbackModels(selectedProvider);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -286,6 +388,19 @@
 
   <div class="content">
     <div class="settings">
+      <div class="setting-group">
+        <label for="provider-select" class="setting-label">API Provider</label>
+        <select
+          id="provider-select"
+          class="provider-select"
+          value={selectedProvider}
+          onchange={handleProviderChange}
+        >
+          <option value="openrouter">OpenRouter</option>
+          <option value="groq">Groq</option>
+        </select>
+      </div>
+
       <div class="setting-group">
         <div class="label-row">
           <label for="model-search" class="setting-label">LLM Model</label>
@@ -347,7 +462,9 @@
                   aria-selected={model.id === selectedModel}
                 >
                   <span class="model-name">{model.name}</span>
-                  <span class="model-price">{formatPrice(model)}</span>
+                  {#if showPricing}
+                    <span class="model-price">{formatPrice(model)}</span>
+                  {/if}
                 </li>
               {/each}
               {#if filteredModels.length === 0}
@@ -359,17 +476,17 @@
       </div>
 
       <div class="setting-group">
-        <label for="api-key-input" class="setting-label">OpenRouter API Key</label>
+        <label for="api-key-input" class="setting-label">{providerConfig.name} API Key</label>
         <input
           id="api-key-input"
           type="password"
           class="api-key-input"
-          placeholder="Enter your OpenRouter API key"
-          value={openRouterKey}
+          placeholder="Enter your {providerConfig.name} API key"
+          value={apiKey}
           oninput={handleApiKeyChange}
         />
         <p class="help-text">
-          Get your API key from <a href="https://openrouter.ai/keys" target="_blank">OpenRouter</a>
+          Get your API key from <a href={providerConfig.keysUrl} target="_blank">{providerConfig.name}</a>
         </p>
         {#if isApiKeyFromEnv && import.meta.env.DEV}
           <div class="env-indicator">API key auto-loaded from .env file</div>
@@ -630,6 +747,36 @@
   .combobox-list::-webkit-scrollbar-thumb {
     background: #d4d4d4;
     border-radius: 2px;
+  }
+
+  .provider-select {
+    display: block;
+    padding: 0.375rem 0.5rem;
+    width: 100%;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    background: #fff;
+    color: #000;
+    border: 0;
+    border-radius: 0.125rem;
+    box-shadow:
+      inset 4px 0 0 transparent,
+      inset 0 0 0 2px #e5e5e5;
+    box-sizing: border-box;
+    transition: box-shadow 0.15s ease;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23737373' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    padding-right: 2rem;
+  }
+
+  .provider-select:focus {
+    outline: none;
+    box-shadow:
+      inset 4px 0 0 #6b16ed,
+      inset 0 0 0 2px #e5e5e5;
   }
 
   .api-key-input {

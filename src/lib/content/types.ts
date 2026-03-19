@@ -3,6 +3,11 @@
  */
 
 /**
+ * Supported API providers
+ */
+export type ApiProvider = 'openrouter' | 'groq';
+
+/**
  * OpenRouter API Message
  */
 export interface OpenRouterMessage {
@@ -70,9 +75,13 @@ export interface CachedModelsData {
  * Storage schema for extension settings
  */
 export interface StorageSchema {
+  selectedProvider?: ApiProvider;
   openRouterKey?: string;
   selectedModel?: string;
   cachedModels?: CachedModelsData;
+  groqKey?: string;
+  groqSelectedModel?: string;
+  groqCachedModels?: CachedModelsData;
 }
 
 /**
