@@ -11,12 +11,22 @@ import { CONFIG } from './config';
 export function isEditableElement(element: HTMLElement): boolean {
   // Check for standard input types
   if (element.tagName === 'INPUT') {
-    const inputType = (element as HTMLInputElement).type;
+    const input = element as HTMLInputElement;
+    const inputType = input.type;
     const isEditable = ['text', 'search', 'url', 'tel'].includes(inputType);
-    if (import.meta.env.DEV && isEditable) {
+    if (!isEditable) return false;
+
+    // Exclude readonly inputs and inputs with no text input mode (e.g. React Select dummy inputs)
+    if (input.readOnly || element.getAttribute('aria-readonly') === 'true') return false;
+    if (element.getAttribute('inputmode') === 'none') return false;
+
+    // Exclude short inputs like OTP/verification code fields (maxlength 1-2)
+    if (input.maxLength > 0 && input.maxLength <= 2) return false;
+
+    if (import.meta.env.DEV) {
       console.log('[SafeTyper DOM] Found editable INPUT:', inputType);
     }
-    return isEditable;
+    return true;
   }
 
   // Check for textarea
@@ -37,7 +47,7 @@ export function isEditableElement(element: HTMLElement): boolean {
 
   // Check for specific roles that might be editable
   const role = element.getAttribute('role');
-  if (role === 'textbox' || role === 'combobox') {
+  if (role === 'textbox') {
     if (import.meta.env.DEV) {
       console.log('[SafeTyper DOM] Found element with role:', role);
     }

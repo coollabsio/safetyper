@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 20px;
+  padding: 10px 20px;
   border-bottom: 1px solid #e5e5e5;
   background: #fff;
   border-radius: 0.125rem 0.125rem 0 0;
@@ -52,22 +52,20 @@
   display: none;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border-radius: 50%;
-  border: 1px solid #e5e5e5;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background: transparent;
+  border: none;
+  box-shadow: none;
   transition: all 0.15s ease;
 }
 
 .safetyper-icon:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 0 2px #00c853;
 }
 
 .safetyper-popup {
   position: fixed;
   z-index: 1000000;
-  background: #f9fafb;
+  background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 0.25rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
