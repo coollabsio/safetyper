@@ -2,7 +2,7 @@
   "name": "Safetyper",
   "description": "AI-powered grammar and spelling checker for web browsers",
   "private": true,
-  "version": "2.2.2",
+  "version": "2.2.3",
   "type": "module",
   "author": "Andras Bacsai",
   "license": "Apache-2.0",
