@@ -110,6 +110,77 @@ export function isSignificantKeyEvent(event: KeyboardEvent): boolean {
   return true;
 }
 
+/** Block-level elements that produce line breaks when walked */
+const BLOCK_ELEMENTS = new Set([
+  'P',
+  'DIV',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'LI',
+  'BLOCKQUOTE',
+  'PRE',
+  'HR',
+  'TR',
+]);
+
+/**
+ * Extract text from a contenteditable, skipping contenteditable="false" subtrees.
+ * Respects block element boundaries as newlines.
+ */
+function extractEditableText(root: HTMLElement): string {
+  const parts: string[] = [];
+
+  function walk(node: Node): void {
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement;
+
+      // Skip non-editable islands (UI chrome)
+      if (el.getAttribute('contenteditable') === 'false') return;
+
+      if (el.tagName === 'BR') {
+        // BR as sole child of a block = empty paragraph marker; the block's \n covers it
+        if (
+          el.parentElement?.children.length === 1 &&
+          el.parentElement.childNodes.length === 1
+        ) {
+          return;
+        }
+        parts.push('\n');
+        return;
+      }
+
+      const isBlock = BLOCK_ELEMENTS.has(el.tagName);
+
+      // Block elements start a new line (if there's content before them)
+      if (isBlock && parts.length > 0) {
+        parts.push('\n');
+      }
+
+      for (const child of node.childNodes) {
+        walk(child);
+      }
+    } else if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || '';
+      // Skip whitespace-only text nodes (HTML formatting between tags)
+      if (text.trim()) {
+        parts.push(text);
+      }
+    }
+  }
+
+  walk(root);
+
+  // Collapse 3+ newlines to double (paragraph break), trim
+  return parts
+    .join('')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 /**
  * Get text content from an element
  */
@@ -118,10 +189,10 @@ export function getTextContent(element: HTMLElement): string {
     return element.value;
   }
 
-  // For contenteditable elements, use innerText which respects visual formatting
-  // and avoids capturing HTML indentation/whitespace
-  if (element.contentEditable === 'true' && element.innerText !== undefined) {
-    return element.innerText;
+  // For all contenteditable elements, use DOM walk for consistent paragraph handling.
+  // innerText getter/setter don't round-trip cleanly (block boundaries produce extra \n).
+  if (element.contentEditable === 'true' || element.isContentEditable) {
+    return extractEditableText(element);
   }
 
   return element.textContent || '';
@@ -134,23 +205,41 @@ export function setTextContent(element: HTMLElement, text: string): void {
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
     element.value = text;
   } else if (element.contentEditable === 'true') {
-    // For contenteditable elements, use innerText to preserve line breaks as visual formatting
-    // This is more reliable than execCommand which is deprecated
+    // Complex editors manage their own state — direct DOM mutation corrupts them.
+    // The UI should only show "Copy to Clipboard" for these, but guard here too.
+    if (isComplexEditor(element)) {
+      if (import.meta.env.DEV) {
+        console.warn('[SafeTyper DOM] Refusing to set text on complex editor — use copy instead');
+      }
+      return;
+    }
+
+    // Build proper block structure instead of innerText (which creates <br> instead of <div>)
     try {
-      // Save cursor position
       const selection = window.getSelection();
       const hadFocus = document.activeElement === element;
+      const lines = text.split('\n');
 
-      // Set the text
-      element.innerText = text;
+      element.textContent = '';
+      for (let i = 0; i < lines.length; i++) {
+        if (i === 0) {
+          element.appendChild(document.createTextNode(lines[i]));
+        } else if (lines[i] === '') {
+          const div = document.createElement('div');
+          div.appendChild(document.createElement('br'));
+          element.appendChild(div);
+        } else {
+          const div = document.createElement('div');
+          div.textContent = lines[i];
+          element.appendChild(div);
+        }
+      }
 
-      // Restore focus if element had it
       if (hadFocus) {
         element.focus();
-        // Move cursor to end
         const range = document.createRange();
         range.selectNodeContents(element);
-        range.collapse(false); // Collapse to end
+        range.collapse(false);
         selection?.removeAllRanges();
         selection?.addRange(range);
       }
@@ -259,10 +348,52 @@ export function calculatePopupPosition(
 }
 
 /**
- * Check if element is a complex editor (like Draft.js)
+ * Check if a contenteditable contains non-editable interactive UI chrome.
+ * This is the general heuristic: all rich text frameworks wrap UI chrome
+ * (toolbars, avatars, buttons) in contenteditable="false" islands.
+ */
+function hasNonEditableInteractiveContent(element: HTMLElement): boolean {
+  const nonEditables = element.querySelectorAll('[contenteditable="false"]');
+  for (const node of nonEditables) {
+    if (
+      node.querySelector(
+        'button, [role="button"], img, svg, input, select, [data-state], a[href]'
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Check if element is a complex rich text editor.
+ * Uses hybrid detection: known editors by class/attribute, then general heuristic.
  */
 export function isComplexEditor(element: HTMLElement): boolean {
-  return (
-    element.contentEditable === 'true' && element.classList.contains('public-DraftEditor-content')
-  );
+  if (element.contentEditable !== 'true' && !element.isContentEditable) return false;
+
+  // Known editors (fast path)
+  if (
+    element.classList.contains('ProseMirror') ||
+    element.classList.contains('tiptap') ||
+    element.closest('.ProseMirror, .tiptap')
+  ) {
+    return true;
+  }
+  if (
+    element.classList.contains('public-DraftEditor-content') ||
+    element.closest('.public-DraftEditor-content')
+  ) {
+    return true;
+  }
+  if (element.hasAttribute('data-slate-editor') || element.closest('[data-slate-editor]')) {
+    return true;
+  }
+  if (element.classList.contains('ql-editor') || element.closest('.ql-editor')) {
+    return true;
+  }
+
+  // General fallback: contenteditable with non-editable interactive islands
+  return hasNonEditableInteractiveContent(element);
 }

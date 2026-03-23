@@ -184,9 +184,51 @@ Final paragraph here with more content to test the diff view.</textarea>
         </div>
 
         <div class="input-group">
-            <label for="contentEditable">Content Editable Div:</label>
+            <label for="contentEditable">Content Editable Div (simple — Apply should work):</label>
             <div id="contentEditable" contenteditable="true" style="border: 1px solid #ddd; padding: 12px; min-height: 100px; border-radius: 4px;">
                 This is a sentance with several grammer issues. The subject and verb dont always agree, and their are run-on sentences that need to be fixed. Punctuation is also inapropriate in some places.
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>ProseMirror-like Editor (complex — should show Copy only, no UI text captured):</label>
+            <div class="ProseMirror" contenteditable="true" style="border: 1px solid #ddd; border-radius: 4px; padding: 0; min-height: 150px;">
+                <div contenteditable="false" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #eee; background: #fafafa;">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%23ccc'/%3E%3C/svg%3E" width="32" height="32" alt="Avatar" style="border-radius: 50%;">
+                    <div>
+                        <strong>Test User</strong>
+                        <span style="color: #999;">@testuser</span>
+                    </div>
+                    <button style="margin-left: auto; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">Edit</button>
+                </div>
+                <div style="padding: 12px;">
+                    <p>Their are many common grammer mistakes that people make everyday.</p>
+                    <p><br></p>
+                    <p>This sentance has mispelled words and bad punctation.</p>
+                    <p><br></p>
+                    <p>The extention should only extract this text, not the avatar or buttons above.</p>
+                </div>
+                <div contenteditable="false" style="display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid #eee; background: #fafafa;">
+                    <button style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">Tag People</button>
+                    <button style="padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; background: white; cursor: pointer;">Generate descriptions</button>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Generic Complex Editor (contenteditable="false" islands — should show Copy only):</label>
+            <div contenteditable="true" style="border: 1px solid #ddd; border-radius: 4px; padding: 0; min-height: 120px;">
+                <div contenteditable="false" style="padding: 8px 12px; border-bottom: 1px solid #eee; background: #f0f0f0; display: flex; align-items: center; gap: 6px;">
+                    <button style="padding: 2px 6px; border: 1px solid #ccc; border-radius: 3px; background: white; font-size: 12px; cursor: pointer;" role="button">B</button>
+                    <button style="padding: 2px 6px; border: 1px solid #ccc; border-radius: 3px; background: white; font-size: 12px; font-style: italic; cursor: pointer;" role="button">I</button>
+                    <button style="padding: 2px 6px; border: 1px solid #ccc; border-radius: 3px; background: white; font-size: 12px; cursor: pointer;" role="button">U</button>
+                </div>
+                <div style="padding: 12px;">
+                    <p>This is a unknwon editor with toolbar buttons in a contenteditable="false" island.</p>
+                    <p><br></p>
+                    <p>The general heuristic should dectect this as complex even without reconizing the editor.</p>
+                </div>
             </div>
         </div>
     </div>

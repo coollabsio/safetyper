@@ -125,6 +125,13 @@ export default defineBackground(() => {
     if (openRouterKey) devKeys.openRouterKey = openRouterKey;
     if (groqKey) devKeys.groqKey = groqKey;
 
+    // Auto-select provider based on which env key is available
+    if (groqKey && !openRouterKey) {
+      devKeys.selectedProvider = 'groq';
+    } else if (openRouterKey && !groqKey) {
+      devKeys.selectedProvider = 'openrouter';
+    }
+
     if (Object.keys(devKeys).length > 0) {
       browser.storage.local
         .set(devKeys)
