@@ -186,9 +186,8 @@ export default defineBackground(() => {
             modelsUrl = `${ollamaBaseUrl}/api/tags`;
           }
 
-          const fetchOptions: RequestInit = provider === 'ollama'
-            ? { headers: { Origin: ollamaBaseUrl } }
-            : {};
+          const fetchOptions: RequestInit =
+            provider === 'ollama' ? { headers: { Origin: ollamaBaseUrl } } : {};
           const response = await fetch(modelsUrl, fetchOptions);
           if (!response.ok) {
             throw new Error(`Failed to fetch models: ${response.status}`);

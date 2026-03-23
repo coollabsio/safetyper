@@ -216,7 +216,11 @@ export function showPopup(e: Event): void {
   browser.storage.local.get(['selectedProvider', 'openRouterKey', 'groqKey']).then((result) => {
     const provider = result.selectedProvider || 'openrouter';
     const hasApiKey =
-      provider === 'ollama' ? true : provider === 'openrouter' ? !!result.openRouterKey : !!result.groqKey;
+      provider === 'ollama'
+        ? true
+        : provider === 'openrouter'
+          ? !!result.openRouterKey
+          : !!result.groqKey;
 
     if (popup) {
       const content = popup.querySelector('.safetyper-popup-content');

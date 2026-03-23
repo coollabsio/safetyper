@@ -616,7 +616,8 @@
             </button>
             {#if connectionStatus === 'connected'}
               <span class="connection-status connected">
-                Connected ({connectionModelCount} {connectionModelCount === 1 ? 'model' : 'models'})
+                Connected ({connectionModelCount}
+                {connectionModelCount === 1 ? 'model' : 'models'})
               </span>
             {:else if connectionStatus === 'error'}
               <span class="connection-status error">
@@ -624,9 +625,7 @@
               </span>
             {/if}
           </div>
-          <p class="help-text">
-            Enter the URL of your Ollama instance (local or remote)
-          </p>
+          <p class="help-text">Enter the URL of your Ollama instance (local or remote)</p>
         </div>
       {:else}
         <div class="setting-group">
