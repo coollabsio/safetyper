@@ -538,11 +538,11 @@
       -apple-system,
       BlinkMacSystemFont,
       sans-serif;
-    background: #f9fafb;
+    background: #ffffff;
   }
 
   header {
-    background: #f9fafb;
+    background: #ffffff;
     color: #000;
     padding: 16px 20px 14px;
     text-align: center;
@@ -572,10 +572,10 @@
   }
 
   .content {
-    padding: 16px 20px;
+    padding: 16px 20px 8px;
     width: 100%;
     box-sizing: border-box;
-    background: #f9fafb;
+    background: #ffffff;
   }
 
   .settings {
