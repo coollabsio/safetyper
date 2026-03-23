@@ -9,6 +9,9 @@ import { CONFIG } from './config';
  * Check if an element is editable
  */
 export function isEditableElement(element: HTMLElement): boolean {
+  // Exclude elements where spellcheck is explicitly disabled
+  if (element.getAttribute('spellcheck') === 'false') return false;
+
   // Check for standard input types
   if (element.tagName === 'INPUT') {
     const input = element as HTMLInputElement;

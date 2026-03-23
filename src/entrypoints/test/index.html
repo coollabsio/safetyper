@@ -74,7 +74,7 @@
                 <li>Click the icon to open the grammar check popup</li>
                 <li>Try different types of inputs to test the extension functionality</li>
                 <li>Note: The password field should NOT show the Safetyper icon (security feature)</li>
-                <li>The custom select dropdown, OTP inputs, and readonly input should NOT show the icon</li>
+                <li>The custom select dropdown, OTP inputs, readonly input, and spellcheck="false" inputs should NOT show the icon</li>
             </ul>
         </div>
         
@@ -171,6 +171,16 @@ Final paragraph here with more content to test the diff view.</textarea>
         <div class="input-group">
             <label>Readonly Text Input (should NOT show icon):</label>
             <input type="text" readonly value="This input is readonly and should not show the icon.">
+        </div>
+
+        <div class="input-group">
+            <label>Spellcheck Disabled Input (should NOT show icon):</label>
+            <input type="text" spellcheck="false" value="This input has spellcheck disabled and should not show the icon.">
+        </div>
+
+        <div class="input-group">
+            <label>Spellcheck Disabled Textarea (should NOT show icon):</label>
+            <textarea spellcheck="false" rows="3">This textarea has spellcheck disabled and should not show the icon.</textarea>
         </div>
 
         <div class="input-group">
