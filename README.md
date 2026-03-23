@@ -1,6 +1,6 @@
 # SafeTyper
 
-> AI-powered grammar and spelling checker for web browsers
+> A Grammarly alternative, where YOU own what you type on your keyboard.
 
 SafeTyper is a browser extension that provides real-time grammar and spelling suggestions powered by AI models through [OpenRouter](https://openrouter.ai), [Groq](https://groq.com), or a local [Ollama](https://ollama.com) instance.
 
