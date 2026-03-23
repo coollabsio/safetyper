@@ -2,12 +2,12 @@
 
 > AI-powered grammar and spelling checker for web browsers
 
-SafeTyper is a browser extension that provides real-time grammar and spelling suggestions powered by AI models through [OpenRouter](https://openrouter.ai) or [Groq](https://groq.com).
+SafeTyper is a browser extension that provides real-time grammar and spelling suggestions powered by AI models through [OpenRouter](https://openrouter.ai), [Groq](https://groq.com), or a local [Ollama](https://ollama.com) instance.
 
 ## Features
 
 - **Universal Input Detection** — works on any editable field across the web
-- **Multiple AI Providers** — OpenRouter (GPT, Claude, Gemini, Llama) and Groq (Llama, Gemma, Mixtral)
+- **Multiple AI Providers** — OpenRouter (GPT, Claude, Gemini, Llama), Groq (Llama, Gemma, Mixtral), and Ollama (local models)
 - **Smart Caching** — reduces API calls and improves response time
 - **Visual Diff Display** — inline highlighting of changes
 - **Adaptive Icon Positioning** — smart placement for any input field size
@@ -22,7 +22,7 @@ SafeTyper is a browser extension that provides real-time grammar and spelling su
 4. Load the extension in your browser
 5. Configure your API key in the extension popup (or it auto-loads from `.env` in dev mode)
 
-You'll need [Bun](https://bun.sh/) (or Node.js 18+) and an API key from [OpenRouter](https://openrouter.ai/keys) or [Groq](https://console.groq.com/keys).
+You'll need [Bun](https://bun.sh/) (or Node.js 18+) and an API key from [OpenRouter](https://openrouter.ai/keys) or [Groq](https://console.groq.com/keys), or a local [Ollama](https://ollama.com) instance.
 
 ## Development
 
@@ -72,6 +72,64 @@ src/
 ├── styles/                  # Content script CSS
 └── assets/                  # Fonts & images
 ```
+
+## Using with Ollama
+
+SafeTyper supports [Ollama](https://ollama.com) as a local, private provider — no API key needed.
+
+### Setup
+
+1. [Install Ollama](https://ollama.com/download) and pull a model (e.g. `ollama pull llama3.1`)
+2. Configure `OLLAMA_ORIGINS` to allow the browser extension to connect (see below)
+3. In the SafeTyper popup, select **Ollama** as the provider and pick your model
+
+### Configuring `OLLAMA_ORIGINS`
+
+By default, Ollama only accepts requests from `localhost`. Browser extensions use a different origin (`chrome-extension://...` or `moz-extension://...`), so Ollama will block requests unless you allow it.
+
+Set `OLLAMA_ORIGINS` to `*` to allow all origins, or to your specific extension origin:
+
+**macOS:**
+
+```bash
+launchctl setenv OLLAMA_ORIGINS "*"
+```
+
+Then restart the Ollama application.
+
+**Linux (systemd):**
+
+```bash
+sudo systemctl edit ollama
+```
+
+Add under `[Service]`:
+
+```ini
+[Service]
+Environment="OLLAMA_ORIGINS=*"
+```
+
+Then reload and restart:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart ollama
+```
+
+**Windows:**
+
+Set `OLLAMA_ORIGINS` as a system environment variable to `*`, then restart Ollama.
+
+**Running from the terminal (any OS):**
+
+```bash
+OLLAMA_ORIGINS="*" ollama serve
+```
+
+### Custom Endpoint
+
+The default endpoint is `http://localhost:11434`. If your Ollama instance runs on a different host or port, you can change it in the extension popup under the Ollama provider settings.
 
 ## CI/CD
 
