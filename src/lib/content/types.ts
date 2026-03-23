@@ -82,6 +82,7 @@ export interface StorageSchema {
   groqKey?: string;
   groqSelectedModel?: string;
   groqCachedModels?: CachedModelsData;
+  darkMode?: boolean;
 }
 
 /**

@@ -13,8 +13,8 @@ body {
     'Segoe UI',
     Roboto,
     sans-serif;
-  background: #ffffff;
-  color: #000;
+  background: var(--st-bg, #ffffff);
+  color: var(--st-text, #000);
   font-size: 0.875rem;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -23,6 +23,6 @@ body {
 #app {
   width: 360px;
   min-height: 400px;
-  background: #ffffff;
+  background: var(--st-bg, #ffffff);
   margin: 0 auto;
 }

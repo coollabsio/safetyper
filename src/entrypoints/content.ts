@@ -5,18 +5,35 @@
 
 import '~/assets/fonts/fonts.css';
 import '../styles/content.css';
+import { browser } from 'wxt/browser';
 import { stateManager } from '~/lib/content/state-manager';
-import { createIcon, positionIcon, hideIcon } from '~/lib/content/ui-manager';
+import {
+  createIcon,
+  positionIcon,
+  hideIcon,
+  loadTheme,
+  updateTheme,
+} from '~/lib/content/ui-manager';
 import { isEditableElement, isSignificantKeyEvent } from '~/lib/content/dom-utils';
 import { CONFIG } from '~/lib/content/config';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
-  main() {
+  async main() {
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Content script starting...');
       console.log('[SafeTyper] Location:', window.location.href);
     }
+
+    // Load theme before setting up UI
+    await loadTheme();
+
+    // Listen for theme changes from settings
+    browser.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes.darkMode) {
+        updateTheme(changes.darkMode.newValue ?? false);
+      }
+    });
 
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Content script main() started');

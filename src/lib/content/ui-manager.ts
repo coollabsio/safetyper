@@ -20,6 +20,36 @@ import {
 let activeDragEnd: (() => void) | null = null;
 let activeDragMove: ((e: MouseEvent) => void) | null = null;
 
+// Theme state
+let currentTheme: 'light' | 'dark' = 'light';
+
+/**
+ * Load theme preference from storage
+ */
+export async function loadTheme(): Promise<void> {
+  try {
+    const result = await browser.storage.local.get(['darkMode']);
+    currentTheme = result.darkMode ? 'dark' : 'light';
+  } catch {
+    currentTheme = 'light';
+  }
+}
+
+/**
+ * Update theme on existing UI elements
+ */
+export function updateTheme(isDark: boolean): void {
+  currentTheme = isDark ? 'dark' : 'light';
+  const iconContainer = stateManager.getIconContainer();
+  if (iconContainer) {
+    iconContainer.setAttribute('data-theme', currentTheme);
+  }
+  const popup = stateManager.getPopup();
+  if (popup) {
+    popup.setAttribute('data-theme', currentTheme);
+  }
+}
+
 /**
  * Create floating icon element
  */
@@ -33,6 +63,7 @@ export function createIcon(): HTMLDivElement {
   iconContainer.setAttribute('role', 'button');
   iconContainer.setAttribute('aria-label', 'Check grammar');
   iconContainer.setAttribute('tabindex', '0');
+  iconContainer.setAttribute('data-theme', currentTheme);
   const iconImg = document.createElement('img');
   iconImg.src = browser.runtime.getURL('/icon/32.png');
   iconImg.width = 20;
@@ -146,16 +177,17 @@ export function showPopup(e: Event): void {
   popup.className = 'safetyper-popup';
   popup.setAttribute('role', 'dialog');
   popup.setAttribute('aria-label', 'Grammar check dialog');
+  popup.setAttribute('data-theme', currentTheme);
   popup.innerHTML = `
     <div class="popup-header">
       <div class="drag-handle" title="Drag to move">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="4" cy="4" r="1.5" fill="#d4d4d4"/>
-          <circle cx="12" cy="4" r="1.5" fill="#d4d4d4"/>
-          <circle cx="4" cy="8" r="1.5" fill="#d4d4d4"/>
-          <circle cx="12" cy="8" r="1.5" fill="#d4d4d4"/>
-          <circle cx="4" cy="12" r="1.5" fill="#d4d4d4"/>
-          <circle cx="12" cy="12" r="1.5" fill="#d4d4d4"/>
+          <circle cx="4" cy="4" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="4" r="1.5" fill="currentColor"/>
+          <circle cx="4" cy="8" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="8" r="1.5" fill="currentColor"/>
+          <circle cx="4" cy="12" r="1.5" fill="currentColor"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
         </svg>
       </div>
       <h3>Safetyper</h3>
@@ -490,14 +522,10 @@ async function handleGrammarCheck(): Promise<void> {
               const button = copyBtn as HTMLElement;
               const originalText = button.textContent;
               button.textContent = 'Copied!';
-              button.style.backgroundColor = '#4CAF50';
-              button.style.color = '#fff';
-              button.style.borderColor = '#4CAF50';
+              button.classList.add('safetyper-copied-state');
               setTimeout(() => {
                 button.textContent = originalText;
-                button.style.backgroundColor = '';
-                button.style.color = '';
-                button.style.borderColor = '';
+                button.classList.remove('safetyper-copied-state');
               }, 2000);
             })
             .catch(() => {
@@ -508,7 +536,7 @@ async function handleGrammarCheck(): Promise<void> {
                 if (fallbackContent) {
                   fallbackContent.innerHTML = `
                     <p class="popup-description">Clipboard access denied. Please copy the text below manually:</p>
-                    <textarea class="manual-copy-text" readonly style="width:100%;min-height:80px;font-size:13px;padding:8px;border:1px solid #e5e5e5;border-radius:4px;resize:vertical;">${escapeHtml(textToCopy)}</textarea>
+                    <textarea class="manual-copy-text" readonly>${escapeHtml(textToCopy)}</textarea>
                     <div class="popup-actions"><button class="safetyper-close-btn">Close</button></div>
                   `;
                   const closeBtn = fallbackContent.querySelector('.safetyper-close-btn');

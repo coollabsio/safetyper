@@ -21,6 +21,10 @@
 
   const groqKeyStorage = storage.defineItem<string>('local:groqKey');
 
+  const darkModeStorage = storage.defineItem<boolean>('local:darkMode', {
+    fallback: false,
+  });
+
   // Fallback models per provider
   const OPENROUTER_FALLBACK_MODELS: OpenRouterModel[] = [
     {
@@ -84,6 +88,7 @@
   let isLoading = false;
   let showSavedPopup = false;
   let isApiKeyFromEnv = false;
+  let darkMode = false;
 
   $: providerConfig = PROVIDER_CONFIG[selectedProvider];
   $: showPricing = selectedProvider === 'openrouter';
@@ -311,12 +316,26 @@
     await fetchModels();
   }
 
+  function applyTheme(isDark: boolean) {
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }
+
+  async function toggleDarkMode() {
+    darkMode = !darkMode;
+    await darkModeStorage.setValue(darkMode);
+    applyTheme(darkMode);
+  }
+
   function openTestPage() {
     const testUrl = browser.runtime.getURL('/test.html');
     browser.tabs.create({ url: testUrl });
   }
 
   onMount(async () => {
+    // Load dark mode first to avoid flash
+    darkMode = (await darkModeStorage.getValue()) ?? false;
+    applyTheme(darkMode);
+
     try {
       selectedProvider = (await selectedProviderStorage.getValue()) || DEFAULT_PROVIDER;
       const config = PROVIDER_CONFIG[selectedProvider];
@@ -382,6 +401,53 @@
 
   <div class="content">
     <div class="settings">
+      <div class="setting-group">
+        <div class="label-row">
+          <span class="setting-label">Appearance</span>
+          <button
+            class="theme-toggle"
+            onclick={toggleDarkMode}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {#if darkMode}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
+                <path
+                  d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span>Light</span>
+            {:else}
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              <span>Dark</span>
+            {/if}
+          </button>
+        </div>
+      </div>
+
       <div class="setting-group">
         <label for="provider-select" class="setting-label">API Provider</label>
         <select
@@ -529,6 +595,63 @@
 </main>
 
 <style>
+  :global(:root) {
+    --st-bg: #ffffff;
+    --st-bg-secondary: #f5f5f5;
+    --st-bg-elevated: #ffffff;
+    --st-text: #000000;
+    --st-text-secondary: #737373;
+    --st-text-muted: #d4d4d4;
+    --st-border: #e5e5e5;
+    --st-brand: #6b16ed;
+    --st-brand-dark: #5a12c7;
+    --st-brand-surface: #f5f0ff;
+    --st-brand-surface-alt: #faf8ff;
+    --st-brand-text: #5a12c7;
+    --st-success: #22c55e;
+    --st-warning-surface: #fefce8;
+    --st-warning-border: #fde047;
+    --st-warning-text: #854d0e;
+    --st-shadow: rgba(0, 0, 0, 0.08);
+    --st-overlay: rgba(0, 0, 0, 0.3);
+    --st-focus-ring: #6b16ed;
+    --st-btn-bg: #6b16ed;
+    --st-btn-hover-bg: #5a12c7;
+    --st-btn-border: #6b16ed;
+    --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23737373' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  :global(:root[data-theme='dark']) {
+    --st-bg: #1a1a1a;
+    --st-bg-secondary: #262626;
+    --st-bg-elevated: #2a2a2a;
+    --st-text: #e5e5e5;
+    --st-text-secondary: #a3a3a3;
+    --st-text-muted: #525252;
+    --st-border: #404040;
+    --st-brand: #8b5cf6;
+    --st-brand-dark: #7c3aed;
+    --st-brand-surface: #2d1b69;
+    --st-brand-surface-alt: #231554;
+    --st-brand-text: #c4b5fd;
+    --st-success: #4ade80;
+    --st-warning-surface: #422006;
+    --st-warning-border: #854d0e;
+    --st-warning-text: #fde047;
+    --st-shadow: rgba(0, 0, 0, 0.3);
+    --st-overlay: rgba(0, 0, 0, 0.5);
+    --st-focus-ring: #8b5cf6;
+    --st-btn-bg: #2d1b69;
+    --st-btn-hover-bg: #8b5cf6;
+    --st-btn-border: #8b5cf6;
+    --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23a3a3a3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  }
+
+  :global(html),
+  :global(body) {
+    background: var(--st-bg);
+  }
+
   main {
     width: 100%;
     min-height: 400px;
@@ -538,12 +661,12 @@
       -apple-system,
       BlinkMacSystemFont,
       sans-serif;
-    background: #ffffff;
+    background: var(--st-bg);
   }
 
   header {
-    background: #ffffff;
-    color: #000;
+    background: var(--st-bg);
+    color: var(--st-text);
     padding: 16px 20px 14px;
     text-align: center;
     width: 100%;
@@ -561,12 +684,12 @@
     margin: 0;
     font-size: 1.125rem;
     font-weight: 700;
-    color: #000;
+    color: var(--st-text);
   }
 
   .tagline {
     margin: 2px 0 0;
-    color: #737373;
+    color: var(--st-text-secondary);
     font-size: 0.8125rem;
     font-weight: 400;
   }
@@ -575,7 +698,7 @@
     padding: 16px 20px 8px;
     width: 100%;
     box-sizing: border-box;
-    background: #ffffff;
+    background: var(--st-bg);
   }
 
   .settings {
@@ -595,7 +718,7 @@
   .setting-label {
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #000;
+    color: var(--st-text);
   }
 
   .label-row {
@@ -604,10 +727,33 @@
     justify-content: space-between;
   }
 
+  .theme-toggle {
+    display: inline-flex;
+    gap: 0.375rem;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: #fff;
+    background: var(--st-btn-bg);
+    border: 1px solid var(--st-btn-border);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .theme-toggle:hover {
+    background: var(--st-btn-hover-bg);
+    color: #fff;
+  }
+
   .refresh-btn {
     background: none;
     border: none;
-    color: #6b16ed;
+    color: var(--st-brand);
     font-size: 0.75rem;
     font-weight: 500;
     font-family: inherit;
@@ -618,11 +764,11 @@
   }
 
   .refresh-btn:hover:not(:disabled) {
-    background: #f5f0ff;
+    background: var(--st-brand-surface);
   }
 
   .refresh-btn:disabled {
-    color: #d4d4d4;
+    color: var(--st-text-muted);
     cursor: not-allowed;
   }
 
@@ -638,13 +784,13 @@
     width: 100%;
     font-size: 0.8125rem;
     font-family: inherit;
-    background: #fff;
-    color: #000;
+    background: var(--st-bg);
+    color: var(--st-text);
     border: 0;
     border-radius: 0.25rem;
     box-shadow:
       inset 4px 0 0 transparent,
-      inset 0 0 0 2px #e5e5e5;
+      inset 0 0 0 2px var(--st-border);
     box-sizing: border-box;
     transition: box-shadow 0.15s ease;
     text-overflow: ellipsis;
@@ -653,12 +799,12 @@
   .combobox-input:focus {
     outline: none;
     box-shadow:
-      inset 4px 0 0 #6b16ed,
-      inset 0 0 0 2px #e5e5e5;
+      inset 4px 0 0 var(--st-brand),
+      inset 0 0 0 2px var(--st-border);
   }
 
   .combobox-input::placeholder {
-    color: #d4d4d4;
+    color: var(--st-text-muted);
   }
 
   .combobox-toggle {
@@ -673,6 +819,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--st-text-secondary);
   }
 
   .combobox-list {
@@ -682,15 +829,15 @@
     right: 0;
     max-height: 240px;
     overflow-y: auto;
-    background: #fff;
-    border: 2px solid #e5e5e5;
-    border-top: 1px solid #e5e5e5;
+    background: var(--st-bg);
+    border: 2px solid var(--st-border);
+    border-top: 1px solid var(--st-border);
     border-radius: 0 0 0.5rem 0.5rem;
     z-index: 100;
     list-style: none;
     padding: 0;
     margin: 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 4px 12px var(--st-shadow);
   }
 
   .combobox-list li {
@@ -704,16 +851,16 @@
 
   .combobox-list li:hover,
   .combobox-list li.highlighted {
-    background: #f5f0ff;
+    background: var(--st-brand-surface);
   }
 
   .combobox-list li.selected {
-    border-left-color: #6b16ed;
-    background: #faf8ff;
+    border-left-color: var(--st-brand);
+    background: var(--st-brand-surface-alt);
   }
 
   .combobox-list li.no-results {
-    color: #737373;
+    color: var(--st-text-secondary);
     font-size: 0.8125rem;
     cursor: default;
     padding: 10px 8px;
@@ -722,7 +869,7 @@
   .model-name {
     font-size: 0.8125rem;
     font-weight: 500;
-    color: #000;
+    color: var(--st-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -730,7 +877,7 @@
 
   .model-price {
     font-size: 0.6875rem;
-    color: #737373;
+    color: var(--st-text-secondary);
   }
 
   /* Scrollbar for dropdown */
@@ -738,10 +885,10 @@
     width: 4px;
   }
   .combobox-list::-webkit-scrollbar-track {
-    background: #f5f5f5;
+    background: var(--st-bg-secondary);
   }
   .combobox-list::-webkit-scrollbar-thumb {
-    background: #d4d4d4;
+    background: var(--st-text-muted);
     border-radius: 2px;
   }
 
@@ -751,18 +898,18 @@
     width: 100%;
     font-size: 0.8125rem;
     font-family: inherit;
-    background: #fff;
-    color: #000;
+    background: var(--st-bg);
+    color: var(--st-text);
     border: 0;
     border-radius: 0.25rem;
     box-shadow:
       inset 4px 0 0 transparent,
-      inset 0 0 0 2px #e5e5e5;
+      inset 0 0 0 2px var(--st-border);
     box-sizing: border-box;
     transition: box-shadow 0.15s ease;
     cursor: pointer;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23737373' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-image: var(--st-select-arrow);
     background-repeat: no-repeat;
     background-position: right 0.5rem center;
     padding-right: 2rem;
@@ -771,8 +918,13 @@
   .provider-select:focus {
     outline: none;
     box-shadow:
-      inset 4px 0 0 #6b16ed,
-      inset 0 0 0 2px #e5e5e5;
+      inset 4px 0 0 var(--st-brand),
+      inset 0 0 0 2px var(--st-border);
+  }
+
+  .provider-select option {
+    background: var(--st-bg);
+    color: var(--st-text);
   }
 
   .api-key-input {
@@ -781,13 +933,13 @@
     width: 100%;
     font-size: 0.8125rem;
     font-family: inherit;
-    background: #fff;
-    color: #000;
+    background: var(--st-bg);
+    color: var(--st-text);
     border: 0;
     border-radius: 0.25rem;
     box-shadow:
       inset 4px 0 0 transparent,
-      inset 0 0 0 2px #e5e5e5;
+      inset 0 0 0 2px var(--st-border);
     box-sizing: border-box;
     transition: box-shadow 0.15s ease;
   }
@@ -795,12 +947,12 @@
   .api-key-input:focus {
     outline: none;
     box-shadow:
-      inset 4px 0 0 #6b16ed,
-      inset 0 0 0 2px #e5e5e5;
+      inset 4px 0 0 var(--st-brand),
+      inset 0 0 0 2px var(--st-border);
   }
 
   .api-key-input::placeholder {
-    color: #d4d4d4;
+    color: var(--st-text-muted);
   }
 
   .save-button {
@@ -814,9 +966,9 @@
     font-weight: 500;
     font-family: inherit;
     text-transform: none;
-    color: #5a12c7;
-    background: #f5f0ff;
-    border: 2px solid #6b16ed;
+    color: #fff;
+    background: var(--st-btn-bg);
+    border: 2px solid var(--st-btn-border);
     border-radius: 0.25rem;
     outline: 0;
     cursor: pointer;
@@ -829,33 +981,33 @@
   }
 
   .save-button:hover:not(:disabled) {
-    background: #6b16ed;
+    background: var(--st-btn-hover-bg);
     color: #fff;
   }
 
   .save-button:focus-visible {
     outline: none;
     box-shadow:
-      0 0 0 2px #fff,
-      0 0 0 4px #6b16ed;
+      0 0 0 2px var(--st-bg),
+      0 0 0 4px var(--st-focus-ring);
   }
 
   .save-button:disabled {
     cursor: not-allowed;
     border-color: transparent;
     background: transparent;
-    color: #d4d4d4;
+    color: var(--st-text-muted);
   }
 
   .help-text {
     font-size: 0.6875rem;
-    color: #737373;
+    color: var(--st-text-secondary);
     margin: 2px 0 0;
     font-weight: 400;
   }
 
   .help-text a {
-    color: #6b16ed;
+    color: var(--st-brand);
     text-decoration: underline;
     text-underline-offset: 2px;
     text-decoration-thickness: 1px;
@@ -863,7 +1015,7 @@
   }
 
   .help-text a:hover {
-    color: #000;
+    color: var(--st-text);
   }
 
   .saved-popup {
@@ -872,7 +1024,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--st-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -881,33 +1033,33 @@
   }
 
   .saved-popup-content {
-    background: #fff;
-    color: #000;
+    background: var(--st-bg-elevated);
+    color: var(--st-text);
     padding: 14px 20px;
-    border: 1px solid #e5e5e5;
+    border: 1px solid var(--st-border);
     border-radius: 0.25rem;
     display: flex;
     align-items: center;
     gap: 10px;
     font-weight: 500;
-    box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 5px 15px -3px var(--st-shadow);
     font-size: 0.8125rem;
   }
 
   .saved-popup-content svg path {
-    stroke: #22c55e;
+    stroke: var(--st-success);
   }
 
   .dev-section {
-    border-top: 1px solid #e5e5e5;
+    border-top: 1px solid var(--st-border);
     padding-top: 16px;
     margin-top: 4px;
   }
 
   .dev-badge {
-    background: #f5f0ff;
-    color: #5a12c7;
-    border: 1px solid #6b16ed;
+    background: var(--st-brand-surface);
+    color: var(--st-brand-text);
+    border: 1px solid var(--st-brand);
     padding: 3px 8px;
     border-radius: 0.125rem;
     font-size: 0.6875rem;
@@ -929,9 +1081,9 @@
     font-weight: 500;
     font-family: inherit;
     text-transform: none;
-    background: #fff;
-    color: #000;
-    border: 2px solid #e5e5e5;
+    background: var(--st-bg);
+    color: var(--st-text);
+    border: 2px solid var(--st-border);
     border-radius: 0.125rem;
     outline: 0;
     cursor: pointer;
@@ -941,21 +1093,21 @@
   }
 
   .test-button:hover {
-    background: #f5f5f5;
-    color: #000;
+    background: var(--st-bg-secondary);
+    color: var(--st-text);
   }
 
   .test-button:focus-visible {
     outline: none;
     box-shadow:
-      0 0 0 2px #fff,
-      0 0 0 4px #6b16ed;
+      0 0 0 2px var(--st-bg),
+      0 0 0 4px var(--st-focus-ring);
   }
 
   .env-indicator {
-    background: #fefce8;
-    color: #854d0e;
-    border: 1px solid #fde047;
+    background: var(--st-warning-surface);
+    color: var(--st-warning-text);
+    border: 1px solid var(--st-warning-border);
     padding: 8px 12px;
     border-radius: 0.25rem;
     font-size: 0.6875rem;
