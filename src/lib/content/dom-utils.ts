@@ -143,10 +143,7 @@ function extractEditableText(root: HTMLElement): string {
 
       if (el.tagName === 'BR') {
         // BR as sole child of a block = empty paragraph marker; the block's \n covers it
-        if (
-          el.parentElement?.children.length === 1 &&
-          el.parentElement.childNodes.length === 1
-        ) {
+        if (el.parentElement?.children.length === 1 && el.parentElement.childNodes.length === 1) {
           return;
         }
         parts.push('\n');
@@ -356,9 +353,7 @@ function hasNonEditableInteractiveContent(element: HTMLElement): boolean {
   const nonEditables = element.querySelectorAll('[contenteditable="false"]');
   for (const node of nonEditables) {
     if (
-      node.querySelector(
-        'button, [role="button"], img, svg, input, select, [data-state], a[href]'
-      )
+      node.querySelector('button, [role="button"], img, svg, input, select, [data-state], a[href]')
     ) {
       return true;
     }
