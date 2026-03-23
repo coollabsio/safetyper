@@ -5,6 +5,8 @@
   import type { ApiProvider, OpenRouterModel } from '../../lib/content/types';
   import { PROVIDER_CONFIG, DEFAULT_PROVIDER } from '../../lib/content/config';
 
+  const version = browser.runtime.getManifest().version;
+
   const selectedProviderStorage = storage.defineItem<ApiProvider>('local:selectedProvider', {
     fallback: 'openrouter',
   });
@@ -396,7 +398,7 @@
       />
       <h1>Safetyper</h1>
     </div>
-    <p class="tagline">Grammar Check Assistant</p>
+    <span class="version">v{version}</span>
   </header>
 
   <div class="content">
@@ -1102,6 +1104,12 @@
     box-shadow:
       0 0 0 2px var(--st-bg),
       0 0 0 4px var(--st-focus-ring);
+  }
+
+  .version {
+    font-size: 0.6875rem;
+    color: var(--st-text-secondary);
+    margin-top: 2px;
   }
 
   .env-indicator {
