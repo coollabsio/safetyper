@@ -215,7 +215,8 @@ export function showPopup(e: Event): void {
   // Check if API key exists for the active provider
   browser.storage.local.get(['selectedProvider', 'openRouterKey', 'groqKey']).then((result) => {
     const provider = result.selectedProvider || 'openrouter';
-    const hasApiKey = provider === 'openrouter' ? !!result.openRouterKey : !!result.groqKey;
+    const hasApiKey =
+      provider === 'ollama' ? true : provider === 'openrouter' ? !!result.openRouterKey : !!result.groqKey;
 
     if (popup) {
       const content = popup.querySelector('.safetyper-popup-content');

@@ -83,12 +83,17 @@ export async function checkGrammar(text: string): Promise<string> {
     'selectedProvider',
     'selectedModel',
     'groqSelectedModel',
+    'ollamaSelectedModel',
   ]);
   const provider: ApiProvider = result.selectedProvider || DEFAULT_PROVIDER;
-  const model =
-    provider === 'openrouter'
-      ? result.selectedModel || PROVIDER_CONFIG.openrouter.defaultModel
-      : result.groqSelectedModel || PROVIDER_CONFIG.groq.defaultModel;
+  let model: string;
+  if (provider === 'openrouter') {
+    model = result.selectedModel || PROVIDER_CONFIG.openrouter.defaultModel;
+  } else if (provider === 'groq') {
+    model = result.groqSelectedModel || PROVIDER_CONFIG.groq.defaultModel;
+  } else {
+    model = result.ollamaSelectedModel || PROVIDER_CONFIG.ollama.defaultModel;
+  }
 
   // Check cache first
   const cacheKey = getCacheKey(text, model);

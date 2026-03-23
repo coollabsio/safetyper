@@ -42,6 +42,11 @@ export const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 export const DEFAULT_PROVIDER: ApiProvider = 'openrouter';
 
 /**
+ * Default Ollama endpoint
+ */
+export const DEFAULT_OLLAMA_ENDPOINT = 'http://localhost:11434';
+
+/**
  * Provider-specific configuration
  */
 export const PROVIDER_CONFIG = {
@@ -57,6 +62,7 @@ export const PROVIDER_CONFIG = {
     cachedModelsStorageKey: 'cachedModels' as const,
     keysUrl: 'https://openrouter.ai/keys',
     requiresReferer: true,
+    requiresApiKey: true,
   },
   groq: {
     name: 'Groq',
@@ -70,6 +76,21 @@ export const PROVIDER_CONFIG = {
     cachedModelsStorageKey: 'groqCachedModels' as const,
     keysUrl: 'https://console.groq.com/keys',
     requiresReferer: false,
+    requiresApiKey: true,
+  },
+  ollama: {
+    name: 'Ollama',
+    defaultModel: 'llama3.2',
+    chatEndpoint: 'http://localhost:11434/v1/chat/completions',
+    modelsEndpoint: 'http://localhost:11434/api/tags',
+    keyPrefix: '',
+    keyRegex: /.*/,
+    keyStorageKey: 'ollamaEndpoint' as const,
+    modelStorageKey: 'ollamaSelectedModel' as const,
+    cachedModelsStorageKey: 'ollamaCachedModels' as const,
+    keysUrl: '',
+    requiresReferer: false,
+    requiresApiKey: false,
   },
 } as const satisfies Record<ApiProvider, object>;
 

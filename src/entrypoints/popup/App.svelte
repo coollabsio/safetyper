@@ -23,6 +23,14 @@
 
   const groqKeyStorage = storage.defineItem<string>('local:groqKey');
 
+  const ollamaSelectedModelStorage = storage.defineItem<string>('local:ollamaSelectedModel', {
+    fallback: 'llama3.2',
+  });
+
+  const ollamaEndpointStorage = storage.defineItem<string>('local:ollamaEndpoint', {
+    fallback: 'http://localhost:11434',
+  });
+
   const darkModeStorage = storage.defineItem<boolean>('local:darkMode', {
     fallback: false,
   });
@@ -79,8 +87,14 @@
     },
   ];
 
+  const OLLAMA_FALLBACK_MODELS: OpenRouterModel[] = [
+    { id: 'llama3.2', name: 'llama3.2', pricing: { prompt: '0', completion: '0' } },
+  ];
+
   function getFallbackModels(provider: ApiProvider): OpenRouterModel[] {
-    return provider === 'openrouter' ? OPENROUTER_FALLBACK_MODELS : GROQ_FALLBACK_MODELS;
+    if (provider === 'openrouter') return OPENROUTER_FALLBACK_MODELS;
+    if (provider === 'groq') return GROQ_FALLBACK_MODELS;
+    return OLLAMA_FALLBACK_MODELS;
   }
 
   // State
@@ -91,9 +105,14 @@
   let showSavedPopup = false;
   let isApiKeyFromEnv = false;
   let darkMode = false;
+  let ollamaEndpoint = 'http://localhost:11434';
+  let connectionStatus: 'idle' | 'checking' | 'connected' | 'error' = 'idle';
+  let connectionError = '';
+  let connectionModelCount = 0;
 
   $: providerConfig = PROVIDER_CONFIG[selectedProvider];
   $: showPricing = selectedProvider === 'openrouter';
+  $: isOllama = selectedProvider === 'ollama';
 
   // Model combobox state
   let allModels: OpenRouterModel[] = OPENROUTER_FALLBACK_MODELS;
@@ -230,6 +249,7 @@
 
   // Validate API key format
   function validateApiKey(key: string): { valid: boolean; error?: string } {
+    if (isOllama) return { valid: true };
     if (!key || key.trim() === '') {
       return { valid: false, error: 'API key is required' };
     }
@@ -245,7 +265,7 @@
   async function saveSettings() {
     isLoading = true;
     try {
-      if (apiKey && apiKey.trim() !== '') {
+      if (!isOllama && apiKey && apiKey.trim() !== '') {
         const validation = validateApiKey(apiKey);
         if (!validation.valid) {
           alert(validation.error);
@@ -256,7 +276,10 @@
 
       await selectedProviderStorage.setValue(selectedProvider);
 
-      if (selectedProvider === 'openrouter') {
+      if (selectedProvider === 'ollama') {
+        await ollamaSelectedModelStorage.setValue(selectedModel);
+        await ollamaEndpointStorage.setValue(ollamaEndpoint);
+      } else if (selectedProvider === 'openrouter') {
         await selectedModelStorage.setValue(selectedModel);
         await openRouterKeyStorage.setValue(apiKey.trim());
       } else {
@@ -287,7 +310,12 @@
 
     // Load the new provider's settings from storage
     try {
-      if (newProvider === 'openrouter') {
+      if (newProvider === 'ollama') {
+        selectedModel = (await ollamaSelectedModelStorage.getValue()) || config.defaultModel;
+        ollamaEndpoint = (await ollamaEndpointStorage.getValue()) || 'http://localhost:11434';
+        apiKey = '';
+        connectionStatus = 'idle';
+      } else if (newProvider === 'openrouter') {
         selectedModel = (await selectedModelStorage.getValue()) || config.defaultModel;
         apiKey = (await openRouterKeyStorage.getValue()) || '';
       } else {
@@ -301,7 +329,7 @@
 
     // Check if key came from env
     isApiKeyFromEnv = false;
-    if (import.meta.env.DEV) {
+    if (import.meta.env.DEV && newProvider !== 'ollama') {
       if (
         newProvider === 'openrouter' &&
         apiKey &&
@@ -328,6 +356,31 @@
     applyTheme(darkMode);
   }
 
+  async function checkOllamaConnection() {
+    connectionStatus = 'checking';
+    connectionError = '';
+    try {
+      await ollamaEndpointStorage.setValue(ollamaEndpoint);
+      const response = await browser.runtime.sendMessage({ action: 'checkOllamaConnection' });
+      if (response?.success) {
+        connectionStatus = 'connected';
+        connectionModelCount = response.modelCount;
+        await fetchModels(true);
+      } else {
+        connectionStatus = 'error';
+        connectionError = response?.error || 'Connection failed';
+      }
+    } catch (error: any) {
+      connectionStatus = 'error';
+      connectionError = error.message || 'Connection failed';
+    }
+  }
+
+  function handleEndpointChange(event: Event) {
+    ollamaEndpoint = (event.target as HTMLInputElement).value;
+    connectionStatus = 'idle';
+  }
+
   function openTestPage() {
     const testUrl = browser.runtime.getURL('/test.html');
     browser.tabs.create({ url: testUrl });
@@ -342,7 +395,11 @@
       selectedProvider = (await selectedProviderStorage.getValue()) || DEFAULT_PROVIDER;
       const config = PROVIDER_CONFIG[selectedProvider];
 
-      if (selectedProvider === 'openrouter') {
+      if (selectedProvider === 'ollama') {
+        selectedModel = (await ollamaSelectedModelStorage.getValue()) || config.defaultModel;
+        ollamaEndpoint = (await ollamaEndpointStorage.getValue()) || 'http://localhost:11434';
+        apiKey = '';
+      } else if (selectedProvider === 'openrouter') {
         selectedModel = (await selectedModelStorage.getValue()) || config.defaultModel;
         apiKey = (await openRouterKeyStorage.getValue()) || '';
       } else {
@@ -351,7 +408,7 @@
       }
 
       // Check for dev env auto-injection
-      if (import.meta.env.DEV) {
+      if (import.meta.env.DEV && selectedProvider !== 'ollama') {
         const envKey =
           selectedProvider === 'openrouter'
             ? import.meta.env.VITE_OPENROUTER_API_KEY
@@ -460,6 +517,7 @@
         >
           <option value="openrouter">OpenRouter</option>
           <option value="groq">Groq</option>
+          <option value="ollama">Ollama</option>
         </select>
       </div>
 
@@ -537,25 +595,60 @@
         </div>
       </div>
 
-      <div class="setting-group">
-        <label for="api-key-input" class="setting-label">{providerConfig.name} API Key</label>
-        <input
-          id="api-key-input"
-          type="password"
-          class="api-key-input"
-          placeholder="Enter your {providerConfig.name} API key"
-          value={apiKey}
-          oninput={handleApiKeyChange}
-        />
-        <p class="help-text">
-          Get your API key from <a href={providerConfig.keysUrl} target="_blank"
-            >{providerConfig.name}</a
-          >
-        </p>
-        {#if isApiKeyFromEnv && import.meta.env.DEV}
-          <div class="env-indicator">API key auto-loaded from .env file</div>
-        {/if}
-      </div>
+      {#if isOllama}
+        <div class="setting-group">
+          <label for="endpoint-input" class="setting-label">Ollama Endpoint</label>
+          <input
+            id="endpoint-input"
+            type="text"
+            class="api-key-input"
+            placeholder="http://localhost:11434"
+            value={ollamaEndpoint}
+            oninput={handleEndpointChange}
+          />
+          <div class="connection-row">
+            <button
+              class="check-connection-btn"
+              onclick={checkOllamaConnection}
+              disabled={connectionStatus === 'checking'}
+            >
+              {connectionStatus === 'checking' ? 'Checking...' : 'Check Connection'}
+            </button>
+            {#if connectionStatus === 'connected'}
+              <span class="connection-status connected">
+                Connected ({connectionModelCount} {connectionModelCount === 1 ? 'model' : 'models'})
+              </span>
+            {:else if connectionStatus === 'error'}
+              <span class="connection-status error">
+                {connectionError}
+              </span>
+            {/if}
+          </div>
+          <p class="help-text">
+            Enter the URL of your Ollama instance (local or remote)
+          </p>
+        </div>
+      {:else}
+        <div class="setting-group">
+          <label for="api-key-input" class="setting-label">{providerConfig.name} API Key</label>
+          <input
+            id="api-key-input"
+            type="password"
+            class="api-key-input"
+            placeholder="Enter your {providerConfig.name} API key"
+            value={apiKey}
+            oninput={handleApiKeyChange}
+          />
+          <p class="help-text">
+            Get your API key from <a href={providerConfig.keysUrl} target="_blank"
+              >{providerConfig.name}</a
+            >
+          </p>
+          {#if isApiKeyFromEnv && import.meta.env.DEV}
+            <div class="env-indicator">API key auto-loaded from .env file</div>
+          {/if}
+        </div>
+      {/if}
 
       <div class="setting-group">
         <button class="save-button" onclick={saveSettings} disabled={isLoading}>
@@ -1110,6 +1203,51 @@
     font-size: 0.6875rem;
     color: var(--st-text-secondary);
     margin-top: 2px;
+  }
+
+  .connection-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .check-connection-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    font-family: inherit;
+    color: #fff;
+    background: var(--st-btn-bg);
+    border: 1px solid var(--st-btn-border);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .check-connection-btn:hover:not(:disabled) {
+    background: var(--st-btn-hover-bg);
+  }
+
+  .check-connection-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .connection-status {
+    font-size: 0.6875rem;
+    font-weight: 500;
+  }
+
+  .connection-status.connected {
+    color: var(--st-success);
+  }
+
+  .connection-status.error {
+    color: #ef4444;
   }
 
   .env-indicator {

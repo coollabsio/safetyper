@@ -1,5 +1,5 @@
 import type { ApiProvider } from '@/lib/content/types';
-import { DEFAULT_PROVIDER, PROVIDER_CONFIG } from '@/lib/content/config';
+import { DEFAULT_OLLAMA_ENDPOINT, DEFAULT_PROVIDER, PROVIDER_CONFIG } from '@/lib/content/config';
 
 export default defineBackground(() => {
   console.log('Background script initialized', { id: browser.runtime.id });
@@ -177,7 +177,19 @@ export default defineBackground(() => {
             }
           }
 
-          const response = await fetch(providerConfig.modelsEndpoint);
+          // Resolve models endpoint (dynamic for Ollama)
+          let modelsUrl: string = providerConfig.modelsEndpoint;
+          let ollamaBaseUrl = '';
+          if (provider === 'ollama') {
+            const endpointStored = await browser.storage.local.get(['ollamaEndpoint']);
+            ollamaBaseUrl = endpointStored.ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+            modelsUrl = `${ollamaBaseUrl}/api/tags`;
+          }
+
+          const fetchOptions: RequestInit = provider === 'ollama'
+            ? { headers: { Origin: ollamaBaseUrl } }
+            : {};
+          const response = await fetch(modelsUrl, fetchOptions);
           if (!response.ok) {
             throw new Error(`Failed to fetch models: ${response.status}`);
           }
@@ -202,13 +214,22 @@ export default defineBackground(() => {
                 },
               }))
               .sort((a: any, b: any) => a.name.localeCompare(b.name));
-          } else {
+          } else if (provider === 'groq') {
             // Groq models endpoint returns {data: [{id, object, created, owned_by}]}
             models = json.data
               .filter((m: any) => m.object === 'model' && m.active !== false)
               .map((m: any) => ({
                 id: m.id,
                 name: m.id,
+                pricing: { prompt: '0', completion: '0' },
+              }))
+              .sort((a: any, b: any) => a.name.localeCompare(b.name));
+          } else {
+            // Ollama models endpoint returns {models: [{name, model, size, ...}]}
+            models = (json.models || [])
+              .map((m: any) => ({
+                id: m.name || m.model,
+                name: m.name || m.model,
                 pricing: { prompt: '0', completion: '0' },
               }))
               .sort((a: any, b: any) => a.name.localeCompare(b.name));
@@ -240,53 +261,95 @@ export default defineBackground(() => {
 
       // Handle grammar check request - retrieve API key securely from storage
       browser.storage.local
-        .get(['selectedProvider', 'openRouterKey', 'groqKey'])
+        .get(['selectedProvider', 'openRouterKey', 'groqKey', 'ollamaEndpoint'])
         .then((result) => {
           const provider: ApiProvider = result.selectedProvider || DEFAULT_PROVIDER;
           const providerConfig = PROVIDER_CONFIG[provider];
-          const apiKey = result[providerConfig.keyStorageKey];
 
-          if (!apiKey) {
-            sendResponse({ success: false, error: 'API key not configured' });
-            return;
-          }
+          if (providerConfig.requiresApiKey) {
+            const apiKey = result[providerConfig.keyStorageKey];
 
-          // Validate API key format
-          if (!providerConfig.keyRegex.test(apiKey)) {
-            sendResponse({
-              success: false,
-              error: `Invalid ${providerConfig.name} API key format`,
-            });
-            return;
-          }
+            if (!apiKey) {
+              sendResponse({ success: false, error: 'API key not configured' });
+              return;
+            }
 
-          const headers: Record<string, string> = {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          };
-          if (providerConfig.requiresReferer) {
-            headers['HTTP-Referer'] = message.referer;
-          }
+            // Validate API key format
+            if (!providerConfig.keyRegex.test(apiKey)) {
+              sendResponse({
+                success: false,
+                error: `Invalid ${providerConfig.name} API key format`,
+              });
+              return;
+            }
 
-          fetch(providerConfig.chatEndpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(message.payload),
-          })
-            .then((response) => {
-              if (!response.ok) {
-                throw new Error(`API request failed with status ${response.status}`);
-              }
-              return response.json();
+            const headers: Record<string, string> = {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            };
+            if (providerConfig.requiresReferer) {
+              headers['HTTP-Referer'] = message.referer;
+            }
+
+            fetch(providerConfig.chatEndpoint, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(message.payload),
             })
-            .then((data) => sendResponse({ success: true, data }))
-            .catch((error) => sendResponse({ success: false, error: error.message }));
+              .then((response) => {
+                if (!response.ok) {
+                  throw new Error(`API request failed with status ${response.status}`);
+                }
+                return response.json();
+              })
+              .then((data) => sendResponse({ success: true, data }))
+              .catch((error) => sendResponse({ success: false, error: error.message }));
+          } else {
+            // Ollama: no API key, dynamic endpoint, set Origin to bypass CORS check
+            const baseUrl = result.ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+            const chatUrl = `${baseUrl}/v1/chat/completions`;
+
+            fetch(chatUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Origin: baseUrl,
+              },
+              body: JSON.stringify(message.payload),
+            })
+              .then((response) => {
+                if (!response.ok) {
+                  throw new Error(`API request failed with status ${response.status}`);
+                }
+                return response.json();
+              })
+              .then((data) => sendResponse({ success: true, data }))
+              .catch((error) => sendResponse({ success: false, error: error.message }));
+          }
         })
         .catch((error) => {
-          sendResponse({ success: false, error: 'Failed to retrieve API key' });
+          sendResponse({ success: false, error: 'Failed to retrieve API configuration' });
         });
 
       // Return true to indicate we'll respond asynchronously
+      return true;
+    } else if (message.action === 'checkOllamaConnection') {
+      (async () => {
+        try {
+          const stored = await browser.storage.local.get(['ollamaEndpoint']);
+          const baseUrl = stored.ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+          const response = await fetch(`${baseUrl}/api/tags`, {
+            method: 'GET',
+            headers: { Origin: baseUrl },
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const json = await response.json();
+          const modelCount = json.models?.length || 0;
+          sendResponse({ success: true, modelCount });
+        } catch (error: any) {
+          sendResponse({ success: false, error: error.message });
+        }
+      })();
       return true;
     }
   });

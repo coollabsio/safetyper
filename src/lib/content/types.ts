@@ -5,7 +5,7 @@
 /**
  * Supported API providers
  */
-export type ApiProvider = 'openrouter' | 'groq';
+export type ApiProvider = 'openrouter' | 'groq' | 'ollama';
 
 /**
  * OpenRouter API Message
@@ -82,6 +82,9 @@ export interface StorageSchema {
   groqKey?: string;
   groqSelectedModel?: string;
   groqCachedModels?: CachedModelsData;
+  ollamaEndpoint?: string;
+  ollamaSelectedModel?: string;
+  ollamaCachedModels?: CachedModelsData;
   darkMode?: boolean;
 }
 
