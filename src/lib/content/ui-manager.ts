@@ -466,6 +466,11 @@ async function handleGrammarCheck(): Promise<void> {
         </div>
       `;
 
+      const closeBtn = content.querySelector('.safetyper-close-btn');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', closePopup);
+      }
+
       // Ensure popup stays within viewport after content update
       setTimeout(() => constrainPopupToViewport(currentPopup), 0);
     } else {

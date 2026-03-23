@@ -118,7 +118,7 @@
 }
 
 .safetyper-icon {
-  position: absolute;
+  position: fixed;
   width: 24px;
   height: 24px;
   z-index: 999999;

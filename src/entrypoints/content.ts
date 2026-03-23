@@ -180,6 +180,22 @@ export default defineContentScript({
     }
 
     /**
+     * Handle scroll — reposition icon to follow the input field
+     */
+    let scrollRafId: number | null = null;
+    function handleScroll(): void {
+      if (scrollRafId) return;
+      scrollRafId = requestAnimationFrame(() => {
+        scrollRafId = null;
+        const activeInput = stateManager.getActiveInput();
+        const iconContainer = stateManager.getIconContainer();
+        if (activeInput && iconContainer && iconContainer.style.display !== 'none') {
+          positionIcon(activeInput);
+        }
+      });
+    }
+
+    /**
      * Cleanup function
      */
     function cleanup(): void {
@@ -189,6 +205,7 @@ export default defineContentScript({
       document.removeEventListener('compositionstart', handleCompositionStart);
       document.removeEventListener('compositionend', handleCompositionEnd);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
       observer.disconnect();
       stateManager.cleanup();
     }
@@ -204,6 +221,7 @@ export default defineContentScript({
     document.addEventListener('compositionstart', handleCompositionStart);
     document.addEventListener('compositionend', handleCompositionEnd);
     window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, true);
 
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Event listeners added');

@@ -280,8 +280,6 @@ export function hasPositionChanged(
  */
 export function calculateIconPosition(element: HTMLElement): Position {
   const rect = element.getBoundingClientRect();
-  const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
   const iconSize = CONFIG.ICON_SIZE;
   const iconFits = rect.height >= iconSize + 4;
   const isSingleLineInput = element.tagName === 'INPUT';
@@ -292,21 +290,21 @@ export function calculateIconPosition(element: HTMLElement): Position {
     const spaceBelow = window.innerHeight - rect.bottom;
     if (spaceBelow >= iconSize + 4) {
       // Below the field
-      top = rect.bottom + scrollTop + 2;
+      top = rect.bottom + 2;
     } else {
       // Above the field
-      top = rect.top + scrollTop - iconSize - 2;
+      top = rect.top - iconSize - 2;
     }
   } else if (isSingleLineInput) {
     // Vertically centered inside single-line inputs
-    top = rect.top + scrollTop + (rect.height - iconSize) / 2;
+    top = rect.top + (rect.height - iconSize) / 2;
   } else {
     // Bottom-right corner for textareas and other elements
-    top = rect.bottom + scrollTop - CONFIG.ICON_OFFSET;
+    top = rect.bottom - CONFIG.ICON_OFFSET;
   }
 
   return {
-    left: rect.right + scrollLeft - CONFIG.ICON_OFFSET,
+    left: rect.right - CONFIG.ICON_OFFSET,
     top,
   };
 }
