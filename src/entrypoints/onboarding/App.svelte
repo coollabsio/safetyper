@@ -147,9 +147,9 @@
     --st-shadow: rgba(0, 0, 0, 0.08);
     --st-overlay: rgba(0, 0, 0, 0.3);
     --st-focus-ring: #6b16ed;
-    --st-btn-bg: #6b16ed;
-    --st-btn-hover-bg: #5a12c7;
-    --st-btn-border: #6b16ed;
+    --st-btn-bg: #5a12c7;
+    --st-btn-hover-bg: #6b16ed;
+    --st-btn-border: #8b5cf6;
     --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23737373' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 

@@ -106,41 +106,45 @@
   }
 
   // State
-  let selectedProvider: ApiProvider = 'openrouter';
-  let selectedModel = 'google/gemini-2.5-flash';
-  let apiKey = '';
-  let isLoading = false;
-  let showSavedPopup = false;
-  let isApiKeyFromEnv = false;
-  let darkMode = false;
-  let ollamaEndpoint = 'http://localhost:11434';
-  let connectionStatus: 'idle' | 'checking' | 'connected' | 'error' = 'idle';
-  let connectionError = '';
-  let connectionModelCount = 0;
-  let customSystemPrompt = '';
-  let showAdvanced = false;
+  let selectedProvider = $state<ApiProvider>('openrouter');
+  let selectedModel = $state('google/gemini-2.5-flash');
+  let apiKey = $state('');
+  let isLoading = $state(false);
+  let showSavedPopup = $state(false);
+  let isApiKeyFromEnv = $state(false);
+  let darkMode = $state(false);
+  let ollamaEndpoint = $state('http://localhost:11434');
+  let connectionStatus: 'idle' | 'checking' | 'connected' | 'error' = $state('idle');
+  let connectionError = $state('');
+  let connectionModelCount = $state(0);
+  let customSystemPrompt = $state('');
+  let showAdvanced = $state(false);
 
-  $: providerConfig = PROVIDER_CONFIG[selectedProvider];
-  $: showPricing = selectedProvider === 'openrouter';
-  $: isOllama = selectedProvider === 'ollama';
+  let providerConfig = $derived(PROVIDER_CONFIG[selectedProvider]);
+  let showPricing = $derived(selectedProvider === 'openrouter');
+  let isOllama = $derived(selectedProvider === 'ollama');
 
   // Model combobox state
-  let allModels: OpenRouterModel[] = OPENROUTER_FALLBACK_MODELS;
-  let isLoadingModels = false;
-  let searchQuery = '';
-  let isDropdownOpen = false;
-  let highlightedIndex = -1;
-  let comboboxEl: HTMLDivElement;
-  let listEl: HTMLUListElement;
-  let inputEl: HTMLInputElement;
+  let allModels: OpenRouterModel[] = $state(OPENROUTER_FALLBACK_MODELS);
+  let isLoadingModels = $state(false);
+  let searchQuery = $state('');
+  let isDropdownOpen = $state(false);
+  let highlightedIndex = $state(-1);
+  let comboboxEl: HTMLDivElement | undefined = $state();
+  let listEl: HTMLUListElement | undefined = $state();
+  let inputEl: HTMLInputElement | undefined = $state();
 
-  $: filteredModels = allModels.filter((m) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
-  });
+  let filteredModels = $derived(
+    allModels.filter((m) => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      return m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
+    })
+  );
 
-  $: selectedModelDisplay = allModels.find((m) => m.id === selectedModel)?.name || selectedModel;
+  let selectedModelDisplay = $derived(
+    allModels.find((m) => m.id === selectedModel)?.name || selectedModel
+  );
 
   function formatPrice(model: OpenRouterModel): string {
     const promptPrice = parseFloat(model.pricing.prompt) * 1_000_000;
@@ -171,7 +175,6 @@
       closeDropdown();
     } else {
       openDropdown();
-      // Focus the input after opening
       setTimeout(() => inputEl?.focus(), 0);
     }
   }
@@ -244,7 +247,6 @@
       });
       if (response?.success && response.data?.length > 0) {
         allModels = response.data;
-        // Auto-reset if selected model no longer exists
         if (!allModels.find((m) => m.id === selectedModel)) {
           selectedModel = providerConfig.defaultModel;
         }
@@ -257,7 +259,6 @@
     }
   }
 
-  // Validate API key format
   function validateApiKey(key: string): { valid: boolean; error?: string } {
     if (isOllama) return { valid: true };
     if (!key || key.trim() === '') {
@@ -320,7 +321,6 @@
     selectedProvider = newProvider;
     const config = PROVIDER_CONFIG[newProvider];
 
-    // Load the new provider's settings from storage
     try {
       if (newProvider === 'ollama') {
         selectedModel = (await ollamaSelectedModelStorage.getValue()) || config.defaultModel;
@@ -339,7 +339,6 @@
       apiKey = '';
     }
 
-    // Check if key came from env
     isApiKeyFromEnv = false;
     if (import.meta.env.DEV && newProvider !== 'ollama') {
       if (
@@ -353,7 +352,6 @@
       }
     }
 
-    // Load models for the new provider
     allModels = getFallbackModels(newProvider);
     await fetchModels();
   }
@@ -403,7 +401,6 @@
   }
 
   onMount(async () => {
-    // Load dark mode first to avoid flash
     darkMode = (await darkModeStorage.getValue()) ?? false;
     applyTheme(darkMode);
 
@@ -423,7 +420,6 @@
         apiKey = (await groqKeyStorage.getValue()) || '';
       }
 
-      // Check for dev env auto-injection
       if (import.meta.env.DEV && selectedProvider !== 'ollama') {
         const envKey =
           selectedProvider === 'openrouter'
@@ -448,10 +444,8 @@
       console.error('Error loading settings:', error);
     }
 
-    // Fetch models from API
     await fetchModels();
 
-    // Click-outside listener
     document.addEventListener('click', handleClickOutside);
   });
 
@@ -537,13 +531,12 @@
     </div>
   </div>
   <div class="content">
-    <div class="settings">
-      <h2 class="section-title">Settings</h2>
-      <div class="setting-group">
-        <label for="provider-select" class="setting-label">API Provider</label>
+    <div class="form">
+      <div class="field">
+        <label for="provider-select">API Provider</label>
         <select
           id="provider-select"
-          class="provider-select"
+          class="select"
           value={selectedProvider}
           onchange={handleProviderChange}
         >
@@ -553,9 +546,9 @@
         </select>
       </div>
 
-      <div class="setting-group">
+      <div class="field">
         <div class="label-row">
-          <label for="model-search" class="setting-label">LLM Model</label>
+          <label for="model-search">LLM Model</label>
           <button class="refresh-btn" onclick={() => fetchModels(true)} disabled={isLoadingModels}>
             {isLoadingModels ? '...' : 'Refresh'}
           </button>
@@ -589,7 +582,7 @@
             >
               <path
                 d="M3 4.5L6 7.5L9 4.5"
-                stroke="#737373"
+                stroke="currentColor"
                 stroke-width="1.5"
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -628,44 +621,42 @@
       </div>
 
       {#if isOllama}
-        <div class="setting-group">
-          <label for="endpoint-input" class="setting-label">Ollama Endpoint</label>
+        <div class="field">
+          <label for="endpoint-input">Ollama Endpoint</label>
           <input
             id="endpoint-input"
             type="text"
-            class="api-key-input"
+            class="input"
             placeholder="http://localhost:11434"
             value={ollamaEndpoint}
             oninput={handleEndpointChange}
           />
           <div class="connection-row">
             <button
-              class="check-connection-btn"
+              class="secondary-btn small"
               onclick={checkOllamaConnection}
               disabled={connectionStatus === 'checking'}
             >
               {connectionStatus === 'checking' ? 'Checking...' : 'Check Connection'}
             </button>
             {#if connectionStatus === 'connected'}
-              <span class="connection-status connected">
+              <span class="status-text connected">
                 Connected ({connectionModelCount}
                 {connectionModelCount === 1 ? 'model' : 'models'})
               </span>
             {:else if connectionStatus === 'error'}
-              <span class="connection-status error">
-                {connectionError}
-              </span>
+              <span class="status-text error">{connectionError}</span>
             {/if}
           </div>
           <p class="help-text">Enter the URL of your Ollama instance (local or remote)</p>
         </div>
       {:else}
-        <div class="setting-group">
-          <label for="api-key-input" class="setting-label">{providerConfig.name} API Key</label>
+        <div class="field">
+          <label for="api-key-input">{providerConfig.name} API Key</label>
           <input
             id="api-key-input"
             type="password"
-            class="api-key-input"
+            class="input"
             placeholder="Enter your {providerConfig.name} API key"
             value={apiKey}
             oninput={handleApiKeyChange}
@@ -681,21 +672,21 @@
         </div>
       {/if}
 
-      <div class="setting-group">
+      <div class="field">
         <button class="advanced-toggle" onclick={() => (showAdvanced = !showAdvanced)}>
           {showAdvanced ? '▾' : '▸'} Advanced Settings
         </button>
       </div>
 
       {#if showAdvanced}
-        <div class="setting-group">
+        <div class="field">
           <div class="label-row">
-            <label for="system-prompt" class="setting-label">System Prompt</label>
+            <label for="system-prompt">System Prompt</label>
             <button class="refresh-btn" onclick={resetSystemPrompt}>Reset to Default</button>
           </div>
           <textarea
             id="system-prompt"
-            class="system-prompt-input"
+            class="input textarea"
             placeholder={DEFAULT_SYSTEM_PROMPT}
             bind:value={customSystemPrompt}
             rows="4"
@@ -706,16 +697,16 @@
         </div>
       {/if}
 
-      <div class="setting-group">
-        <button class="save-button" onclick={saveSettings} disabled={isLoading}>
+      <div class="field">
+        <button class="primary-btn" onclick={saveSettings} disabled={isLoading}>
           {isLoading ? 'Saving...' : 'Save Settings'}
         </button>
       </div>
 
       {#if import.meta.env.DEV}
-        <div class="setting-group dev-section">
+        <div class="field dev-section">
           <div class="dev-badge">Development Mode</div>
-          <button class="test-button" onclick={openTestPage}> Open Test Page </button>
+          <button class="secondary-btn" onclick={openTestPage}>Open Test Page</button>
         </div>
       {/if}
     </div>
@@ -766,9 +757,9 @@
     --st-shadow: rgba(0, 0, 0, 0.08);
     --st-overlay: rgba(0, 0, 0, 0.3);
     --st-focus-ring: #6b16ed;
-    --st-btn-bg: #6b16ed;
-    --st-btn-hover-bg: #5a12c7;
-    --st-btn-border: #6b16ed;
+    --st-btn-bg: #5a12c7;
+    --st-btn-hover-bg: #6b16ed;
+    --st-btn-border: #8b5cf6;
     --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%23737373' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   }
 
@@ -813,32 +804,33 @@
       BlinkMacSystemFont,
       sans-serif;
     background: var(--st-bg);
+    color: var(--st-text);
   }
 
   .content {
-    padding: 16px 20px 8px;
+    padding: 20px;
     width: 100%;
     box-sizing: border-box;
     background: var(--st-bg);
   }
 
-  .settings {
+  .form {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 20px;
     width: 100%;
   }
 
-  .setting-group {
+  .field {
     display: flex;
     flex-direction: column;
     gap: 6px;
     width: 100%;
   }
 
-  .setting-label {
+  .field label {
     font-size: 0.8125rem;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--st-text);
   }
 
@@ -848,6 +840,49 @@
     justify-content: space-between;
   }
 
+  /* Inputs & Select — matches onboarding */
+  .select,
+  .input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--st-border);
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: var(--st-bg);
+    color: var(--st-text);
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s ease;
+    box-sizing: border-box;
+  }
+
+  .select {
+    appearance: none;
+    background-image: var(--st-select-arrow);
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+  }
+
+  .select:focus,
+  .input:focus {
+    border-color: var(--st-brand);
+    box-shadow: 0 0 0 2px var(--st-brand-surface);
+  }
+
+  .textarea {
+    min-height: 80px;
+    resize: vertical;
+    line-height: 1.4;
+  }
+
+  .select option {
+    background: var(--st-bg);
+    color: var(--st-text);
+  }
+
+  /* Theme toggle */
   .theme-toggle {
     display: inline-flex;
     align-items: center;
@@ -857,7 +892,7 @@
     color: var(--st-text-secondary);
     background: none;
     border: none;
-    border-radius: 0.25rem;
+    border-radius: 6px;
     cursor: pointer;
     transition: color 0.15s ease;
   }
@@ -866,6 +901,7 @@
     color: var(--st-text);
   }
 
+  /* Refresh / text buttons */
   .refresh-btn {
     background: none;
     border: none;
@@ -875,17 +911,17 @@
     font-family: inherit;
     cursor: pointer;
     padding: 2px 6px;
-    border-radius: 0.25rem;
+    border-radius: 6px;
     transition: background-color 0.15s ease;
   }
 
   .refresh-btn:hover:not(:disabled) {
-    background: var(--st-brand-surface);
+    text-decoration: underline;
   }
 
   .refresh-btn:disabled {
-    color: var(--st-text-muted);
-    cursor: not-allowed;
+    opacity: 0.5;
+    cursor: default;
   }
 
   .advanced-toggle {
@@ -904,55 +940,30 @@
     color: var(--st-text);
   }
 
-  .system-prompt-input {
-    width: 100%;
-    min-height: 80px;
-    padding: 8px 10px;
-    font-size: 0.8125rem;
-    font-family: inherit;
-    color: var(--st-text);
-    background: var(--st-bg-secondary);
-    border: 1px solid var(--st-border);
-    border-radius: 0.375rem;
-    resize: vertical;
-    box-sizing: border-box;
-    line-height: 1.4;
-  }
-
-  .system-prompt-input:focus {
-    outline: none;
-    border-color: var(--st-focus-ring);
-  }
-
-  /* Combobox */
+  /* Combobox — matches onboarding */
   .combobox {
     position: relative;
     width: 100%;
   }
 
   .combobox-input {
-    display: block;
-    padding: 0.375rem 2rem 0.375rem 0.5rem;
     width: 100%;
-    font-size: 0.8125rem;
-    font-family: inherit;
+    padding: 10px 36px 10px 12px;
+    border: 1px solid var(--st-border);
+    border-radius: 8px;
+    font-size: 0.875rem;
     background: var(--st-bg);
     color: var(--st-text);
-    border: 0;
-    border-radius: 0.25rem;
-    box-shadow:
-      inset 4px 0 0 transparent,
-      inset 0 0 0 2px var(--st-border);
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s ease;
     box-sizing: border-box;
-    transition: box-shadow 0.15s ease;
     text-overflow: ellipsis;
   }
 
   .combobox-input:focus {
-    outline: none;
-    box-shadow:
-      inset 4px 0 0 var(--st-brand),
-      inset 0 0 0 2px var(--st-border);
+    border-color: var(--st-brand);
+    box-shadow: 0 0 0 2px var(--st-brand-surface);
   }
 
   .combobox-input::placeholder {
@@ -961,17 +972,16 @@
 
   .combobox-toggle {
     position: absolute;
-    right: 0;
-    top: 0;
-    height: 100%;
-    width: 2rem;
-    background: transparent;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
     border: none;
+    padding: 4px;
     cursor: pointer;
+    color: var(--st-text-secondary);
     display: flex;
     align-items: center;
-    justify-content: center;
-    color: var(--st-text-secondary);
   }
 
   .combobox-list {
@@ -979,49 +989,51 @@
     top: 100%;
     left: 0;
     right: 0;
-    max-height: 240px;
+    margin-top: 4px;
+    max-height: 200px;
     overflow-y: auto;
-    background: var(--st-bg);
-    border: 2px solid var(--st-border);
-    border-top: 1px solid var(--st-border);
-    border-radius: 0 0 0.5rem 0.5rem;
-    z-index: 100;
+    background: var(--st-bg-elevated);
+    border: 1px solid var(--st-border);
+    border-radius: 8px;
     list-style: none;
-    padding: 0;
-    margin: 0;
+    padding: 4px;
+    z-index: 10;
     box-shadow: 0 4px 12px var(--st-shadow);
   }
 
   .combobox-list li {
-    padding: 6px 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     flex-direction: column;
     gap: 1px;
-    border-left: 3px solid transparent;
+    transition: background 0.1s ease;
   }
 
   .combobox-list li:hover,
   .combobox-list li.highlighted {
-    background: var(--st-brand-surface);
+    background: var(--st-bg-secondary);
   }
 
   .combobox-list li.selected {
-    border-left-color: var(--st-brand);
-    background: var(--st-brand-surface-alt);
+    background: var(--st-brand-surface);
+    color: var(--st-brand-text);
+    font-weight: 500;
   }
 
   .combobox-list li.no-results {
     color: var(--st-text-secondary);
-    font-size: 0.8125rem;
     cursor: default;
-    padding: 10px 8px;
+    text-align: center;
+    font-style: italic;
   }
 
   .model-name {
     font-size: 0.8125rem;
     font-weight: 500;
     color: var(--st-text);
+    display: block;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1044,132 +1056,100 @@
     border-radius: 2px;
   }
 
-  .provider-select {
-    display: block;
-    padding: 0.375rem 0.5rem;
+  /* Primary button — matches onboarding */
+  .primary-btn {
     width: 100%;
-    font-size: 0.8125rem;
-    font-family: inherit;
-    background: var(--st-bg);
-    color: var(--st-text);
-    border: 0;
-    border-radius: 0.25rem;
-    box-shadow:
-      inset 4px 0 0 transparent,
-      inset 0 0 0 2px var(--st-border);
-    box-sizing: border-box;
-    transition: box-shadow 0.15s ease;
-    cursor: pointer;
-    appearance: none;
-    background-image: var(--st-select-arrow);
-    background-repeat: no-repeat;
-    background-position: right 0.5rem center;
-    padding-right: 2rem;
-  }
-
-  .provider-select:focus {
-    outline: none;
-    box-shadow:
-      inset 4px 0 0 var(--st-brand),
-      inset 0 0 0 2px var(--st-border);
-  }
-
-  .provider-select option {
-    background: var(--st-bg);
-    color: var(--st-text);
-  }
-
-  .api-key-input {
-    display: block;
-    padding: 0.375rem 0.5rem;
-    width: 100%;
-    font-size: 0.8125rem;
-    font-family: inherit;
-    background: var(--st-bg);
-    color: var(--st-text);
-    border: 0;
-    border-radius: 0.25rem;
-    box-shadow:
-      inset 4px 0 0 transparent,
-      inset 0 0 0 2px var(--st-border);
-    box-sizing: border-box;
-    transition: box-shadow 0.15s ease;
-  }
-
-  .api-key-input:focus {
-    outline: none;
-    box-shadow:
-      inset 4px 0 0 var(--st-brand),
-      inset 0 0 0 2px var(--st-border);
-  }
-
-  .api-key-input::placeholder {
-    color: var(--st-text-muted);
-  }
-
-  .save-button {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-    align-items: center;
-    padding: 0 0.5rem;
-    height: 2rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    font-family: inherit;
-    text-transform: none;
-    color: #fff;
+    padding: 12px 24px;
     background: var(--st-btn-bg);
-    border: 2px solid var(--st-btn-border);
-    border-radius: 0.25rem;
-    outline: 0;
-    cursor: pointer;
-    min-width: fit-content;
-    width: 100%;
-    box-sizing: border-box;
-    transition:
-      background-color 0.15s ease,
-      color 0.15s ease;
-  }
-
-  .save-button:hover:not(:disabled) {
-    background: var(--st-btn-hover-bg);
     color: #fff;
+    border: 2px solid var(--st-btn-border);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s ease;
   }
 
-  .save-button:focus-visible {
+  .primary-btn:hover:not(:disabled) {
+    background: var(--st-btn-hover-bg);
+  }
+
+  .primary-btn:focus-visible {
     outline: none;
     box-shadow:
       0 0 0 2px var(--st-bg),
       0 0 0 4px var(--st-focus-ring);
   }
 
-  .save-button:disabled {
-    cursor: not-allowed;
-    border-color: transparent;
-    background: transparent;
-    color: var(--st-text-muted);
+  .primary-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  /* Secondary button — matches onboarding */
+  .secondary-btn {
+    padding: 8px 16px;
+    background: var(--st-bg-secondary);
+    color: var(--st-text);
+    border: 1px solid var(--st-border);
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .secondary-btn.small {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+  }
+
+  .secondary-btn:hover:not(:disabled) {
+    background: var(--st-bg-elevated);
+  }
+
+  .secondary-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   .help-text {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     color: var(--st-text-secondary);
-    margin: 2px 0 0;
-    font-weight: 400;
   }
 
   .help-text a {
     color: var(--st-brand);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-    text-decoration-thickness: 1px;
-    transition: color 0.15s ease;
+    text-decoration: none;
   }
 
   .help-text a:hover {
-    color: var(--st-text);
+    text-decoration: underline;
   }
 
+  .connection-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .status-text {
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .status-text.connected {
+    color: var(--st-success);
+  }
+
+  .status-text.error {
+    color: #ef4444;
+  }
+
+  /* Saved popup */
   .saved-popup {
     position: fixed;
     top: 0;
@@ -1189,7 +1169,7 @@
     color: var(--st-text);
     padding: 14px 20px;
     border: 1px solid var(--st-border);
-    border-radius: 0.25rem;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1202,60 +1182,7 @@
     stroke: var(--st-success);
   }
 
-  .dev-section {
-    border-top: 1px solid var(--st-border);
-    padding-top: 16px;
-    margin-top: 4px;
-  }
-
-  .dev-badge {
-    background: var(--st-brand-surface);
-    color: var(--st-brand-text);
-    border: 1px solid var(--st-brand);
-    padding: 3px 8px;
-    border-radius: 0.125rem;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    display: inline-block;
-    margin-bottom: 8px;
-  }
-
-  .test-button {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-    align-items: center;
-    padding: 0 0.5rem;
-    height: 2rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    font-family: inherit;
-    text-transform: none;
-    background: var(--st-bg);
-    color: var(--st-text);
-    border: 2px solid var(--st-border);
-    border-radius: 0.125rem;
-    outline: 0;
-    cursor: pointer;
-    width: 100%;
-    box-sizing: border-box;
-    transition: background-color 0.15s ease;
-  }
-
-  .test-button:hover {
-    background: var(--st-bg-secondary);
-    color: var(--st-text);
-  }
-
-  .test-button:focus-visible {
-    outline: none;
-    box-shadow:
-      0 0 0 2px var(--st-bg),
-      0 0 0 4px var(--st-focus-ring);
-  }
-
+  /* Header */
   .header-row {
     display: flex;
     align-items: center;
@@ -1310,59 +1237,25 @@
     color: var(--st-text);
   }
 
-  .connection-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  /* Dev section */
+  .dev-section {
+    border-top: 1px solid var(--st-border);
+    padding-top: 16px;
     margin-top: 4px;
   }
 
-  .check-connection-btn {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    font-family: inherit;
-    color: #fff;
-    background: var(--st-btn-bg);
-    border: 1px solid var(--st-btn-border);
-    border-radius: 0.25rem;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
-    white-space: nowrap;
-  }
-
-  .check-connection-btn:hover:not(:disabled) {
-    background: var(--st-btn-hover-bg);
-  }
-
-  .check-connection-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .connection-status {
+  .dev-badge {
+    background: var(--st-brand-surface);
+    color: var(--st-brand-text);
+    border: 1px solid var(--st-brand);
+    padding: 3px 8px;
+    border-radius: 6px;
     font-size: 0.6875rem;
-    font-weight: 500;
-  }
-
-  .connection-status.connected {
-    color: var(--st-success);
-  }
-
-  .connection-status.error {
-    color: #ef4444;
-  }
-
-  .section-title {
-    font-size: 0.8125rem;
     font-weight: 700;
-    color: var(--st-text);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin: 0 0 4px;
-    padding: 0;
+    letter-spacing: 0.5px;
+    display: inline-block;
+    margin-bottom: 8px;
   }
 
   .env-indicator {
@@ -1370,7 +1263,7 @@
     color: var(--st-warning-text);
     border: 1px solid var(--st-warning-border);
     padding: 8px 12px;
-    border-radius: 0.25rem;
+    border-radius: 8px;
     font-size: 0.6875rem;
     font-weight: 500;
     margin-top: 4px;

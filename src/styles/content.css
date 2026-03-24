@@ -1,6 +1,7 @@
 /* Light theme (default) */
 .safetyper-popup,
-.safetyper-icon {
+.safetyper-icon,
+.safetyper-mirror {
   --st-bg: #ffffff;
   --st-bg-secondary: #f5f5f5;
   --st-text: #000000;
@@ -35,7 +36,8 @@
 
 /* Dark theme */
 .safetyper-popup[data-theme='dark'],
-.safetyper-icon[data-theme='dark'] {
+.safetyper-icon[data-theme='dark'],
+.safetyper-mirror[data-theme='dark'] {
   --st-bg: #1a1a1a;
   --st-bg-secondary: #262626;
   --st-text: #e5e5e5;
@@ -493,6 +495,143 @@
   background-color: var(--st-success) !important;
   color: #fff !important;
   border-color: var(--st-success) !important;
+}
+
+/* ===== Inline Grammar Check: Mirror, Underlines, Tooltip ===== */
+
+/* Mirror div overlay for input/textarea */
+.safetyper-mirror {
+  position: fixed;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 999998;
+  background: transparent;
+  border-color: transparent;
+  box-sizing: border-box;
+}
+
+.safetyper-mirror-content {
+  color: transparent;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  overflow: hidden;
+  box-sizing: border-box;
+  height: 100%;
+}
+
+/* Error underline (in both mirror div and contenteditable) */
+.safetyper-error {
+  text-decoration: underline var(--st-error);
+  text-decoration-thickness: 2px;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+  position: relative;
+}
+
+/* Pure insertion marker */
+.safetyper-insertion {
+  display: inline-block;
+  width: 2px;
+  background: var(--st-error);
+  text-decoration: none;
+}
+
+/* Error tooltip */
+.safetyper-tooltip {
+  --st-bg: #ffffff;
+  --st-text: #000000;
+  --st-border: #e5e5e5;
+  --st-shadow: rgba(0, 0, 0, 0.12);
+  --st-diff-corrected: #16a34a;
+  --st-btn-bg: #6b16ed;
+  --st-btn-hover-bg: #5a12c7;
+  --st-btn-border: #6b16ed;
+  --st-bg-secondary: #f5f5f5;
+  --st-focus-ring: #6b16ed;
+
+  position: fixed;
+  z-index: 999999;
+  background: var(--st-bg);
+  border: 1px solid var(--st-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 8px var(--st-shadow);
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  font-size: 13px;
+  color: var(--st-text);
+  max-width: 300px;
+  animation: fadeIn 0.15s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+.safetyper-tooltip[data-theme='dark'] {
+  --st-bg: #1a1a1a;
+  --st-text: #e5e5e5;
+  --st-border: #404040;
+  --st-shadow: rgba(0, 0, 0, 0.4);
+  --st-diff-corrected: #86efac;
+  --st-btn-bg: #2d1b69;
+  --st-btn-hover-bg: #8b5cf6;
+  --st-btn-border: #8b5cf6;
+  --st-bg-secondary: #262626;
+  --st-focus-ring: #8b5cf6;
+}
+
+.safetyper-tooltip-text {
+  margin: 0 0 8px 0;
+  color: var(--st-diff-corrected);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.safetyper-tooltip-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.safetyper-tooltip-accept {
+  font-size: 12px;
+  padding: 2px 8px;
+  height: 24px;
+  background: var(--st-btn-bg);
+  color: #fff;
+  border: 1px solid var(--st-btn-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.safetyper-tooltip-accept:hover {
+  background: var(--st-btn-hover-bg);
+}
+
+.safetyper-tooltip-dismiss {
+  font-size: 12px;
+  padding: 2px 8px;
+  height: 24px;
+  background: var(--st-bg);
+  color: var(--st-text);
+  border: 1px solid var(--st-border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.safetyper-tooltip-dismiss:hover {
+  background: var(--st-bg-secondary);
+}
+
+/* Dark theme for error underlines in mirror/contenteditable */
+.safetyper-mirror[data-theme='dark'] .safetyper-error,
+[data-theme='dark'] .safetyper-error {
+  text-decoration-color: #f87171;
 }
 
 /* Manual copy textarea */

@@ -721,9 +721,9 @@
   .primary-btn {
     width: 100%;
     padding: 12px 24px;
-    background: var(--st-brand);
+    background: var(--st-btn-bg);
     color: #fff;
-    border: none;
+    border: 2px solid var(--st-btn-border);
     border-radius: 8px;
     font-size: 0.9375rem;
     font-weight: 600;
@@ -732,7 +732,7 @@
   }
 
   .primary-btn:hover:not(:disabled) {
-    background: var(--st-brand-dark);
+    background: var(--st-btn-hover-bg);
   }
 
   .primary-btn:disabled {

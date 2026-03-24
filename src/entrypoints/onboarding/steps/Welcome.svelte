@@ -196,9 +196,9 @@
     width: 100%;
     max-width: 320px;
     padding: 12px 24px;
-    background: var(--st-brand);
+    background: var(--st-btn-bg);
     color: #fff;
-    border: none;
+    border: 2px solid var(--st-btn-border);
     border-radius: 8px;
     font-size: 0.9375rem;
     font-weight: 600;
@@ -207,7 +207,7 @@
   }
 
   .primary-btn:hover {
-    background: var(--st-brand-dark);
+    background: var(--st-btn-hover-bg);
   }
 
   .skip-btn {
