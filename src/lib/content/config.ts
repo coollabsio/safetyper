@@ -95,6 +95,12 @@ export const PROVIDER_CONFIG = {
 } as const satisfies Record<ApiProvider, object>;
 
 /**
+ * Default system prompt for grammar checking
+ */
+export const DEFAULT_SYSTEM_PROMPT =
+  'You are a grammar checking assistant. Fix grammar and spelling errors in the provided text. IMPORTANT: Always respond in the SAME language as the input text. Do not translate. Return ONLY the corrected text with EXACTLY the same formatting, line breaks, paragraphs, and whitespace as the original. Do not add, remove, or modify any line breaks, indentation, spacing, or paragraph structure. Preserve every newline character and whitespace character exactly as they appear in the original. Do not wrap the response in quotes or add any prefixes or explanations.';
+
+/**
  * Cache configuration
  */
 export const CACHE_CONFIG = {

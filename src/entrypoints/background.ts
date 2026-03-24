@@ -78,10 +78,20 @@ export default defineBackground(() => {
   }
 
   // Only register on install (first time or update)
-  browser.runtime.onInstalled.addListener(async () => {
+  browser.runtime.onInstalled.addListener(async (details) => {
     console.log('[Background] Extension installed/updated');
     await registerContentScripts();
     await reloadAllTabs();
+
+    // Open onboarding on first install only
+    if (details.reason === 'install') {
+      const stored = await browser.storage.local.get(['hasCompletedOnboarding']);
+      if (!stored.hasCompletedOnboarding) {
+        browser.tabs.create({
+          url: browser.runtime.getURL('/onboarding.html'),
+        });
+      }
+    }
   });
 
   // Also register immediately on background script load (for dev mode reload)
