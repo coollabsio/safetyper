@@ -77,13 +77,12 @@ export default defineContentScript({
     /**
      * Handle input blur events
      */
-    function handleBlur(e: FocusEvent): void {
-      const relatedTarget = e.relatedTarget as HTMLElement | null;
-      const isSwitchingToEditable = relatedTarget ? isEditableElement(relatedTarget) : false;
-
+    function handleBlur(): void {
       setTimeout(() => {
         const popup = stateManager.getPopup();
-        if (!isSwitchingToEditable && !popup) {
+        const currentActive = document.activeElement as HTMLElement | null;
+        const hasEditableFocus = currentActive && isEditableElement(currentActive);
+        if (!hasEditableFocus && !popup) {
           hideIcon();
           stateManager.setActiveInput(null);
           stateManager.setCachedPosition(null);

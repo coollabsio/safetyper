@@ -129,7 +129,7 @@
   background: transparent;
   border: none;
   box-shadow: none;
-  transition: all 0.15s ease;
+  transition: transform 0.15s ease;
 }
 
 .safetyper-icon:hover {

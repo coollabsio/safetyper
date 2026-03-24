@@ -213,7 +213,20 @@ export function showPopup(e: Event): void {
   makePopupDraggable(popup);
 
   // Check if API key exists for the active provider
-  browser.storage.local.get(['selectedProvider', 'openRouterKey', 'groqKey']).then((result) => {
+  browser.storage.local.get(['selectedProvider', 'openRouterKey', 'groqKey', 'darkMode']).then((result) => {
+    // Refresh theme from storage to avoid stale cached value
+    const freshTheme = result.darkMode ? 'dark' : 'light';
+    if (freshTheme !== currentTheme) {
+      currentTheme = freshTheme;
+      if (popup) {
+        popup.setAttribute('data-theme', currentTheme);
+      }
+      const iconContainer = stateManager.getIconContainer();
+      if (iconContainer) {
+        iconContainer.setAttribute('data-theme', currentTheme);
+      }
+    }
+
     const provider = result.selectedProvider || 'openrouter';
     const hasApiKey =
       provider === 'ollama'

@@ -444,20 +444,6 @@
 </script>
 
 <main>
-  <header>
-    <div class="logo-container">
-      <img
-        src="/icon/48.png"
-        width="24"
-        height="24"
-        alt="Safetyper"
-        style="image-rendering: pixelated;"
-      />
-      <h1>Safetyper</h1>
-    </div>
-    <span class="version">v{version}</span>
-  </header>
-
   <div class="content">
     <div class="settings">
       <div class="setting-group">
@@ -664,6 +650,8 @@
     </div>
   </div>
 
+  <span class="version">v{version}</span>
+
   {#if showSavedPopup}
     <div class="saved-popup">
       <div class="saved-popup-content">
@@ -750,42 +738,13 @@
     width: 100%;
     min-height: 400px;
     padding: 0;
+    position: relative;
     font-family:
       Inter,
       -apple-system,
       BlinkMacSystemFont,
       sans-serif;
     background: var(--st-bg);
-  }
-
-  header {
-    background: var(--st-bg);
-    color: var(--st-text);
-    padding: 16px 20px 14px;
-    text-align: center;
-    width: 100%;
-    border-bottom: none;
-  }
-
-  .logo-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
-
-  h1 {
-    margin: 0;
-    font-size: 1.125rem;
-    font-weight: 700;
-    color: var(--st-text);
-  }
-
-  .tagline {
-    margin: 2px 0 0;
-    color: var(--st-text-secondary);
-    font-size: 0.8125rem;
-    font-weight: 400;
   }
 
   .content {
@@ -1199,9 +1158,11 @@
   }
 
   .version {
+    display: block;
+    text-align: right;
     font-size: 0.6875rem;
     color: var(--st-text-secondary);
-    margin-top: 2px;
+    padding: 4px 20px 8px;
   }
 
   .connection-row {
