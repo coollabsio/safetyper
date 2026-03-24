@@ -213,33 +213,35 @@ export function showPopup(e: Event): void {
   makePopupDraggable(popup);
 
   // Check if API key exists for the active provider
-  browser.storage.local.get(['selectedProvider', 'openRouterKey', 'groqKey', 'darkMode']).then((result) => {
-    // Refresh theme from storage to avoid stale cached value
-    const freshTheme = result.darkMode ? 'dark' : 'light';
-    if (freshTheme !== currentTheme) {
-      currentTheme = freshTheme;
+  browser.storage.local
+    .get(['selectedProvider', 'openRouterKey', 'groqKey', 'darkMode'])
+    .then((result) => {
+      // Refresh theme from storage to avoid stale cached value
+      const freshTheme = result.darkMode ? 'dark' : 'light';
+      if (freshTheme !== currentTheme) {
+        currentTheme = freshTheme;
+        if (popup) {
+          popup.setAttribute('data-theme', currentTheme);
+        }
+        const iconContainer = stateManager.getIconContainer();
+        if (iconContainer) {
+          iconContainer.setAttribute('data-theme', currentTheme);
+        }
+      }
+
+      const provider = result.selectedProvider || 'openrouter';
+      const hasApiKey =
+        provider === 'ollama'
+          ? true
+          : provider === 'openrouter'
+            ? !!result.openRouterKey
+            : !!result.groqKey;
+
       if (popup) {
-        popup.setAttribute('data-theme', currentTheme);
-      }
-      const iconContainer = stateManager.getIconContainer();
-      if (iconContainer) {
-        iconContainer.setAttribute('data-theme', currentTheme);
-      }
-    }
-
-    const provider = result.selectedProvider || 'openrouter';
-    const hasApiKey =
-      provider === 'ollama'
-        ? true
-        : provider === 'openrouter'
-          ? !!result.openRouterKey
-          : !!result.groqKey;
-
-    if (popup) {
-      const content = popup.querySelector('.safetyper-popup-content');
-      if (content) {
-        if (hasApiKey) {
-          content.innerHTML = `
+        const content = popup.querySelector('.safetyper-popup-content');
+        if (content) {
+          if (hasApiKey) {
+            content.innerHTML = `
             <p class="popup-description">Check your text for grammar and spelling errors</p>
             <div class="popup-actions">
               <button class="safetyper-check-btn">
@@ -257,12 +259,12 @@ export function showPopup(e: Event): void {
             </div>
           `;
 
-          const checkBtn = content.querySelector('.safetyper-check-btn');
-          if (checkBtn) {
-            checkBtn.addEventListener('click', handleGrammarCheck);
-          }
-        } else {
-          content.innerHTML = `
+            const checkBtn = content.querySelector('.safetyper-check-btn');
+            if (checkBtn) {
+              checkBtn.addEventListener('click', handleGrammarCheck);
+            }
+          } else {
+            content.innerHTML = `
             <p class="popup-description error-message">Please set your API key in Settings to get started</p>
             <div class="popup-actions">
               <button class="safetyper-settings-btn">
@@ -274,15 +276,15 @@ export function showPopup(e: Event): void {
               </button>
             </div>
           `;
-        }
+          }
 
-        const settingsBtn = content.querySelector('.safetyper-settings-btn');
-        if (settingsBtn) {
-          settingsBtn.addEventListener('click', openSettings);
+          const settingsBtn = content.querySelector('.safetyper-settings-btn');
+          if (settingsBtn) {
+            settingsBtn.addEventListener('click', openSettings);
+          }
         }
       }
-    }
-  });
+    });
 
   // Close popup when clicking outside
   setTimeout(() => {
