@@ -448,8 +448,8 @@
     <a
       href={`https://github.com/coollabsio/safetyper/releases/tag/v${version}`}
       target="_blank"
-      class="version"
-    >v{version}</a>
+      class="version">v{version}</a
+    >
     <a
       href="https://safetyper.com/sponsorships"
       target="_blank"
