@@ -444,55 +444,77 @@
 </script>
 
 <main>
+  <div class="header-row">
+    <a
+      href={`https://github.com/coollabsio/safetyper/releases/tag/v${version}`}
+      target="_blank"
+      class="version"
+    >v{version}</a>
+    <a
+      href="https://safetyper.com/sponsorships"
+      target="_blank"
+      class="sponsor-link"
+      aria-label="Sponsor SafeTyper"
+    >
+      <span>Donate</span>
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+          stroke="#ff2d8a"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </a>
+    <button
+      class="theme-toggle"
+      onclick={toggleDarkMode}
+      aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {#if darkMode}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
+          <path
+            d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
+      {:else}
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      {/if}
+    </button>
+  </div>
   <div class="content">
     <div class="settings">
-      <div class="setting-group">
-        <div class="label-row">
-          <span class="setting-label">Appearance</span>
-          <button
-            class="theme-toggle"
-            onclick={toggleDarkMode}
-            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {#if darkMode}
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
-                <path
-                  d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <span>Light</span>
-            {:else}
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <span>Dark</span>
-            {/if}
-          </button>
-        </div>
-      </div>
-
       <div class="setting-group">
         <label for="provider-select" class="setting-label">API Provider</label>
         <select
@@ -650,8 +672,6 @@
     </div>
   </div>
 
-  <span class="version">v{version}</span>
-
   {#if showSavedPopup}
     <div class="saved-popup">
       <div class="saved-popup-content">
@@ -782,25 +802,20 @@
 
   .theme-toggle {
     display: inline-flex;
-    gap: 0.375rem;
     align-items: center;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-    font-weight: 500;
+    justify-content: center;
+    padding: 0.25rem;
     font-family: inherit;
-    color: #fff;
-    background: var(--st-btn-bg);
-    border: 1px solid var(--st-btn-border);
+    color: var(--st-text-secondary);
+    background: none;
+    border: none;
     border-radius: 0.25rem;
     cursor: pointer;
-    transition:
-      background-color 0.15s ease,
-      color 0.15s ease;
+    transition: color 0.15s ease;
   }
 
   .theme-toggle:hover {
-    background: var(--st-btn-hover-bg);
-    color: #fff;
+    color: var(--st-text);
   }
 
   .refresh-btn {
@@ -1157,12 +1172,32 @@
       0 0 0 4px var(--st-focus-ring);
   }
 
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 20px 0;
+  }
+
+  .sponsor-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #ff2d8a;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
   .version {
-    display: block;
-    text-align: right;
     font-size: 0.6875rem;
     color: var(--st-text-secondary);
-    padding: 4px 20px 8px;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .version:hover {
+    color: var(--st-text);
   }
 
   .connection-row {
