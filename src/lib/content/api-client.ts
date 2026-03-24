@@ -11,7 +11,13 @@ import type {
   CacheEntry,
   ApiCache,
 } from './types';
-import { CACHE_CONFIG, CONFIG, DEFAULT_PROVIDER, PROVIDER_CONFIG } from './config';
+import {
+  CACHE_CONFIG,
+  CONFIG,
+  DEFAULT_PROVIDER,
+  DEFAULT_SYSTEM_PROMPT,
+  PROVIDER_CONFIG,
+} from './config';
 
 /**
  * Simple cache implementation for API responses
@@ -63,8 +69,8 @@ const cache = new SimpleCache();
 /**
  * Generate cache key from text
  */
-function getCacheKey(text: string, model: string): string {
-  return `${model}:${text}`;
+function getCacheKey(text: string, model: string, prompt: string): string {
+  return `${model}:${prompt.substring(0, 32)}:${text}`;
 }
 
 /**
@@ -84,6 +90,7 @@ export async function checkGrammar(text: string): Promise<string> {
     'selectedModel',
     'groqSelectedModel',
     'ollamaSelectedModel',
+    'customSystemPrompt',
   ]);
   const provider: ApiProvider = result.selectedProvider || DEFAULT_PROVIDER;
   let model: string;
@@ -95,8 +102,10 @@ export async function checkGrammar(text: string): Promise<string> {
     model = result.ollamaSelectedModel || PROVIDER_CONFIG.ollama.defaultModel;
   }
 
+  const systemPrompt: string = result.customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
+
   // Check cache first
-  const cacheKey = getCacheKey(text, model);
+  const cacheKey = getCacheKey(text, model, systemPrompt);
   const cachedResult = cache.get(cacheKey);
   if (cachedResult) {
     if (import.meta.env.DEV) {
@@ -111,8 +120,7 @@ export async function checkGrammar(text: string): Promise<string> {
     messages: [
       {
         role: 'system',
-        content:
-          'You are a grammar checking assistant. Fix grammar and spelling errors in the provided text. Return ONLY the corrected text with EXACTLY the same formatting, line breaks, paragraphs, and whitespace as the original. Do not add, remove, or modify any line breaks, indentation, spacing, or paragraph structure. Preserve every newline character and whitespace character exactly as they appear in the original. Do not wrap the response in quotes or add any prefixes or explanations.',
+        content: systemPrompt,
       },
       {
         role: 'user',

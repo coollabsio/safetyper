@@ -3,7 +3,11 @@
   import { storage } from '#imports';
   import { browser } from 'wxt/browser';
   import type { ApiProvider, OpenRouterModel } from '../../lib/content/types';
-  import { PROVIDER_CONFIG, DEFAULT_PROVIDER } from '../../lib/content/config';
+  import {
+    PROVIDER_CONFIG,
+    DEFAULT_PROVIDER,
+    DEFAULT_SYSTEM_PROMPT,
+  } from '../../lib/content/config';
 
   const version = browser.runtime.getManifest().version;
 
@@ -33,6 +37,10 @@
 
   const darkModeStorage = storage.defineItem<boolean>('local:darkMode', {
     fallback: false,
+  });
+
+  const customSystemPromptStorage = storage.defineItem<string>('local:customSystemPrompt', {
+    fallback: '',
   });
 
   // Fallback models per provider
@@ -109,6 +117,8 @@
   let connectionStatus: 'idle' | 'checking' | 'connected' | 'error' = 'idle';
   let connectionError = '';
   let connectionModelCount = 0;
+  let customSystemPrompt = '';
+  let showAdvanced = false;
 
   $: providerConfig = PROVIDER_CONFIG[selectedProvider];
   $: showPricing = selectedProvider === 'openrouter';
@@ -287,6 +297,8 @@
         await groqKeyStorage.setValue(apiKey.trim());
       }
 
+      await customSystemPromptStorage.setValue(customSystemPrompt);
+
       showSavedPopup = true;
       setTimeout(() => {
         showSavedPopup = false;
@@ -381,6 +393,10 @@
     connectionStatus = 'idle';
   }
 
+  function resetSystemPrompt() {
+    customSystemPrompt = '';
+  }
+
   function openTestPage() {
     const testUrl = browser.runtime.getURL('/test.html');
     browser.tabs.create({ url: testUrl });
@@ -427,6 +443,7 @@
       }
 
       allModels = getFallbackModels(selectedProvider);
+      customSystemPrompt = (await customSystemPromptStorage.getValue()) || '';
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -658,6 +675,31 @@
       {/if}
 
       <div class="setting-group">
+        <button class="advanced-toggle" onclick={() => (showAdvanced = !showAdvanced)}>
+          {showAdvanced ? '▾' : '▸'} Advanced Settings
+        </button>
+      </div>
+
+      {#if showAdvanced}
+        <div class="setting-group">
+          <div class="label-row">
+            <label for="system-prompt" class="setting-label">System Prompt</label>
+            <button class="refresh-btn" onclick={resetSystemPrompt}>Reset to Default</button>
+          </div>
+          <textarea
+            id="system-prompt"
+            class="system-prompt-input"
+            placeholder={DEFAULT_SYSTEM_PROMPT}
+            bind:value={customSystemPrompt}
+            rows="4"
+          ></textarea>
+          <p class="help-text">
+            Customize the instruction sent to the LLM. Leave empty to use the default prompt.
+          </p>
+        </div>
+      {/if}
+
+      <div class="setting-group">
         <button class="save-button" onclick={saveSettings} disabled={isLoading}>
           {isLoading ? 'Saving...' : 'Save Settings'}
         </button>
@@ -838,6 +880,42 @@
   .refresh-btn:disabled {
     color: var(--st-text-muted);
     cursor: not-allowed;
+  }
+
+  .advanced-toggle {
+    background: none;
+    border: none;
+    color: var(--st-text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 4px 0;
+    text-align: left;
+  }
+
+  .advanced-toggle:hover {
+    color: var(--st-text);
+  }
+
+  .system-prompt-input {
+    width: 100%;
+    min-height: 80px;
+    padding: 8px 10px;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    color: var(--st-text);
+    background: var(--st-bg-secondary);
+    border: 1px solid var(--st-border);
+    border-radius: 0.375rem;
+    resize: vertical;
+    box-sizing: border-box;
+    line-height: 1.4;
+  }
+
+  .system-prompt-input:focus {
+    outline: none;
+    border-color: var(--st-focus-ring);
   }
 
   /* Combobox */

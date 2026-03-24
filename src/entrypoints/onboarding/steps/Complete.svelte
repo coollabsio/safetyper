@@ -7,8 +7,20 @@
 <div class="complete">
   <div class="hero">
     <div class="checkmark">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <svg
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M20 6L9 17L4 12"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
       </svg>
     </div>
     <h2>You're all set!</h2>
@@ -20,7 +32,9 @@
       <div class="step-number">1</div>
       <div class="step-content">
         <h3>Click into any text field</h3>
-        <p>Navigate to any website and click on a text input, textarea, or content-editable area.</p>
+        <p>
+          Navigate to any website and click on a text input, textarea, or content-editable area.
+        </p>
       </div>
     </div>
 
@@ -28,7 +42,10 @@
       <div class="step-number">2</div>
       <div class="step-content">
         <h3>Start typing</h3>
-        <p>Write your text naturally. After a brief pause, the Safetyper icon will appear near your cursor.</p>
+        <p>
+          Write your text naturally. After a brief pause, the Safetyper icon will appear near your
+          cursor.
+        </p>
       </div>
     </div>
 
@@ -36,7 +53,10 @@
       <div class="step-number">3</div>
       <div class="step-content">
         <h3>Review corrections</h3>
-        <p>Click the icon to see grammar and spelling suggestions. Accept or dismiss them with one click.</p>
+        <p>
+          Click the icon to see grammar and spelling suggestions. Accept or dismiss them with one
+          click.
+        </p>
       </div>
     </div>
   </div>

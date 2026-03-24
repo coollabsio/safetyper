@@ -33,19 +33,39 @@
   });
   const hasCompletedOnboardingStorage = storage.defineItem<boolean>(
     'local:hasCompletedOnboarding',
-    { fallback: false },
+    { fallback: false }
   );
 
   // Fallback models
   const OPENROUTER_FALLBACK_MODELS: OpenRouterModel[] = [
-    { id: 'google/gemini-2.5-flash', name: 'Google: Gemini 2.5 Flash', pricing: { prompt: '0.000000075', completion: '0.0000003' } },
-    { id: 'google/gemini-2.0-flash-001', name: 'Google: Gemini 2.0 Flash', pricing: { prompt: '0.000000075', completion: '0.0000003' } },
-    { id: 'openai/gpt-4o-mini', name: 'OpenAI: GPT-4o Mini', pricing: { prompt: '0.00000015', completion: '0.0000006' } },
+    {
+      id: 'google/gemini-2.5-flash',
+      name: 'Google: Gemini 2.5 Flash',
+      pricing: { prompt: '0.000000075', completion: '0.0000003' },
+    },
+    {
+      id: 'google/gemini-2.0-flash-001',
+      name: 'Google: Gemini 2.0 Flash',
+      pricing: { prompt: '0.000000075', completion: '0.0000003' },
+    },
+    {
+      id: 'openai/gpt-4o-mini',
+      name: 'OpenAI: GPT-4o Mini',
+      pricing: { prompt: '0.00000015', completion: '0.0000006' },
+    },
   ];
 
   const GROQ_FALLBACK_MODELS: OpenRouterModel[] = [
-    { id: 'llama-3.3-70b-versatile', name: 'llama-3.3-70b-versatile', pricing: { prompt: '0', completion: '0' } },
-    { id: 'llama-3.1-8b-instant', name: 'llama-3.1-8b-instant', pricing: { prompt: '0', completion: '0' } },
+    {
+      id: 'llama-3.3-70b-versatile',
+      name: 'llama-3.3-70b-versatile',
+      pricing: { prompt: '0', completion: '0' },
+    },
+    {
+      id: 'llama-3.1-8b-instant',
+      name: 'llama-3.1-8b-instant',
+      pricing: { prompt: '0', completion: '0' },
+    },
   ];
 
   const OLLAMA_FALLBACK_MODELS: OpenRouterModel[] = [
@@ -85,10 +105,10 @@
       if (!searchQuery) return true;
       const q = searchQuery.toLowerCase();
       return m.name.toLowerCase().includes(q) || m.id.toLowerCase().includes(q);
-    }),
+    })
   );
   let selectedModelDisplay = $derived(
-    allModels.find((m) => m.id === selectedModel)?.name || selectedModel,
+    allModels.find((m) => m.id === selectedModel)?.name || selectedModel
   );
 
   function openDropdown() {
@@ -363,7 +383,8 @@
           </button>
           {#if connectionStatus === 'connected'}
             <span class="status-text connected">
-              Connected ({connectionModelCount} {connectionModelCount === 1 ? 'model' : 'models'})
+              Connected ({connectionModelCount}
+              {connectionModelCount === 1 ? 'model' : 'models'})
             </span>
           {:else if connectionStatus === 'error'}
             <span class="status-text error">{connectionError}</span>
@@ -379,10 +400,14 @@
           class="input"
           placeholder="Enter your {providerConfig.name} API key"
           value={apiKey}
-          oninput={(e: Event) => { apiKey = (e.target as HTMLInputElement).value; }}
+          oninput={(e: Event) => {
+            apiKey = (e.target as HTMLInputElement).value;
+          }}
         />
         <p class="help-text">
-          Get your API key from <a href={providerConfig.keysUrl} target="_blank">{providerConfig.name}</a>
+          Get your API key from <a href={providerConfig.keysUrl} target="_blank"
+            >{providerConfig.name}</a
+          >
         </p>
       </div>
     {/if}
@@ -414,8 +439,20 @@
           tabindex="-1"
           aria-label="Toggle model list"
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3 4.5L6 7.5L9 4.5"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </button>
 
