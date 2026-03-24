@@ -86,6 +86,7 @@ export interface StorageSchema {
   ollamaSelectedModel?: string;
   ollamaCachedModels?: CachedModelsData;
   darkMode?: boolean;
+  hasCompletedOnboarding?: boolean;
 }
 
 /**
