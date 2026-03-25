@@ -124,7 +124,7 @@ export async function checkGrammar(text: string): Promise<string> {
       },
       {
         role: 'user',
-        content: `Please fix the grammar and spelling in this text while preserving EXACTLY the same formatting, line breaks, and structure as the original: "${text}"`,
+        content: `Please fix the grammar and spelling in this text while preserving EXACTLY the same formatting, line breaks, and structure as the original:\n\n${text}`,
       },
     ],
     temperature: 0.3,
@@ -150,7 +150,10 @@ export async function checkGrammar(text: string): Promise<string> {
     const choice = response.data.choices[0];
     if (choice.message && choice.message.content) {
       const rawCorrected = choice.message.content;
-      const trimmedCorrected = rawCorrected.trim();
+      let trimmedCorrected = rawCorrected.trim();
+      if (trimmedCorrected.startsWith('"') && trimmedCorrected.endsWith('"')) {
+        trimmedCorrected = trimmedCorrected.slice(1, -1);
+      }
 
       // Preserve line structure if possible
       const originalLines = text.split('\n');
