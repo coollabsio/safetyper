@@ -98,7 +98,7 @@
   </div>
 
   <div class="progress-bar">
-    {#each [1, 2, 3] as step}
+    {#each [1, 2, 3] as step (step)}
       <div
         class="progress-step"
         class:active={currentStep >= step}
