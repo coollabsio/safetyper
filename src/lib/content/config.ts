@@ -70,7 +70,7 @@ export const PROVIDER_CONFIG = {
   },
   groq: {
     name: 'Groq',
-    defaultModel: 'llama-3.3-70b-versatile',
+    defaultModel: 'openai/gpt-oss-120b',
     chatEndpoint: 'https://api.groq.com/openai/v1/chat/completions',
     modelsEndpoint: 'https://api.groq.com/openai/v1/models',
     keyPrefix: 'gsk_',

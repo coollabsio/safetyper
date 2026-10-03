@@ -1,6 +1,14 @@
 import type { ApiProvider } from '@/lib/content/types';
 import { DEFAULT_OLLAMA_ENDPOINT, DEFAULT_PROVIDER, PROVIDER_CONFIG } from '@/lib/content/config';
 
+// Groq models shut down by Groq (https://console.groq.com/docs/deprecations)
+const REMOVED_GROQ_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'gemma2-9b-it',
+  'mixtral-8x7b-32768',
+];
+
 export default defineBackground(() => {
   console.log('Background script initialized', { id: browser.runtime.id });
 
@@ -83,6 +91,14 @@ export default defineBackground(() => {
     await registerContentScripts();
     await reloadAllTabs();
 
+    // Reset Groq models that Groq has shut down, so the current default is used
+    if (details.reason === 'update') {
+      const { groqSelectedModel } = await browser.storage.local.get(['groqSelectedModel']);
+      if (REMOVED_GROQ_MODELS.includes(groqSelectedModel)) {
+        await browser.storage.local.remove(['groqSelectedModel', 'groqCachedModels']);
+      }
+    }
+
     // Open onboarding on first install only
     if (details.reason === 'install') {
       const stored = await browser.storage.local.get(['hasCompletedOnboarding']);
@@ -124,6 +140,18 @@ export default defineBackground(() => {
     // Add current timestamp and return remaining quota
     requestTimestamps.push(now);
     return { allowed: true, remaining: RATE_LIMIT - requestTimestamps.length };
+  }
+
+  // Parse a chat completions response, keeping the provider's error message on failure
+  async function parseApiResponse(response: Response) {
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      const detail = body?.error?.message;
+      throw new Error(
+        `API request failed with status ${response.status}${detail ? `: ${detail}` : ''}`
+      );
+    }
+    return response.json();
   }
 
   // Auto-inject API keys from environment on startup (dev mode only)
@@ -196,8 +224,14 @@ export default defineBackground(() => {
             modelsUrl = `${ollamaBaseUrl}/api/tags`;
           }
 
-          const fetchOptions: RequestInit =
-            provider === 'ollama' ? { headers: { Origin: ollamaBaseUrl } } : {};
+          let fetchOptions: RequestInit = {};
+          if (provider === 'ollama') {
+            fetchOptions = { headers: { Origin: ollamaBaseUrl } };
+          } else if (provider === 'groq') {
+            // Groq's models endpoint requires authentication
+            const { groqKey } = await browser.storage.local.get(['groqKey']);
+            fetchOptions = { headers: { Authorization: `Bearer ${groqKey}` } };
+          }
           const response = await fetch(modelsUrl, fetchOptions);
           if (!response.ok) {
             throw new Error(`Failed to fetch models: ${response.status}`);
@@ -224,9 +258,15 @@ export default defineBackground(() => {
               }))
               .sort((a: any, b: any) => a.name.localeCompare(b.name));
           } else if (provider === 'groq') {
-            // Groq models endpoint returns {data: [{id, object, created, owned_by}]}
+            // Groq models endpoint returns {data: [{id, object, created, owned_by, active}]}
+            // Skip speech and moderation models, they do not support chat completions
             models = json.data
-              .filter((m: any) => m.object === 'model' && m.active !== false)
+              .filter(
+                (m: any) =>
+                  m.object === 'model' &&
+                  m.active !== false &&
+                  !/whisper|tts|orpheus|guard/i.test(m.id)
+              )
               .map((m: any) => ({
                 id: m.id,
                 name: m.id,
@@ -305,12 +345,7 @@ export default defineBackground(() => {
               headers,
               body: JSON.stringify(message.payload),
             })
-              .then((response) => {
-                if (!response.ok) {
-                  throw new Error(`API request failed with status ${response.status}`);
-                }
-                return response.json();
-              })
+              .then(parseApiResponse)
               .then((data) => sendResponse({ success: true, data }))
               .catch((error) => sendResponse({ success: false, error: error.message }));
           } else {
@@ -326,12 +361,7 @@ export default defineBackground(() => {
               },
               body: JSON.stringify(message.payload),
             })
-              .then((response) => {
-                if (!response.ok) {
-                  throw new Error(`API request failed with status ${response.status}`);
-                }
-                return response.json();
-              })
+              .then(parseApiResponse)
               .then((data) => sendResponse({ success: true, data }))
               .catch((error) => sendResponse({ success: false, error: error.message }));
           }

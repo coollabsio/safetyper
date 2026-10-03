@@ -22,7 +22,7 @@
   const openRouterKeyStorage = storage.defineItem<string>('local:openRouterKey');
 
   const groqSelectedModelStorage = storage.defineItem<string>('local:groqSelectedModel', {
-    fallback: 'llama-3.3-70b-versatile',
+    fallback: 'openai/gpt-oss-120b',
   });
 
   const groqKeyStorage = storage.defineItem<string>('local:groqKey');
@@ -74,23 +74,13 @@
 
   const GROQ_FALLBACK_MODELS: OpenRouterModel[] = [
     {
-      id: 'llama-3.3-70b-versatile',
-      name: 'llama-3.3-70b-versatile',
+      id: 'openai/gpt-oss-120b',
+      name: 'openai/gpt-oss-120b',
       pricing: { prompt: '0', completion: '0' },
     },
     {
-      id: 'llama-3.1-8b-instant',
-      name: 'llama-3.1-8b-instant',
-      pricing: { prompt: '0', completion: '0' },
-    },
-    {
-      id: 'gemma2-9b-it',
-      name: 'gemma2-9b-it',
-      pricing: { prompt: '0', completion: '0' },
-    },
-    {
-      id: 'mixtral-8x7b-32768',
-      name: 'mixtral-8x7b-32768',
+      id: 'openai/gpt-oss-20b',
+      name: 'openai/gpt-oss-20b',
       pricing: { prompt: '0', completion: '0' },
     },
   ];
