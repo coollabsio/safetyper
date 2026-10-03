@@ -9,8 +9,10 @@ import { CONFIG } from './config';
  * Check if an element is editable
  */
 export function isEditableElement(element: HTMLElement): boolean {
-  // Exclude elements where spellcheck is explicitly disabled
-  if (element.getAttribute('spellcheck') === 'false') return false;
+  // Exclude form fields where spellcheck is explicitly disabled. Not applied to
+  // contenteditable: rich editors (e.g. Gmail) disable native spellcheck in favor of their own.
+  const isFormField = element.tagName === 'INPUT' || element.tagName === 'TEXTAREA';
+  if (isFormField && element.getAttribute('spellcheck') === 'false') return false;
 
   // Check for standard input types
   if (element.tagName === 'INPUT') {
