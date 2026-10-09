@@ -81,8 +81,9 @@
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: var(--st-success);
-    color: #fff;
+    background: var(--st-primary-bg);
+    color: var(--st-primary-text);
+    box-shadow: 0 3px 0 var(--st-primary-depth);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -116,7 +117,7 @@
     padding: 16px;
     background: var(--st-bg-secondary);
     border: 1px solid var(--st-border);
-    border-radius: 0.25rem;
+    border-radius: 0.5rem;
   }
 
   .step-number {
@@ -152,22 +153,7 @@
   }
 
   .primary-btn {
-    width: 100%;
     max-width: 320px;
-    height: 3rem;
-    padding: 0 1rem;
-    background: var(--st-btn-bg);
-    color: var(--st-btn-text);
-    border: 2px solid var(--st-btn-border);
-    border-radius: 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .primary-btn:hover {
-    background: var(--st-btn-hover-bg);
-    color: #fff;
+    height: 2.5rem;
   }
 </style>

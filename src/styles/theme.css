@@ -1,0 +1,395 @@
+/*
+ * Shared theme for the popup and onboarding pages.
+ * Coolify "Graphite" look (neutral surfaces, hairline borders, 3D depth
+ * buttons) with a green accent. The in-page UI keeps its own scoped copy of
+ * these tokens in content.css so nothing leaks into host pages.
+ */
+
+:root {
+  --st-bg: #ffffff;
+  --st-bg-secondary: #f5f5f5;
+  --st-bg-elevated: #fafafa;
+  --st-input-bg: #f5f5f5;
+  --st-text: #0a0a0a;
+  --st-text-secondary: #6b6b6b;
+  --st-text-muted: #a3a3a3;
+  --st-border: #e5e5e5;
+  --st-brand: #15803d;
+  --st-brand-dark: #166534;
+  --st-brand-surface: #f0fdf4;
+  --st-brand-surface-alt: #f7fef9;
+  --st-brand-text: #15803d;
+  --st-success: #15803d;
+  --st-success-surface: #f0fdf4;
+  --st-success-border: #bbf7d0;
+  --st-success-text: #15803d;
+  --st-error: #b91c1c;
+  --st-warning-surface: #fefce8;
+  --st-warning-border: #fde047;
+  --st-warning-text: #854d0e;
+  --st-shadow: rgba(0, 0, 0, 0.08);
+  --st-overlay: rgba(0, 0, 0, 0.3);
+  --st-focus-ring: #16a34a;
+  --st-btn-bg: #ffffff;
+  --st-btn-text: #0a0a0a;
+  --st-btn-border: #e5e5e5;
+  --st-btn-hover-bg: #f5f5f5;
+  --st-btn-depth: rgba(0, 0, 0, 0.22);
+  --st-primary-bg: #15803d;
+  --st-primary-hover-bg: #16a34a;
+  --st-primary-text: #ffffff;
+  --st-primary-border: #166534;
+  --st-primary-depth: #14532d;
+  --st-disabled-bg: #f5f5f5;
+  --st-disabled-border: #e5e5e5;
+  --st-disabled-text: #a3a3a3;
+  --st-placeholder: #8a8a8a;
+  --st-menu-bg: #ffffff;
+  --st-menu-border: #e5e5e5;
+  --st-menu-shadow: 0 4px 12px rgb(0 0 0 / 0.12), 0 2px 4px rgb(0 0 0 / 0.08);
+  --st-selected-bg: #f0fdf4;
+  --st-selected-text: #15803d;
+  --st-option-hover-bg: #f5f5f5;
+  --st-option-hover-text: #0a0a0a;
+  --st-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5L6 2L9 5' stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 7L6 10L9 7' stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+:root[data-theme='dark'] {
+  --st-bg: #101010;
+  --st-bg-secondary: #1c1c1c;
+  --st-bg-elevated: #1c1c1c;
+  --st-input-bg: #262626;
+  --st-text: #f4f4f4;
+  --st-text-secondary: #a3a3a3;
+  --st-text-muted: #6e6e6e;
+  --st-border: rgba(255, 255, 255, 0.08);
+  --st-brand: #4ade80;
+  --st-brand-dark: #22c55e;
+  --st-brand-surface: rgba(74, 222, 128, 0.12);
+  --st-brand-surface-alt: rgba(74, 222, 128, 0.06);
+  --st-brand-text: #4ade80;
+  --st-success: #4ade80;
+  --st-success-surface: #052e16;
+  --st-success-border: #166534;
+  --st-success-text: #86efac;
+  --st-error: #f87171;
+  --st-warning-surface: #422006;
+  --st-warning-border: #854d0e;
+  --st-warning-text: #fde047;
+  --st-shadow: rgba(0, 0, 0, 0.3);
+  --st-overlay: rgba(0, 0, 0, 0.5);
+  --st-focus-ring: #4ade80;
+  --st-btn-bg: rgba(255, 255, 255, 0.06);
+  --st-btn-text: #f4f4f4;
+  --st-btn-border: rgba(255, 255, 255, 0.08);
+  --st-btn-hover-bg: rgba(255, 255, 255, 0.1);
+  --st-btn-depth: rgba(255, 255, 255, 0.08);
+  --st-primary-bg: #15803d;
+  --st-primary-hover-bg: #16a34a;
+  --st-primary-text: #ffffff;
+  --st-primary-border: #16a34a;
+  --st-primary-depth: #052e16;
+  --st-disabled-bg: rgba(255, 255, 255, 0.03);
+  --st-disabled-border: rgba(255, 255, 255, 0.06);
+  --st-disabled-text: #6e6e6e;
+  --st-placeholder: #737373;
+  --st-menu-bg: #1c1c1c;
+  --st-menu-border: rgba(255, 255, 255, 0.08);
+  --st-menu-shadow: 0 4px 12px rgb(0 0 0 / 0.4), 0 2px 4px rgb(0 0 0 / 0.3);
+  --st-selected-bg: rgba(74, 222, 128, 0.12);
+  --st-selected-text: #4ade80;
+  --st-option-hover-bg: #262626;
+  --st-option-hover-text: #f4f4f4;
+  --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5L6 2L9 5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 7L6 10L9 7' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Buttons: compact physical edge. Hover lifts 1px, press sinks and drops the depth. */
+.primary-btn,
+.secondary-btn {
+  --st-depth-color: var(--st-btn-depth);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  height: 2rem;
+  padding: 0 0.625rem;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--st-btn-text);
+  background: var(--st-btn-bg);
+  border: 1px solid var(--st-btn-border);
+  border-radius: 0.375rem;
+  box-shadow: 0 2px 0 var(--st-depth-color);
+  cursor: pointer;
+  outline: none;
+  transition-property: color, background-color, border-color, box-shadow, transform;
+  transition-timing-function: var(--st-ease-out);
+  transition-duration: 120ms, 120ms, 120ms, 80ms, 80ms;
+}
+
+.primary-btn {
+  --st-depth-color: var(--st-primary-depth);
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--st-primary-text);
+  background: var(--st-primary-bg);
+  border-color: var(--st-primary-border);
+}
+
+.secondary-btn.small {
+  font-size: 0.75rem;
+}
+
+.primary-btn:hover:not(:disabled),
+.secondary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 var(--st-depth-color);
+}
+
+.primary-btn:hover:not(:disabled) {
+  background: var(--st-primary-hover-bg);
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background: var(--st-btn-hover-bg);
+}
+
+.primary-btn:active:not(:disabled),
+.secondary-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.primary-btn:focus-visible,
+.secondary-btn:focus-visible {
+  outline: 1px solid var(--st-focus-ring);
+  outline-offset: 2px;
+}
+
+.primary-btn:disabled,
+.secondary-btn:disabled {
+  color: var(--st-disabled-text);
+  background: var(--st-disabled-bg);
+  border-color: var(--st-disabled-border);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Text-only buttons */
+.text-btn,
+.refresh-btn {
+  padding: 2px 6px;
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--st-text-secondary);
+  background: none;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: color 120ms var(--st-ease-out);
+}
+
+.refresh-btn {
+  font-size: 0.75rem;
+  color: var(--st-brand);
+}
+
+.text-btn:hover {
+  color: var(--st-text);
+}
+
+.refresh-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.text-btn:focus-visible,
+.refresh-btn:focus-visible {
+  outline: 1px solid var(--st-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Inputs, selects and the model combobox */
+.input,
+.select,
+.combobox-input {
+  display: block;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.375rem 0.75rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--st-text);
+  background-color: var(--st-input-bg);
+  border: 1px solid var(--st-border);
+  border-radius: 0.375rem;
+  outline: none;
+  box-sizing: border-box;
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-duration: 120ms;
+  transition-timing-function: var(--st-ease-out);
+}
+
+.select {
+  appearance: none;
+  background-image: var(--st-select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  padding-right: 2.5rem;
+  cursor: pointer;
+}
+
+.combobox-input {
+  padding-right: 2.25rem;
+  text-overflow: ellipsis;
+}
+
+.input:focus,
+.select:focus,
+.combobox-input:focus {
+  border-color: var(--st-focus-ring);
+  box-shadow: 0 0 0 1px var(--st-focus-ring);
+}
+
+.input::placeholder,
+.combobox-input::placeholder {
+  color: var(--st-placeholder);
+}
+
+.input:disabled,
+.select:disabled,
+.input:read-only {
+  color: var(--st-disabled-text);
+  background-color: var(--st-disabled-bg);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.select option {
+  background: var(--st-menu-bg);
+  color: var(--st-text);
+}
+
+.combobox {
+  position: relative;
+  width: 100%;
+}
+
+.combobox-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  color: var(--st-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.combobox-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  max-height: 200px;
+  margin-top: 4px;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  background: var(--st-menu-bg);
+  border: 1px solid var(--st-menu-border);
+  border-radius: 0.5rem;
+  box-shadow: var(--st-menu-shadow);
+}
+
+.combobox-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 10px;
+  font-size: 0.875rem;
+  color: var(--st-text);
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.combobox-list li:hover,
+.combobox-list li.highlighted {
+  background: var(--st-option-hover-bg);
+  color: var(--st-option-hover-text);
+}
+
+.combobox-list li.selected {
+  background: var(--st-selected-bg);
+  color: var(--st-selected-text);
+  font-weight: 600;
+}
+
+.combobox-list li.no-results {
+  color: var(--st-text-secondary);
+  cursor: default;
+  text-align: center;
+  font-style: italic;
+}
+
+.model-name {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Field helpers */
+.help-text {
+  font-size: 0.75rem;
+  color: var(--st-text-secondary);
+}
+
+.help-text a {
+  color: var(--st-brand);
+  text-decoration: none;
+}
+
+.help-text a:hover {
+  text-decoration: underline;
+}
+
+.status-text {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-text.connected {
+  color: var(--st-success);
+}
+
+.status-text.error {
+  color: var(--st-error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary-btn,
+  .secondary-btn {
+    transition: none;
+  }
+
+  .primary-btn:hover:not(:disabled),
+  .secondary-btn:hover:not(:disabled),
+  .primary-btn:active:not(:disabled),
+  .secondary-btn:active:not(:disabled) {
+    transform: none;
+  }
+}

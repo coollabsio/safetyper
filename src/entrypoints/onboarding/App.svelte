@@ -127,66 +127,6 @@
 </main>
 
 <style>
-  :global(:root) {
-    --st-bg: #ffffff;
-    --st-bg-secondary: #f5f5f5;
-    --st-bg-elevated: #ffffff;
-    --st-text: #000000;
-    --st-text-secondary: #737373;
-    --st-text-muted: #d4d4d4;
-    --st-border: #e5e5e5;
-    --st-brand: #6b16ed;
-    --st-brand-dark: #5a12c7;
-    --st-brand-surface: #f5f0ff;
-    --st-brand-surface-alt: #faf8ff;
-    --st-brand-text: #5a12c7;
-    --st-success: #22c55e;
-    --st-warning-surface: #fefce8;
-    --st-warning-border: #fde047;
-    --st-warning-text: #854d0e;
-    --st-shadow: rgba(0, 0, 0, 0.08);
-    --st-overlay: rgba(0, 0, 0, 0.3);
-    --st-focus-ring: #6b16ed;
-    --st-btn-bg: #f5f0ff;
-    --st-btn-hover-bg: #6b16ed;
-    --st-btn-border: #6b16ed;
-    --st-btn-text: #5a12c7;
-    --st-disabled-bg: #f5f5f5;
-    --st-disabled-border: #d4d4d4;
-    --st-disabled-text: #525252;
-    --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5L6 2L9 5' stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 7L6 10L9 7' stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  }
-
-  :global(:root[data-theme='dark']) {
-    --st-bg: #000000;
-    --st-bg-secondary: #181818;
-    --st-bg-elevated: #202020;
-    --st-text: #ffffff;
-    --st-text-secondary: #a3a3a3;
-    --st-text-muted: #525252;
-    --st-border: #242424;
-    --st-brand: #fcd452;
-    --st-brand-dark: #fcd452;
-    --st-brand-surface: rgba(252, 212, 82, 0.12);
-    --st-brand-surface-alt: rgba(252, 212, 82, 0.08);
-    --st-brand-text: #fcd452;
-    --st-success: #4ade80;
-    --st-warning-surface: #422006;
-    --st-warning-border: #854d0e;
-    --st-warning-text: #fde047;
-    --st-shadow: rgba(0, 0, 0, 0.3);
-    --st-overlay: rgba(0, 0, 0, 0.5);
-    --st-focus-ring: #fcd452;
-    --st-btn-bg: rgba(107, 22, 237, 0.2);
-    --st-btn-hover-bg: #7317ff;
-    --st-btn-border: #7317ff;
-    --st-btn-text: #ffffff;
-    --st-disabled-bg: rgba(24, 24, 24, 0.6);
-    --st-disabled-border: #242424;
-    --st-disabled-text: #a3a3a3;
-    --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5L6 2L9 5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 7L6 10L9 7' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  }
-
   :global(html),
   :global(body) {
     background: var(--st-bg);
@@ -216,21 +156,31 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: var(--st-bg-secondary);
-    border: 2px solid var(--st-border);
-    border-radius: 0.25rem;
     height: 2rem;
-    padding: 0 0.5rem;
+    padding: 0 0.625rem;
+    font-family: inherit;
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--st-text-secondary);
+    background: var(--st-btn-bg);
+    border: 1px solid var(--st-btn-border);
+    border-radius: 0.375rem;
+    box-shadow: 0 2px 0 var(--st-btn-depth);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition-property: color, background-color, box-shadow, transform;
+    transition-duration: 80ms;
   }
 
   .theme-toggle:hover {
-    background: var(--st-bg-elevated);
     color: var(--st-text);
+    background: var(--st-btn-hover-bg);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 0 var(--st-btn-depth);
+  }
+
+  .theme-toggle:active {
+    transform: translateY(2px);
+    box-shadow: none;
   }
 
   .progress-bar {
@@ -264,13 +214,9 @@
   }
 
   .progress-step.active .step-dot {
-    background: var(--st-brand);
-    color: #fff;
-    border-color: var(--st-brand);
-  }
-
-  :global(:root[data-theme='dark']) .progress-step.active .step-dot {
-    color: #000000;
+    background: var(--st-primary-bg);
+    color: var(--st-primary-text);
+    border-color: var(--st-primary-border);
   }
 
   .progress-step.current .step-dot {
@@ -280,13 +226,13 @@
   .step-label {
     font-size: 0.6875rem;
     font-weight: 500;
-    color: var(--st-text-muted);
+    color: var(--st-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   .progress-step.active .step-label {
-    color: var(--st-text-secondary);
+    color: var(--st-text);
   }
 
   .progress-line {

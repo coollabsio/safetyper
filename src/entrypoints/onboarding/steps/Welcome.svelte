@@ -156,7 +156,7 @@
     padding: 16px;
     background: var(--st-bg-secondary);
     border: 1px solid var(--st-border);
-    border-radius: 0.25rem;
+    border-radius: 0.5rem;
     text-align: left;
   }
 
@@ -169,7 +169,7 @@
     justify-content: center;
     background: var(--st-brand-surface);
     color: var(--st-brand);
-    border-radius: 0.25rem;
+    border-radius: 0.5rem;
   }
 
   .feature-text h3 {
@@ -193,26 +193,12 @@
   }
 
   .primary-btn {
-    width: 100%;
     max-width: 320px;
-    height: 3rem;
-    padding: 0 1rem;
-    background: var(--st-btn-bg);
-    color: var(--st-btn-text);
-    border: 2px solid var(--st-btn-border);
-    border-radius: 0.25rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.15s ease;
-  }
-
-  .primary-btn:hover {
-    background: var(--st-btn-hover-bg);
-    color: #fff;
+    height: 2.5rem;
   }
 
   .skip-btn {
+    font-family: inherit;
     background: none;
     border: none;
     color: var(--st-text-secondary);
