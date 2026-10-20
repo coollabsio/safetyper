@@ -103,6 +103,8 @@ export interface StorageSchema {
   autoCheckEnabled?: boolean;
   autoCheckDisabledHosts?: string[];
   iconSize?: 'small' | 'medium' | 'hidden';
+  personalDictionary?: string[];
+  disabledGroups?: string[];
 }
 
 /**

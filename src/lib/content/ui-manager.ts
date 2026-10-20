@@ -20,6 +20,15 @@ import {
 } from '../categories';
 import { REWRITE_OPTIONS, type RewriteOption } from '../rewrite';
 import {
+  addDictionaryWord,
+  dictionaryWordFromQuote,
+  indexAfterRemoval,
+  nextCardIndex,
+  PERSONAL_DICTIONARY_KEY,
+  readDictionary,
+  removeSuggestionsForWord,
+} from './preferences';
+import {
   applySuggestion,
   applySuggestions,
   removeSuggestion,
@@ -473,6 +482,8 @@ function sessionForField(
     rewrite: null,
     rewriteError: '',
     rewriteBusy: false,
+    notice: '',
+    emptyLabel: 'Nothing to change',
   };
 }
 
@@ -540,6 +551,26 @@ function mountPopupShell(): HTMLDivElement {
     closePopup();
   };
   document.addEventListener('keydown', activeKeyDown);
+  root.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    const target = event.target;
+    if (
+      target instanceof HTMLTextAreaElement ||
+      target instanceof HTMLInputElement ||
+      (target instanceof HTMLElement && target.isContentEditable)
+    ) {
+      return;
+    }
+    const cards = [...root.querySelectorAll<HTMLElement>('.st-list .st-card')];
+    if (cards.length === 0) return;
+    const current = target instanceof Element ? target.closest<HTMLElement>('.st-card') : null;
+    const index = current ? cards.indexOf(current) : -1;
+    const next = nextCardIndex(index, event.key === 'ArrowDown' ? 1 : -1, cards.length);
+    const button = cards[next]?.querySelector<HTMLButtonElement>('.st-btn-primary, button');
+    if (!button || button === target) return;
+    event.preventDefault();
+    button.focus();
+  });
 
   const iconContainer = stateManager.getIconContainer();
   if (iconContainer) {
@@ -567,11 +598,17 @@ export function showFieldIssues(issues: Suggestion[], focusId?: string): void {
   if (!anchor || issues.length === 0) return;
   const text = getTextContent(anchor);
   const focused = focusId ? issues.filter((issue) => issue.id === focusId) : [];
-  const shown = focused.length > 0 ? focused : issues;
+  const source = focused.length > 0 ? focused : issues;
+  const shown = source.filter((issue) => !dismissalsFor(anchor).has(issue.quote));
   const popup = stateManager.getPopup() ?? mountPopupShell();
   const content = popupContent(popup);
   if (!content) return;
-  renderSuggestionCards(content, sessionForField(anchor, text, shown));
+  const session = sessionForField(anchor, text, shown);
+  if (shown.length === 0) {
+    session.initialEmpty = true;
+    session.emptyLabel = 'Nothing left to review.';
+  }
+  renderSuggestionCards(content, session, shown.length === 0 ? -1 : 0);
   setTimeout(() => repositionPopup(popup), 0);
 }
 
@@ -892,6 +929,62 @@ interface SuggestionSession {
   rewrite: RewritePreview | null;
   rewriteError: string;
   rewriteBusy: boolean;
+  notice: string;
+  emptyLabel: string;
+}
+
+const pageDismissals = new Set<string>();
+const sessionDismissals = new WeakMap<HTMLElement, Set<string>>();
+
+function dismissalsFor(anchor: HTMLElement | null): Set<string> {
+  if (!anchor) return pageDismissals;
+  let quotes = sessionDismissals.get(anchor);
+  if (!quotes) {
+    quotes = new Set();
+    sessionDismissals.set(anchor, quotes);
+  }
+  return quotes;
+}
+
+function rememberDismissal(anchor: HTMLElement | null, quote: string): void {
+  dismissalsFor(anchor).add(quote);
+}
+
+async function saveDictionaryWord(word: string): Promise<void> {
+  const stored = await browser.storage.local.get([PERSONAL_DICTIONARY_KEY]);
+  const next = addDictionaryWord(readDictionary(stored[PERSONAL_DICTIONARY_KEY]), word);
+  await browser.storage.local.set({ [PERSONAL_DICTIONARY_KEY]: next });
+}
+
+function dictionaryIcon(): SVGSVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', '14');
+  svg.setAttribute('height', '14');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  const cover = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  cover.setAttribute('d', 'M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z');
+  const spine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  spine.setAttribute('d', 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20');
+  for (const path of [cover, spine]) {
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+  }
+  svg.append(cover, spine);
+  return svg;
+}
+
+function focusSuggestion(content: HTMLElement, index: number): void {
+  const cards = [...content.querySelectorAll<HTMLElement>('.st-list .st-card')];
+  const card = index >= 0 ? cards[index] : undefined;
+  if (!card) {
+    content.querySelector<HTMLElement>('.st-done')?.focus();
+    return;
+  }
+  card.querySelector<HTMLButtonElement>('.st-btn-primary, button')?.focus();
 }
 
 function writeSession(session: SuggestionSession): void {
@@ -1095,7 +1188,11 @@ function renderFilters(
   }
 }
 
-function renderSuggestionCards(content: HTMLElement, session: SuggestionSession): void {
+function renderSuggestionCards(
+  content: HTMLElement,
+  session: SuggestionSession,
+  focusIndex: number | null = null
+): void {
   activeSession = session;
   closeRewriteMenu();
   const popup = stateManager.getPopup();
@@ -1113,7 +1210,7 @@ function renderSuggestionCards(content: HTMLElement, session: SuggestionSession)
       count.textContent = 'Rewriting…';
     } else if (remaining === 0) {
       count.textContent = session.initialEmpty
-        ? 'Nothing to change'
+        ? session.emptyLabel || 'Nothing to change'
         : session.rewrite
           ? 'Rewrite'
           : 'All done';
@@ -1147,6 +1244,13 @@ function renderSuggestionCards(content: HTMLElement, session: SuggestionSession)
   if (filters instanceof HTMLElement) renderFilters(filters, content, session);
 
   content.replaceChildren();
+  if (session.notice) {
+    const status = document.createElement('p');
+    status.className = 'st-notice';
+    status.setAttribute('role', 'status');
+    status.textContent = session.notice;
+    content.append(status);
+  }
   if (session.rewriteBusy) {
     const loading = document.createElement('p');
     loading.className = 'st-loading';
@@ -1167,11 +1271,15 @@ function renderSuggestionCards(content: HTMLElement, session: SuggestionSession)
     if (!session.rewriteError) {
       const done = document.createElement('p');
       done.className = 'st-done';
+      done.tabIndex = -1;
       done.setAttribute('role', 'status');
-      done.textContent = session.initialEmpty ? 'Nothing to change' : 'All done';
+      done.textContent = session.initialEmpty
+        ? session.emptyLabel || 'Nothing to change'
+        : 'All done';
       content.append(done);
       window.clearTimeout(suggestionCloseTimer);
       suggestionCloseTimer = window.setTimeout(closePopup, 1600);
+      if (focusIndex !== null) queueMicrotask(() => focusSuggestion(content, -1));
     }
     return;
   }
@@ -1187,10 +1295,12 @@ function renderSuggestionCards(content: HTMLElement, session: SuggestionSession)
 
   const list = document.createElement('div');
   list.className = 'st-list';
-  for (const suggestion of visible) {
-    list.append(renderIssueCard(content, session, suggestion));
-  }
+  list.setAttribute('role', 'list');
+  visible.forEach((suggestion, cardIndex) => {
+    list.append(renderIssueCard(content, session, suggestion, cardIndex));
+  });
   content.append(list);
+  if (focusIndex !== null) queueMicrotask(() => focusSuggestion(content, focusIndex));
 }
 
 function renderRewriteCard(
@@ -1256,12 +1366,19 @@ function renderRewriteCard(
 function renderIssueCard(
   content: HTMLElement,
   session: SuggestionSession,
-  suggestion: Suggestion
+  suggestion: Suggestion,
+  cardIndex: number
 ): HTMLElement {
   const card = document.createElement('article');
   card.className = 'st-card';
+  card.setAttribute('role', 'listitem');
   card.dataset.group = suggestion.group;
   card.dataset.subcategory = suggestion.subcategory;
+  card.dataset.category = suggestion.category;
+  card.setAttribute(
+    'aria-label',
+    `${groupLabel(suggestion.group)}: ${suggestion.quote.trim() || 'empty'}`
+  );
   const category = document.createElement('p');
   category.className = 'st-category';
   const dot = document.createElement('span');
@@ -1298,6 +1415,7 @@ function renderIssueCard(
       : `Accept change from ${original || 'empty'} to ${fixed || 'empty'}`
   );
   accept.addEventListener('click', () => {
+    const focusAt = () => indexAfterRemoval(cardIndex, visibleCardCount(session));
     if (session.isComplex) {
       void copyText(suggestion.replacement).then((ok) => {
         if (!ok) {
@@ -1306,7 +1424,8 @@ function renderIssueCard(
         }
         session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
         session.initialEmpty = false;
-        renderSuggestionCards(content, session);
+        session.notice = '';
+        renderSuggestionCards(content, session, focusAt());
       });
       return;
     }
@@ -1325,7 +1444,8 @@ function renderIssueCard(
       session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
     }
     session.initialEmpty = false;
-    renderSuggestionCards(content, session);
+    session.notice = '';
+    renderSuggestionCards(content, session, focusAt());
   });
   const dismiss = document.createElement('button');
   dismiss.type = 'button';
@@ -1333,13 +1453,55 @@ function renderIssueCard(
   dismiss.textContent = 'Dismiss';
   dismiss.setAttribute('aria-label', `Dismiss suggestion for ${original || 'this text'}`);
   dismiss.addEventListener('click', () => {
-    session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
+    rememberDismissal(session.anchor, suggestion.quote);
+    session.suggestions = session.suggestions.filter((item) => item.quote !== suggestion.quote);
     session.initialEmpty = false;
-    renderSuggestionCards(content, session);
+    session.notice = '';
+    renderSuggestionCards(
+      content,
+      session,
+      indexAfterRemoval(cardIndex, visibleCardCount(session))
+    );
   });
   actions.append(accept, dismiss);
+  const dictionaryWord =
+    suggestion.category === 'spelling' ? dictionaryWordFromQuote(suggestion.quote) : null;
+  if (dictionaryWord) {
+    const addWord = document.createElement('button');
+    addWord.type = 'button';
+    addWord.className = 'st-text-btn st-dictionary';
+    addWord.append(dictionaryIcon(), document.createTextNode('Add to dictionary'));
+    addWord.setAttribute('aria-label', `Add ${dictionaryWord} to dictionary`);
+    addWord.addEventListener('click', () => {
+      const word = dictionaryWord;
+      void saveDictionaryWord(word).then(
+        () => {
+          if (!content.isConnected) return;
+          session.suggestions = removeSuggestionsForWord(session.suggestions, word);
+          session.initialEmpty = false;
+          session.notice = `Added "${word}" to your dictionary.`;
+          renderSuggestionCards(
+            content,
+            session,
+            indexAfterRemoval(cardIndex, visibleCardCount(session))
+          );
+        },
+        (error: unknown) => {
+          console.error('[SafeTyper] Failed to update the dictionary:', error);
+          if (!content.isConnected) return;
+          session.notice = 'Could not update the dictionary.';
+          renderSuggestionCards(content, session, cardIndex);
+        }
+      );
+    });
+    actions.append(addWord);
+  }
   card.append(category, quote, explanation, actions);
   return card;
+}
+
+function visibleCardCount(session: SuggestionSession): number {
+  return visibleSuggestions(session).length;
 }
 
 /**
@@ -1434,23 +1596,35 @@ async function handleGrammarCheck(): Promise<void> {
       }
     }
 
-    setIssueCount(result.suggestions.length, result.suggestions);
-    renderSuggestionCards(content, {
-      workingText: text,
-      suggestions: result.suggestions,
-      canApply,
-      isComplex,
-      anchor,
-      prefix,
-      suffix,
-      range,
-      insertedNode: null,
-      initialEmpty: result.suggestions.length === 0,
-      filter: 'all',
-      rewrite: null,
-      rewriteError: '',
-      rewriteBusy: false,
-    });
+    const dismissed = dismissalsFor(anchor);
+    const visible = result.suggestions.filter((item) => !dismissed.has(item.quote));
+    const hiddenByDismissal = result.suggestions.length - visible.length;
+    setIssueCount(visible.length, visible);
+    renderSuggestionCards(
+      content,
+      {
+        workingText: text,
+        suggestions: visible,
+        canApply,
+        isComplex,
+        anchor,
+        prefix,
+        suffix,
+        range,
+        insertedNode: null,
+        initialEmpty: visible.length === 0,
+        filter: 'all',
+        rewrite: null,
+        rewriteError: '',
+        rewriteBusy: false,
+        notice: '',
+        emptyLabel:
+          result.hiddenCount > 0 || hiddenByDismissal > 0
+            ? 'Nothing left to review.'
+            : 'Nothing to change',
+      },
+      visible.length === 0 ? -1 : 0
+    );
     setTimeout(() => repositionPopup(currentPopup), 0);
   } catch (error: unknown) {
     if (import.meta.env.DEV) {

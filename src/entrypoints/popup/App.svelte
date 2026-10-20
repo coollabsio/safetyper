@@ -22,6 +22,7 @@
     type Intent,
   } from '../../lib/goals';
   import TranslatePanel from './TranslatePanel.svelte';
+  import WritingPreferences from './WritingPreferences.svelte';
 
   const version = browser.runtime.getManifest().version;
 
@@ -967,6 +968,8 @@
                 Saved on this device and included in each check and rewrite.
               </p>
             </fieldset>
+
+            <WritingPreferences />
 
             <div class="field">
               <button class="advanced-toggle" onclick={() => (showAdvanced = !showAdvanced)}>
