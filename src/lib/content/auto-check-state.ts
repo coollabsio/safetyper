@@ -15,6 +15,7 @@ const emptySnapshot = (): AutoCheckSnapshot => ({ field: null, text: '', issues:
 
 let snapshot: AutoCheckSnapshot = emptySnapshot();
 let cancelImpl: () => void = () => {};
+let dismissImpl: () => void = () => {};
 
 export function getAutoCheckSnapshot(): AutoCheckSnapshot {
   return snapshot;
@@ -34,4 +35,13 @@ export function setAutoCheckCancel(cancel: () => void): void {
 
 export function cancelAutoCheck(): void {
   cancelImpl();
+}
+
+export function setAutoCheckDismiss(dismiss: () => void): void {
+  dismissImpl = dismiss;
+}
+
+/** Republish underlines and the badge after a suggestion is dismissed. */
+export function refreshAutoCheckIssues(): void {
+  dismissImpl();
 }

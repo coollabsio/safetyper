@@ -12,6 +12,13 @@ import {
   PROVIDER_CONFIG,
 } from '../content/config';
 import type { ApiProvider, CheckGrammarResponse } from '../content/types';
+import {
+  MESSAGE_TIMEOUT_GRACE_MS,
+  RequestTimeoutError,
+  timeoutForProvider,
+  timeoutMessage,
+  withTimeout,
+} from '../ai/timeout';
 import { describeTranslateError } from './errors';
 import { isAutoDetect, languageName } from './languages';
 import { buildTranslationPayload, isSingleWord, parseTranslationResponse } from './prompt';
@@ -37,7 +44,8 @@ interface ProviderSettings {
 export async function translateText(
   text: string,
   sourceCode: string,
-  targetCode: string
+  targetCode: string,
+  requestId?: string
 ): Promise<TranslationResult> {
   if (!text.trim()) {
     throw new TranslateError('Enter a word or sentence to translate.');
@@ -59,14 +67,26 @@ export async function translateText(
     singleWord: isSingleWord(text),
   });
 
+  const id =
+    requestId || `translate-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   let response: CheckGrammarResponse;
   try {
-    response = (await browser.runtime.sendMessage({
-      action: 'translate',
-      referer: window.location.href,
-      payload,
-    })) as CheckGrammarResponse;
+    response = await withTimeout(
+      browser.runtime.sendMessage({
+        action: 'translate',
+        referer: window.location.href,
+        payload,
+        requestId: id,
+      }) as Promise<CheckGrammarResponse>,
+      timeoutForProvider(settings.provider) + MESSAGE_TIMEOUT_GRACE_MS,
+      () => new RequestTimeoutError(timeoutMessage(settings.provider))
+    );
   } catch (error) {
+    void browser.runtime
+      .sendMessage({ action: 'cancelGrammarCheck', requestId: id })
+      .catch((cancelError: unknown) => {
+        console.error('[SafeTyper] Failed to cancel a translation:', cancelError);
+      });
     throw toTranslateError(error, settings);
   }
 

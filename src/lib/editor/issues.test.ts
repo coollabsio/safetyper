@@ -7,6 +7,7 @@ import {
   matchIssues,
   orderForAcceptAll,
   parseIssues,
+  resolveIssueReply,
 } from './issues';
 
 function issue(quote: string, replacement: string, category: string, explanation: string) {
@@ -97,6 +98,14 @@ describe('parseIssues', () => {
 
   it('rejects prose', () => {
     expect(() => parseIssues('Here are some suggestions.')).toThrow(IssueParseError);
+  });
+
+  it('treats a clean reply for a short passage as no issues', () => {
+    expect(resolveIssueReply('{"issues":[]}', 'hello')).toEqual([]);
+    expect(resolveIssueReply('No issues found.', 'hello')).toEqual([]);
+    expect(resolveIssueReply('hello', 'hello')).toEqual([]);
+    expect(resolveIssueReply('The text looks good.', 'hello')).toEqual([]);
+    expect(resolveIssueReply('Here are some suggestions.', 'hello')).toBeNull();
   });
 
   it('rejects an issue that is missing a required string', () => {

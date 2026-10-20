@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { storage } from '#imports';
   import { browser } from 'wxt/browser';
+  import { OLLAMA_LOADING_HINT_MS } from '../../lib/ai/timeout';
   import { TranslateError, translateText } from '../../lib/translate/client';
   import {
     AUTO_DETECT,
@@ -47,6 +48,9 @@
   let detectedLanguage = $state('');
   let alternatives = $state<TranslationAlternative[]>([]);
   let loading = $state(false);
+  let loadingMessage = $state('Translating...');
+  let activeRequestId = '';
+  let loadHint = 0;
   let error = $state('');
   let errorOpensSettings = $state(false);
   let copied = $state(false);
@@ -118,14 +122,36 @@
     await Promise.all([persistLanguages(), persistSession()]);
   }
 
+  function cancelActiveTranslation(): void {
+    const requestId = activeRequestId;
+    activeRequestId = '';
+    window.clearTimeout(loadHint);
+    if (!requestId) return;
+    void browser.runtime
+      .sendMessage({ action: 'cancelGrammarCheck', requestId })
+      .catch((caught: unknown) => {
+        console.error('Failed to cancel a translation:', caught);
+      });
+  }
+
   async function runTranslation(): Promise<void> {
     if (loading || !inputText.trim()) return;
+    cancelActiveTranslation();
     const id = ++requestSeq;
+    const requestId = `popup-translate-${id}`;
+    activeRequestId = requestId;
     loading = true;
+    loadingMessage = 'Translating...';
     error = '';
     errorOpensSettings = false;
+    loadHint = window.setTimeout(() => {
+      void browser.storage.local.get('selectedProvider').then((stored) => {
+        if (id !== requestSeq || stored.selectedProvider !== 'ollama') return;
+        loadingMessage = 'Loading model…';
+      });
+    }, OLLAMA_LOADING_HINT_MS);
     try {
-      const result = await translateText(inputText, sourceLanguage, targetLanguage);
+      const result = await translateText(inputText, sourceLanguage, targetLanguage, requestId);
       if (id !== requestSeq) return;
       output = result.translation;
       detectedLanguage = result.detectedSourceLanguage ?? '';
@@ -144,6 +170,8 @@
         errorOpensSettings = false;
       }
     } finally {
+      window.clearTimeout(loadHint);
+      if (activeRequestId === requestId) activeRequestId = '';
       if (id === requestSeq) loading = false;
     }
   }
@@ -172,6 +200,7 @@
 
   async function clearInput(): Promise<void> {
     requestSeq += 1;
+    cancelActiveTranslation();
     loading = false;
     inputText = '';
     output = '';
@@ -242,6 +271,8 @@
   });
 
   onDestroy(() => {
+    requestSeq += 1;
+    cancelActiveTranslation();
     window.removeEventListener('keydown', handleKeydown);
     window.clearTimeout(copyTimer);
     const epochAtOpen = loadedEpoch;
@@ -361,7 +392,7 @@
       aria-busy={loading}
     >
       {#if loading}
-        <p class="placeholder">Translating...</p>
+        <p class="placeholder">{loadingMessage}</p>
       {:else if error}
         <p class="error-text">{error}</p>
         {#if errorOpensSettings}

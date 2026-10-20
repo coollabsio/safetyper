@@ -4,6 +4,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { OLLAMA_LOADING_HINT_MS } from '../ai/timeout';
 import { TranslateError, translateText } from '../translate/client';
 import { AUTO_DETECT, defaultTargetFromUiLanguage, isLanguageCode } from '../translate/languages';
 import { mountTranslationBubble, type TranslationBubble } from './bubble';
@@ -35,6 +36,7 @@ interface PortMessage {
 declare global {
   interface Window {
     __safetyperSelectionTranslate?: boolean;
+    __safetyperShowTranslation?: (text?: string) => void;
   }
 }
 
@@ -43,6 +45,8 @@ let session: Session | null = null;
 let lastCapture: PageSelection | null = null;
 let requestSeq = 0;
 let copiedTimer = 0;
+let loadHint = 0;
+let activeTranslateId: string | null = null;
 let port: ReturnType<typeof browser.runtime.connect> | null = null;
 
 export function startSelectionTranslate(): void {
@@ -63,6 +67,9 @@ export function startSelectionTranslate(): void {
     if (typeof nextTarget === 'string') bubble.setTarget(nextTarget);
   });
   connectPort();
+  window.__safetyperShowTranslation = (text?: string) => {
+    void showTranslation(text);
+  };
 }
 
 function rememberSelection(): void {
@@ -145,6 +152,7 @@ async function showEmptyState(): Promise<void> {
 }
 
 async function runTranslation(selection: PageSelection): Promise<void> {
+  cancelActiveTranslation();
   const requestId = ++requestSeq;
   const text = selection.text;
   session = {
@@ -159,13 +167,17 @@ async function runTranslation(selection: PageSelection): Promise<void> {
     readSourceLanguage(),
     readTheme(),
   ]);
-  if (session.requestId !== requestId) return;
+  if (session?.requestId !== requestId) return;
 
   ensureBubble(currentRect(selection), target, theme);
   bubble?.setLoading();
+  armLoadHint(requestId);
+
+  const translateRequestId = `translate-${requestId}`;
+  activeTranslateId = translateRequestId;
 
   try {
-    const result = await translateText(text, source, target);
+    const result = await translateText(text, source, target, translateRequestId);
     if (session?.requestId !== requestId || !bubble?.isOpen()) return;
     bubble.setResult(
       result.translation,
@@ -180,8 +192,41 @@ async function runTranslation(selection: PageSelection): Promise<void> {
     const message =
       error instanceof TranslateError ? error.message : 'Translation failed. Try again.';
     const opensSettings = error instanceof TranslateError ? error.opensSettings : false;
-    bubble.setError(message, opensSettings, true);
+    bubble.setError(message, opensSettings, true, true);
+  } finally {
+    window.clearTimeout(loadHint);
+    if (activeTranslateId === translateRequestId) activeTranslateId = null;
   }
+}
+
+function armLoadHint(requestId: number): void {
+  window.clearTimeout(loadHint);
+  loadHint = window.setTimeout(() => {
+    void (async () => {
+      if (session?.requestId !== requestId || !bubble?.isOpen()) return;
+      try {
+        const stored = await browser.storage.local.get('selectedProvider');
+        if (stored.selectedProvider !== 'ollama') return;
+      } catch (error) {
+        console.error('[SafeTyper] Could not read the provider while translating:', error);
+        return;
+      }
+      if (session?.requestId !== requestId || !bubble?.isOpen()) return;
+      bubble.setLoading('Loading model…');
+    })();
+  }, OLLAMA_LOADING_HINT_MS);
+}
+
+function cancelActiveTranslation(): void {
+  const requestId = activeTranslateId;
+  activeTranslateId = null;
+  window.clearTimeout(loadHint);
+  if (!requestId) return;
+  void browser.runtime
+    .sendMessage({ action: 'cancelGrammarCheck', requestId })
+    .catch((error: unknown) => {
+      console.error('[SafeTyper] Failed to cancel a translation:', error);
+    });
 }
 
 function ensureBubble(anchor: AnchorBox, target: string, theme: 'light' | 'dark'): void {
@@ -205,6 +250,10 @@ function ensureBubble(anchor: AnchorBox, target: string, theme: 'light' | 'dark'
     },
     onOpenSettings: () => {
       void openSettings();
+    },
+    onRetry: () => {
+      if (!session?.text.trim()) return;
+      void runTranslation(sessionAsSelection());
     },
   });
 }
@@ -272,6 +321,7 @@ async function openSettings(): Promise<void> {
 
 function closeBubble(): void {
   requestSeq += 1;
+  cancelActiveTranslation();
   bubble?.destroy();
   bubble = null;
   session = null;

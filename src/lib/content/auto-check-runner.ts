@@ -18,7 +18,8 @@ import {
   type AutoCheckFieldInfo,
   type TextSegment,
 } from './auto-check';
-import { setAutoCheckCancel, setAutoCheckSnapshot } from './auto-check-state';
+import { setAutoCheckCancel, setAutoCheckDismiss, setAutoCheckSnapshot } from './auto-check-state';
+import { dismissalsFor, withoutDismissed } from './dismissals';
 import { CONFIG } from './config';
 import { getTextContent, isEditableElement } from './dom-utils';
 import type { Suggestion } from './suggestions';
@@ -48,12 +49,16 @@ export function startAutoCheck(): () => void {
   setUnderlineClickHandler((issueId) => {
     const current = field;
     if (!current) return;
-    showFieldIssues(issues, issueId);
+    showFieldIssues(visibleIssues(), issueId);
   });
   setAutoCheckCancel(() => {
     generation += 1;
     window.clearTimeout(timer);
     void cancelInFlight();
+  });
+  setAutoCheckDismiss(() => {
+    if (!field) return;
+    publish();
   });
 
   document.addEventListener('focusin', onFocusIn, true);
@@ -241,7 +246,8 @@ async function run(token: number): Promise<void> {
       backoffMs = nextBackoffMs(backoffMs);
       backoffUntil = Date.now() + backoffMs;
       console.error('[SafeTyper] Auto-check failed:', error);
-      setIssueCount(issues.length, issues);
+      const shown = visibleIssues();
+      setIssueCount(shown.length, shown);
       if (token === generation) schedule();
       return;
     } finally {
@@ -306,14 +312,20 @@ function focused(element: HTMLElement): boolean {
   return active instanceof Node && element.contains(active);
 }
 
+function visibleIssues(): Suggestion[] {
+  if (!field) return [];
+  return withoutDismissed(text, issues, dismissalsFor(field));
+}
+
 function publish(): void {
-  setAutoCheckSnapshot({ field, text, issues });
-  setIssueCount(issues.length, issues);
-  if (!field || issues.length === 0) {
+  const shown = visibleIssues();
+  setAutoCheckSnapshot({ field, text, issues: shown });
+  setIssueCount(shown.length, shown);
+  if (!field || shown.length === 0) {
     clearUnderlines();
     return;
   }
-  renderUnderlines(field, text, issues);
+  renderUnderlines(field, text, shown);
 }
 
 async function cancelInFlight(): Promise<void> {

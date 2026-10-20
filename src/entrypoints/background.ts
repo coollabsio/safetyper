@@ -7,6 +7,13 @@ import {
   type TokenSpend,
 } from '@/lib/content/budget';
 import { installSelectionTranslate } from '@/lib/selection-translate/background';
+import { runProviderChat } from '@/lib/ai/provider-chat';
+import {
+  isAbortError,
+  isRequestTimeout,
+  MODELS_TIMEOUT_MS,
+  timeoutMessage,
+} from '@/lib/ai/timeout';
 
 // Groq models shut down by Groq (https://console.groq.com/docs/deprecations)
 const REMOVED_GROQ_MODELS = [
@@ -141,6 +148,28 @@ export default defineBackground(() => {
     string,
     { controller: AbortController; rateStamp: RateStamp | null; spend: TokenSpend | null }
   >();
+  let activeChats = 0;
+  let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Chrome can stop an MV3 worker during a long fetch and drop the message port.
+  // A pending chat holds the worker awake until sendResponse runs.
+  function holdWorker(): void {
+    activeChats += 1;
+    if (keepAliveTimer) return;
+    const ping = (): void => {
+      void browser.runtime.getPlatformInfo().catch(() => undefined);
+    };
+    ping();
+    keepAliveTimer = setInterval(ping, 20_000);
+  }
+
+  function releaseWorker(): void {
+    activeChats = Math.max(0, activeChats - 1);
+    if (activeChats === 0 && keepAliveTimer) {
+      clearInterval(keepAliveTimer);
+      keepAliveTimer = null;
+    }
+  }
 
   function checkRateLimit(): { allowed: boolean; remaining: number; stamp: RateStamp | null } {
     const now = Date.now();
@@ -184,18 +213,6 @@ export default defineBackground(() => {
     } catch (error) {
       console.error('[Background] Failed to send check response:', error);
     }
-  }
-
-  // Parse a chat completions response, keeping the provider's error message on failure
-  async function parseApiResponse(response: Response) {
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      const detail = body?.error?.message;
-      throw new Error(
-        `API request failed with status ${response.status}${detail ? `: ${detail}` : ''}`
-      );
-    }
-    return response.json();
   }
 
   // Auto-inject API keys from environment on startup (dev mode only)
@@ -291,7 +308,10 @@ export default defineBackground(() => {
             const { groqKey } = await browser.storage.local.get(['groqKey']);
             fetchOptions = { headers: { Authorization: `Bearer ${groqKey}` } };
           }
-          const response = await fetch(modelsUrl, fetchOptions);
+          const response = await fetch(modelsUrl, {
+            ...fetchOptions,
+            signal: AbortSignal.timeout(MODELS_TIMEOUT_MS),
+          });
           if (!response.ok) {
             throw new Error(`Failed to fetch models: ${response.status}`);
           }
@@ -362,7 +382,7 @@ export default defineBackground(() => {
       sendResponse({ success: true });
       return false;
     } else if (message.action === 'checkGrammar' || message.action === 'translate') {
-      // Translate uses the same provider, key, and chat-completions request as grammar checks.
+      // Translate uses the same provider and key as grammar checks, without JSON mode.
       const tokens = payloadTokens(message.payload);
       const decision = consumeTokenBudget(tokenLog, Date.now(), tokens);
       tokenLog = decision.entries;
@@ -395,7 +415,7 @@ export default defineBackground(() => {
         });
       }
 
-      const releaseCancelled = () => {
+      const releaseCancelled = (): void => {
         if (!requestId) return;
         const tracked = inflightChecks.get(requestId);
         if (!tracked) return;
@@ -404,93 +424,97 @@ export default defineBackground(() => {
         if (tracked.spend) tokenLog = refundTokenSpend(tokenLog, tracked.spend);
       };
 
-      const sendChat = (url: string, headers: Record<string, string>) => {
-        fetch(url, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(message.payload),
-          signal: controller.signal,
-        })
-          .then(parseApiResponse)
-          .then((data) => {
-            if (requestId) inflightChecks.delete(requestId);
-            respond(sendResponse, { success: true, data });
-          })
-          .catch((error: unknown) => {
-            const aborted = error instanceof Error && error.name === 'AbortError';
-            if (aborted) {
-              releaseCancelled();
-              respond(sendResponse, {
-                success: false,
-                error: 'Request cancelled',
-                cancelled: true,
-              });
-              return;
-            }
-            if (requestId) inflightChecks.delete(requestId);
-            const detail = error instanceof Error ? error.message : 'Request failed';
-            respond(sendResponse, { success: false, error: detail });
-          });
+      let settled = false;
+      const finish = (
+        body: { success: boolean; data?: unknown; error?: string; cancelled?: boolean },
+        refund: boolean
+      ): void => {
+        if (settled) return;
+        settled = true;
+        if (refund) releaseCancelled();
+        else if (requestId) inflightChecks.delete(requestId);
+        releaseWorker();
+        respond(sendResponse, body);
       };
 
-      // Retrieve the API key from storage and forward the caller's payload.
-      browser.storage.local
-        .get(['selectedProvider', 'openRouterKey', 'groqKey', 'ollamaEndpoint'])
-        .then((result) => {
-          const provider: ApiProvider =
+      holdWorker();
+      const wantsJson = message.action === 'checkGrammar';
+
+      void (async () => {
+        let provider: ApiProvider = DEFAULT_PROVIDER;
+        try {
+          const result = await browser.storage.local.get([
+            'selectedProvider',
+            'openRouterKey',
+            'groqKey',
+            'ollamaEndpoint',
+          ]);
+          provider =
             (typeof result.selectedProvider === 'string' &&
               result.selectedProvider in PROVIDER_CONFIG &&
               (result.selectedProvider as ApiProvider)) ||
             DEFAULT_PROVIDER;
           const providerConfig = PROVIDER_CONFIG[provider];
+          const headers: Record<string, string> = {};
+          let endpoint: string = providerConfig.chatEndpoint;
 
           if (providerConfig.requiresApiKey) {
             const apiKey = result[providerConfig.keyStorageKey];
-
             if (!apiKey) {
-              releaseCancelled();
-              respond(sendResponse, { success: false, error: 'API key not configured' });
+              finish({ success: false, error: 'API key not configured' }, true);
               return;
             }
-
-            // Validate API key format
             if (typeof apiKey !== 'string' || !providerConfig.keyRegex.test(apiKey)) {
-              releaseCancelled();
-              respond(sendResponse, {
-                success: false,
-                error: `Invalid ${providerConfig.name} API key format`,
-              });
+              finish(
+                { success: false, error: `Invalid ${providerConfig.name} API key format` },
+                true
+              );
               return;
             }
-
-            const headers: Record<string, string> = {
-              Authorization: `Bearer ${apiKey}`,
-              'Content-Type': 'application/json',
-            };
+            headers.Authorization = `Bearer ${apiKey}`;
             if (providerConfig.requiresReferer) {
               headers['HTTP-Referer'] = message.referer;
             }
-
-            sendChat(providerConfig.chatEndpoint, headers);
           } else {
-            // Ollama: no API key, dynamic endpoint, set Origin to bypass CORS check
-            const baseUrl =
+            endpoint =
               (typeof result.ollamaEndpoint === 'string' && result.ollamaEndpoint) ||
               DEFAULT_OLLAMA_ENDPOINT;
-            const chatUrl = `${baseUrl}/v1/chat/completions`;
-
-            sendChat(chatUrl, {
-              'Content-Type': 'application/json',
-              Origin: baseUrl,
-            });
+            headers.Origin = endpoint;
           }
-        })
-        .catch(() => {
-          releaseCancelled();
-          respond(sendResponse, { success: false, error: 'Failed to retrieve API configuration' });
-        });
 
-      // Return true to indicate we'll respond asynchronously
+          if (controller.signal.aborted) {
+            finish({ success: false, error: 'Request cancelled', cancelled: true }, true);
+            return;
+          }
+
+          const payload = message.payload ?? {};
+          const messages = Array.isArray(payload.messages) ? payload.messages : [];
+          const content = await runProviderChat({
+            provider,
+            endpoint,
+            headers,
+            model: typeof payload.model === 'string' ? payload.model : providerConfig.defaultModel,
+            messages,
+            temperature: typeof payload.temperature === 'number' ? payload.temperature : 0.2,
+            json: wantsJson && provider === 'ollama',
+            openAiBody: payload,
+            signal: controller.signal,
+          });
+          finish({ success: true, data: { choices: [{ message: { content } }] } }, false);
+        } catch (error: unknown) {
+          if (isRequestTimeout(error)) {
+            finish({ success: false, error: timeoutMessage(provider) }, true);
+            return;
+          }
+          if (isAbortError(error) || controller.signal.aborted) {
+            finish({ success: false, error: 'Request cancelled', cancelled: true }, true);
+            return;
+          }
+          const detail = error instanceof Error ? error.message : 'Request failed';
+          finish({ success: false, error: detail }, false);
+        }
+      })();
+
       return true;
     } else if (message.action === 'checkOllamaConnection') {
       (async () => {
@@ -502,6 +526,7 @@ export default defineBackground(() => {
           const response = await fetch(`${baseUrl}/api/tags`, {
             method: 'GET',
             headers: { Origin: baseUrl },
+            signal: AbortSignal.timeout(MODELS_TIMEOUT_MS),
           });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
           const json = await response.json();

@@ -29,10 +29,16 @@ import {
 } from './preferences';
 import { parseRewrite, rewriteOption, rewriteSystemPrompt, type RewriteOptionId } from '../rewrite';
 import {
+  MESSAGE_TIMEOUT_GRACE_MS,
+  RequestTimeoutError,
+  timeoutForProvider,
+  timeoutMessage,
+  withTimeout,
+} from '../ai/timeout';
+import { interpretCheckReply } from './check-result';
+import {
   applySuggestions,
   hydrateSuggestion,
-  locateSuggestions,
-  parseModelIssues,
   suggestionsFromDiff,
   type Suggestion,
 } from './suggestions';
@@ -116,6 +122,7 @@ function assertWithinLimit(text: string): void {
 }
 
 interface ModelContext {
+  provider: ApiProvider;
   model: string;
   basePrompt: string;
   usingCustomPrompt: boolean;
@@ -147,6 +154,7 @@ async function loadModelContext(): Promise<ModelContext> {
   const custom =
     typeof result.customSystemPrompt === 'string' ? result.customSystemPrompt.trim() : '';
   return {
+    provider,
     model,
     basePrompt: custom || DEFAULT_SYSTEM_PROMPT,
     usingCustomPrompt: custom.length > 0,
@@ -159,12 +167,15 @@ async function loadModelContext(): Promise<ModelContext> {
  * That path is the rate limiter (10 requests per minute) for checks and rewrites.
  */
 async function requestCompletion(
+  provider: ApiProvider,
   model: string,
   systemPrompt: string,
   user: string,
   temperature: number,
   requestId?: string
 ): Promise<string> {
+  const id =
+    requestId || `check-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   const payload: OpenRouterRequestPayload = {
     model,
     messages: [
@@ -178,9 +189,28 @@ async function requestCompletion(
     action: 'checkGrammar',
     referer: window.location.href,
     payload,
-    requestId,
+    requestId: id,
   };
-  const response = (await browser.runtime.sendMessage(message)) as CheckGrammarResponse;
+  let response: CheckGrammarResponse;
+  try {
+    response = await withTimeout(
+      browser.runtime.sendMessage(message) as Promise<CheckGrammarResponse>,
+      timeoutForProvider(provider) + MESSAGE_TIMEOUT_GRACE_MS,
+      () => new RequestTimeoutError(timeoutMessage(provider))
+    );
+  } catch (error) {
+    void browser.runtime
+      .sendMessage({ action: 'cancelGrammarCheck', requestId: id })
+      .catch((cancelError: unknown) => {
+        console.error('[SafeTyper] Failed to cancel a grammar check:', cancelError);
+      });
+    if (error instanceof RequestTimeoutError) throw error;
+    const detail = error instanceof Error ? error.message : 'Unknown error occurred';
+    if (/message port closed|receiving end does not exist/i.test(detail)) {
+      throw new RequestTimeoutError(timeoutMessage(provider));
+    }
+    throw error instanceof Error ? error : new Error(detail);
+  }
   if (!response?.success) {
     if (response?.cancelled) throw new GrammarCheckCancelled();
     throw new Error(response?.error || 'Unknown error occurred');
@@ -235,24 +265,16 @@ export async function checkGrammar(text: string, requestId?: string): Promise<Gr
   const user = context.usingCustomPrompt
     ? `Please fix the grammar and spelling in this text while preserving EXACTLY the same formatting, line breaks, and structure as the original:\n\n${text}`
     : text;
-  const raw = await requestCompletion(context.model, systemPrompt, user, 0.2, requestId);
-
-  let correctedText = text;
-  let suggestions: Suggestion[] = [];
-  if (raw.trim().length > 0) {
-    const issues = parseModelIssues(raw);
-    if (issues) {
-      suggestions = locateSuggestions(text, issues);
-      correctedText = applySuggestions(text, suggestions);
-    } else {
-      let trimmedCorrected = raw.trim();
-      if (trimmedCorrected.startsWith('"') && trimmedCorrected.endsWith('"')) {
-        trimmedCorrected = trimmedCorrected.slice(1, -1);
-      }
-      correctedText = trimmedCorrected;
-      suggestions = suggestionsFromDiff(text, correctedText);
-    }
-  }
+  const raw = await requestCompletion(
+    context.provider,
+    context.model,
+    systemPrompt,
+    user,
+    0.2,
+    requestId
+  );
+  const interpreted = interpretCheckReply(text, raw);
+  const { correctedText, suggestions } = interpreted;
 
   cache.set(cacheKey, correctedText, JSON.stringify(suggestions));
 
@@ -274,7 +296,7 @@ export async function rewritePassage(text: string, optionId: RewriteOptionId): P
   const cachedResult = cache.get(cacheKey);
   if (cachedResult) return cachedResult.correctedText;
 
-  const raw = await requestCompletion(context.model, systemPrompt, text, 0.3);
+  const raw = await requestCompletion(context.provider, context.model, systemPrompt, text, 0.3);
   const rewritten = parseRewrite(raw);
   if (!rewritten) throw new Error('The rewrite did not come back in a usable form.');
 

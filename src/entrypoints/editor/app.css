@@ -204,6 +204,13 @@ body,
   color: var(--st-warning-text);
 }
 
+.banner-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .banner pre {
   margin: 0.5rem 0 0;
   padding: 0.5rem 0.65rem;

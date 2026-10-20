@@ -15,14 +15,20 @@ export interface BubbleHandlers {
   onReplace: () => void;
   onOpenTab: () => void;
   onOpenSettings: () => void;
+  onRetry: () => void;
 }
 
 export interface TranslationBubble {
   setTheme: (theme: 'light' | 'dark') => void;
   setTarget: (code: string) => void;
-  setLoading: () => void;
+  setLoading: (message?: string) => void;
   setResult: (translation: string, detected: string, canReplace: boolean) => void;
-  setError: (message: string, opensSettings: boolean, canOpenTab: boolean) => void;
+  setError: (
+    message: string,
+    opensSettings: boolean,
+    canOpenTab: boolean,
+    canRetry?: boolean
+  ) => void;
   setCopied: (copied: boolean) => void;
   follow: (anchor: AnchorBox) => void;
   translation: () => string;
@@ -125,7 +131,13 @@ export function mountTranslationBubble(
   openButton.className = 'tr-btn tr-open';
   openButton.textContent = 'Open in Translate tab';
 
-  actions.append(copyButton, replaceButton, openButton);
+  const retryButton = document.createElement('button');
+  retryButton.type = 'button';
+  retryButton.className = 'tr-btn tr-btn-primary tr-retry';
+  retryButton.textContent = 'Retry';
+  retryButton.hidden = true;
+
+  actions.append(copyButton, replaceButton, openButton, retryButton);
 
   const settingsButton = document.createElement('button');
   settingsButton.type = 'button';
@@ -160,6 +172,7 @@ export function mountTranslationBubble(
   replaceButton.addEventListener('click', () => handlers.onReplace());
   openButton.addEventListener('click', () => handlers.onOpenTab());
   settingsButton.addEventListener('click', () => handlers.onOpenSettings());
+  retryButton.addEventListener('click', () => handlers.onRetry());
 
   header.addEventListener('pointerdown', (event) => {
     if (event.button !== 0) return;
@@ -229,14 +242,15 @@ export function mountTranslationBubble(
         select.value = code;
       }
     },
-    setLoading() {
+    setLoading(message = 'Translating…') {
       translationText = '';
       root.dataset.state = 'loading';
       detected.hidden = true;
       detected.textContent = '';
-      fillBody('tr-loading', 'Translating…');
+      fillBody('tr-loading', message);
       actions.hidden = true;
       settingsButton.hidden = true;
+      retryButton.hidden = true;
       copyButton.disabled = true;
       replaceButton.disabled = true;
       reposition();
@@ -257,13 +271,14 @@ export function mountTranslationBubble(
       setPrimary(canReplace);
       reposition();
     },
-    setError(message, opensSettings, canOpenTab) {
+    setError(message, opensSettings, canOpenTab, canRetry = false) {
       translationText = '';
       root.dataset.state = 'error';
       detected.hidden = true;
       detected.textContent = '';
       fillBody('tr-error', message);
-      actions.hidden = !canOpenTab;
+      retryButton.hidden = !canRetry;
+      actions.hidden = !canOpenTab && !canRetry;
       copyButton.hidden = true;
       replaceButton.hidden = true;
       openButton.hidden = !canOpenTab;

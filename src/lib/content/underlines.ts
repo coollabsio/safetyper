@@ -87,6 +87,80 @@ export function repositionUnderlines(): void {
   paintRangeBars(trackedField, rangesForIssues(trackedField, trackedText, trackedIssues));
 }
 
+export function suggestionClientRect(
+  field: HTMLElement,
+  text: string,
+  issue: Suggestion
+): DOMRect | null {
+  if (!issue.quote) return null;
+  if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+    return mirrorQuoteRect(field, text, issue);
+  }
+  const mark = rangesForIssues(field, text, [issue])[0];
+  const rect = mark?.range.getClientRects()[0];
+  if (!rect || rect.width < 1) return null;
+  return rect;
+}
+
+function mirrorQuoteRect(
+  field: HTMLInputElement | HTMLTextAreaElement,
+  text: string,
+  issue: Suggestion
+): DOMRect | null {
+  let start = issue.start;
+  if (text.slice(start, start + issue.quote.length) !== issue.quote) {
+    start = text.indexOf(issue.quote);
+  }
+  if (start < 0) return null;
+
+  const mirror = document.createElement('div');
+  mirror.className = 'safetyper-measure';
+  mirror.setAttribute('aria-hidden', 'true');
+  const style = getComputedStyle(field);
+  const paddingLeft = parseFloat(style.paddingLeft) || 0;
+  const paddingRight = parseFloat(style.paddingRight) || 0;
+  const contentWidth = Math.max(0, field.clientWidth - paddingLeft - paddingRight);
+  mirror.style.font = style.font;
+  mirror.style.fontFamily = style.fontFamily;
+  mirror.style.fontSize = style.fontSize;
+  mirror.style.fontWeight = style.fontWeight;
+  mirror.style.fontStyle = style.fontStyle;
+  mirror.style.letterSpacing = style.letterSpacing;
+  mirror.style.wordSpacing = style.wordSpacing;
+  mirror.style.lineHeight = style.lineHeight;
+  mirror.style.textTransform = style.textTransform;
+  mirror.style.textIndent = style.textIndent;
+  mirror.style.tabSize = style.tabSize;
+  mirror.style.direction = style.direction;
+  mirror.style.wordBreak = style.wordBreak;
+  mirror.style.overflowWrap = style.overflowWrap;
+  mirror.style.whiteSpace =
+    field instanceof HTMLInputElement ? 'pre' : style.whiteSpace || 'pre-wrap';
+  mirror.style.width = `${contentWidth}px`;
+  mirror.append(document.createTextNode(text.slice(0, start)));
+  const mark = document.createElement('span');
+  mark.textContent = issue.quote;
+  mirror.append(mark, document.createTextNode(text.slice(start + issue.quote.length)));
+  document.body.append(mirror);
+  const markRect = mark.getBoundingClientRect();
+  const mirrorRect = mirror.getBoundingClientRect();
+  mirror.remove();
+  if (markRect.width < 1 && markRect.height < 1) return null;
+
+  const fieldRect = field.getBoundingClientRect();
+  const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+  const borderTop = parseFloat(style.borderTopWidth) || 0;
+  const paddingTop = parseFloat(style.paddingTop) || 0;
+  const originX = fieldRect.left + borderLeft + paddingLeft - field.scrollLeft;
+  const originY = fieldRect.top + borderTop + paddingTop - field.scrollTop;
+  return new DOMRect(
+    markRect.left + originX - mirrorRect.left,
+    markRect.top + originY - mirrorRect.top,
+    markRect.width,
+    markRect.height
+  );
+}
+
 export function clearUnderlines(): void {
   unbindField();
   clearMirror();
