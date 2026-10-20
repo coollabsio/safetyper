@@ -42,15 +42,18 @@
   outline-offset: 2px;
 }
 
-.mark,
-.check {
-  width: 68%;
-  height: 68%;
+.mark {
   display: block;
+  width: 18px;
+  height: 19px;
+  shape-rendering: crispEdges;
+  image-rendering: pixelated;
 }
 
 .check {
   display: none;
+  width: 68%;
+  height: 68%;
 }
 
 .ring {
@@ -92,15 +95,15 @@
 
 .badge {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
+  top: -4px;
+  right: -4px;
+  min-width: 12px;
+  height: 12px;
+  padding: 0 2px;
   border-radius: 999px;
   background: var(--state);
   color: var(--ink);
-  font-size: 9px;
+  font-size: 8px;
   box-shadow: 0 0 0 1px var(--face);
 }
 
