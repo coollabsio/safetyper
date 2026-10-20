@@ -18,6 +18,13 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   PROVIDER_CONFIG,
 } from './config';
+import {
+  applySuggestions,
+  locateSuggestions,
+  parseModelIssues,
+  suggestionsFromDiff,
+  type Suggestion,
+} from './suggestions';
 
 /**
  * Simple cache implementation for API responses
@@ -38,7 +45,7 @@ class SimpleCache implements ApiCache {
     return entry;
   }
 
-  set(key: string, value: string): void {
+  set(key: string, value: string, suggestionsJson = '[]'): void {
     // Enforce cache size limit
     if (this.cache.size >= CACHE_CONFIG.MAX_SIZE) {
       // Remove oldest entry
@@ -50,6 +57,7 @@ class SimpleCache implements ApiCache {
 
     this.cache.set(key, {
       correctedText: value,
+      suggestionsJson,
       timestamp: Date.now(),
     });
   }
@@ -76,7 +84,12 @@ function getCacheKey(text: string, model: string, prompt: string): string {
 /**
  * Check grammar using OpenRouter API
  */
-export async function checkGrammar(text: string): Promise<string> {
+export interface GrammarCheckResult {
+  correctedText: string;
+  suggestions: Suggestion[];
+}
+
+export async function checkGrammar(text: string): Promise<GrammarCheckResult> {
   // Validate text length
   if (text.length > CONFIG.MAX_TEXT_LENGTH) {
     throw new Error(
@@ -117,7 +130,10 @@ export async function checkGrammar(text: string): Promise<string> {
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Using cached grammar check result');
     }
-    return cachedResult.correctedText;
+    return {
+      correctedText: cachedResult.correctedText,
+      suggestions: readCachedSuggestions(text, cachedResult),
+    };
   }
 
   // Prepare API request payload
@@ -133,9 +149,13 @@ export async function checkGrammar(text: string): Promise<string> {
         content: `Please fix the grammar and spelling in this text while preserving EXACTLY the same formatting, line breaks, and structure as the original:\n\n${text}`,
       },
     ],
-    temperature: 0.3,
+    temperature: 0.2,
     response_format: { type: 'text' },
   };
+
+  if (systemPrompt === DEFAULT_SYSTEM_PROMPT) {
+    payload.messages[1] = { role: 'user', content: text };
+  }
 
   // Send request to background script
   const message: CheckGrammarMessage = {
@@ -150,33 +170,37 @@ export async function checkGrammar(text: string): Promise<string> {
     throw new Error(response.error || 'Unknown error occurred');
   }
 
-  // Extract corrected text from response
   let correctedText = text;
-  if (response.data?.choices && response.data.choices.length > 0) {
-    const choice = response.data.choices[0];
-    if (choice.message && choice.message.content) {
-      const rawCorrected = choice.message.content;
-      let trimmedCorrected = rawCorrected.trim();
+  let suggestions: Suggestion[] = [];
+  const raw = response.data?.choices?.[0]?.message?.content;
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    const issues = parseModelIssues(raw);
+    if (issues) {
+      suggestions = locateSuggestions(text, issues);
+      correctedText = applySuggestions(text, suggestions);
+    } else {
+      let trimmedCorrected = raw.trim();
       if (trimmedCorrected.startsWith('"') && trimmedCorrected.endsWith('"')) {
         trimmedCorrected = trimmedCorrected.slice(1, -1);
       }
-
-      // Preserve line structure if possible
-      const originalLines = text.split('\n');
-      const correctedLines = trimmedCorrected.split('\n');
-
-      if (originalLines.length === correctedLines.length) {
-        correctedText = trimmedCorrected;
-      } else {
-        correctedText = trimmedCorrected;
-      }
+      correctedText = trimmedCorrected;
+      suggestions = suggestionsFromDiff(text, correctedText);
     }
   }
 
-  // Cache the result
-  cache.set(cacheKey, correctedText);
+  cache.set(cacheKey, correctedText, JSON.stringify(suggestions));
 
-  return correctedText;
+  return { correctedText, suggestions };
+}
+
+function readCachedSuggestions(text: string, entry: CacheEntry): Suggestion[] {
+  try {
+    const parsed = JSON.parse(entry.suggestionsJson || '[]') as unknown;
+    if (Array.isArray(parsed)) return parsed as Suggestion[];
+  } catch {
+    // Fall through and rebuild cards from the cached corrected text.
+  }
+  return suggestionsFromDiff(text, entry.correctedText);
 }
 
 /**

@@ -177,6 +177,7 @@ export interface Config {
  */
 export interface CacheEntry {
   correctedText: string;
+  suggestionsJson?: string;
   timestamp: number;
 }
 
@@ -185,7 +186,7 @@ export interface CacheEntry {
  */
 export interface ApiCache {
   get(key: string): CacheEntry | undefined;
-  set(key: string, value: string): void;
+  set(key: string, value: string, suggestionsJson?: string): void;
   clear(): void;
   size(): number;
 }

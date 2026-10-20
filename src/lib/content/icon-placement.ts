@@ -60,7 +60,7 @@ function overlapArea(a: Box, b: Box): number {
 }
 
 function isOurUi(element: HTMLElement): boolean {
-  return Boolean(element.closest('.safetyper-icon, .safetyper-popup'));
+  return Boolean(element.closest('.safetyper-icon, .safetyper-popup, .safetyper-popup-host'));
 }
 
 function isSmall(rect: DOMRect): boolean {
