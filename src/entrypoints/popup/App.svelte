@@ -858,16 +858,16 @@
     font-weight: 500;
   }
 
-  /* Header — Coolify topbar: elevated chrome, hairline edge */
+  /* Header sits on the page canvas. No separate fill, matching Coolify's top bar. */
   .header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     min-height: 48px;
     padding: 8px 12px;
-    border-bottom: none;
-    box-shadow: 0 1px 0 var(--st-hairline);
-    background: var(--st-base);
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
 
   .header-brand {

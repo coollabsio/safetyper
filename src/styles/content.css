@@ -104,9 +104,9 @@
   justify-content: space-between;
   min-height: 48px;
   padding: 8px 12px;
-  border-bottom: none;
-  box-shadow: 0 1px 0 var(--st-border);
-  background: var(--st-bg);
+  border: none;
+  box-shadow: none;
+  background: transparent;
   gap: 12px;
 }
 
