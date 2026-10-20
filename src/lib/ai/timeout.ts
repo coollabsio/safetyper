@@ -34,11 +34,12 @@ export function timeoutForProvider(provider: ApiProvider): number {
   return provider === 'ollama' ? OLLAMA_REQUEST_TIMEOUT_MS : DEFAULT_REQUEST_TIMEOUT_MS;
 }
 
+export const OLLAMA_TIMEOUT_MESSAGE =
+  'Ollama is taking too long. It may be running on CPU — try a smaller model (e.g. qwen2.5:3b) or a hosted provider.';
+
 export function timeoutMessage(provider: ApiProvider): string {
+  if (provider === 'ollama') return OLLAMA_TIMEOUT_MESSAGE;
   const seconds = Math.round(timeoutForProvider(provider) / 1000);
-  if (provider === 'ollama') {
-    return `The request timed out after ${seconds}s. Ollama may still be loading the model. Try again.`;
-  }
   return `The request timed out after ${seconds}s. Try again.`;
 }
 

@@ -23,6 +23,8 @@ export interface ProviderChatInput {
   maxTokens?: number;
   /** Ollama checks set this so the model must return a JSON object. */
   json?: boolean;
+  /** Selects the Ollama num_predict cap. Translation is larger than a check. */
+  kind?: 'check' | 'translate';
   /** Forwarded as-is for OpenAI-compatible providers. Ollama builds its own body. */
   openAiBody?: unknown;
   signal?: AbortSignal;
@@ -66,6 +68,7 @@ export async function runProviderChat(input: ProviderChatInput): Promise<string>
         temperature: input.temperature,
         maxTokens: input.maxTokens,
         json: input.json === true,
+        kind: input.kind ?? 'check',
       })
     : (input.openAiBody ?? {
         model: input.model,

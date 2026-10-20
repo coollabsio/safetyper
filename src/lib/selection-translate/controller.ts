@@ -154,6 +154,8 @@ async function showEmptyState(): Promise<void> {
 async function runTranslation(selection: PageSelection): Promise<void> {
   cancelActiveTranslation();
   const requestId = ++requestSeq;
+  const translateRequestId = `translate-${requestId}`;
+  activeTranslateId = translateRequestId;
   const text = selection.text;
   session = {
     text,
@@ -167,14 +169,11 @@ async function runTranslation(selection: PageSelection): Promise<void> {
     readSourceLanguage(),
     readTheme(),
   ]);
-  if (session?.requestId !== requestId) return;
+  if (session?.requestId !== requestId || activeTranslateId !== translateRequestId) return;
 
   ensureBubble(currentRect(selection), target, theme);
   bubble?.setLoading();
   armLoadHint(requestId);
-
-  const translateRequestId = `translate-${requestId}`;
-  activeTranslateId = translateRequestId;
 
   try {
     const result = await translateText(text, source, target, translateRequestId);

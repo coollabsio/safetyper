@@ -269,7 +269,8 @@ try {
   await page.locator('.st-check').click();
   await host.locator('.st-retry').waitFor({ timeout: 8000 });
   const timeoutText = await host.locator('.st-error').innerText();
-  assert(/timed out/i.test(timeoutText), `timeout copy was ${timeoutText}`);
+  assert(/taking too long/i.test(timeoutText), `timeout copy was ${timeoutText}`);
+  assert(/qwen2\.5:3b/.test(timeoutText), `timeout copy was ${timeoutText}`);
   await host.screenshot({ path: path.join(shots, 'card-timeout-error.png') });
   await page.keyboard.press('Escape');
 
@@ -290,7 +291,8 @@ try {
   const bubble = page.locator('[data-safetyper-translate="bubble"]');
   await bubble.locator('.tr-retry').waitFor({ timeout: 8000 });
   const bubbleText = await bubble.locator('.tr-error').innerText();
-  assert(/timed out/i.test(bubbleText), `bubble timeout copy was ${bubbleText}`);
+  assert(/taking too long/i.test(bubbleText), `bubble timeout copy was ${bubbleText}`);
+  assert(/qwen2\.5:3b/.test(bubbleText), `bubble timeout copy was ${bubbleText}`);
   await bubble.screenshot({ path: path.join(shots, 'translate-timeout-error.png') });
 
   await setMode('reply');

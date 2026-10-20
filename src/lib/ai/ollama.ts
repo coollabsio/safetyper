@@ -5,6 +5,10 @@
  */
 
 export const OLLAMA_KEEP_ALIVE = '30m';
+/** Grammar JSON is short. Capping generation keeps a CPU model from running on. */
+export const OLLAMA_CHECK_MAX_TOKENS = 512;
+/** A translation can be as long as the source, but not an open-ended completion. */
+export const OLLAMA_TRANSLATE_MAX_TOKENS = 1024;
 
 export interface OllamaChatMessage {
   role: string;
@@ -32,17 +36,24 @@ export function ollamaChatUrl(endpoint: string): string {
   return `${base}/api/chat`;
 }
 
+export function ollamaPredictTokens(kind: 'check' | 'translate', requested?: number): number {
+  const cap = kind === 'translate' ? OLLAMA_TRANSLATE_MAX_TOKENS : OLLAMA_CHECK_MAX_TOKENS;
+  if (typeof requested !== 'number' || !Number.isFinite(requested)) return cap;
+  return Math.min(cap, Math.max(1, Math.floor(requested)));
+}
+
 export function buildOllamaChatBody(input: {
   model: string;
   messages: OllamaChatMessage[];
   temperature?: number;
   maxTokens?: number;
   json?: boolean;
+  kind?: 'check' | 'translate';
 }): OllamaChatBody {
   const options: OllamaChatBody['options'] = {
     temperature: input.temperature ?? 0.2,
+    num_predict: ollamaPredictTokens(input.kind ?? 'check', input.maxTokens),
   };
-  if (typeof input.maxTokens === 'number') options.num_predict = input.maxTokens;
   return {
     model: input.model,
     messages: input.messages,

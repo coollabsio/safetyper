@@ -6,8 +6,11 @@
 import { browser } from 'wxt/browser';
 import { DEFAULT_OLLAMA_ENDPOINT, DEFAULT_PROVIDER, PROVIDER_CONFIG } from '~/lib/content/config';
 import type { ApiProvider } from '~/lib/content/types';
+import { OllamaFlight } from './ollama-flight';
 import { runProviderChat } from './provider-chat';
 import { isAbortError, isRequestTimeout } from './timeout';
+
+const editorFlight = new OllamaFlight();
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -114,6 +117,13 @@ export async function completeChat(input: {
     headers['HTTP-Referer'] = browser.runtime.getURL('/editor.html');
   }
 
+  const owned = editorFlight.start('editor', 'editor');
+  const followCaller = (): void => {
+    owned.abort();
+  };
+  if (input.signal?.aborted) owned.abort();
+  else input.signal?.addEventListener('abort', followCaller, { once: true });
+
   let text = '';
   try {
     text = await runProviderChat({
@@ -125,7 +135,8 @@ export async function completeChat(input: {
       temperature: input.temperature,
       maxTokens: input.maxTokens ?? 512,
       json: input.json === true && resolved.provider === 'ollama',
-      signal: input.signal,
+      kind: 'check',
+      signal: owned.signal,
     });
   } catch (error) {
     if (isAbortError(error) || isRequestTimeout(error)) throw error;
@@ -148,6 +159,9 @@ export async function completeChat(input: {
       `Could not reach ${resolved.providerName} at ${resolved.endpoint}. If this is Ollama, confirm it is running.`,
       { provider: resolved.provider }
     );
+  } finally {
+    input.signal?.removeEventListener('abort', followCaller);
+    editorFlight.finish('editor', 'editor', owned);
   }
 
   if (!text.trim()) {

@@ -7,6 +7,7 @@ import {
   type TokenSpend,
 } from '@/lib/content/budget';
 import { installSelectionTranslate } from '@/lib/selection-translate/background';
+import { featureForRequest, OllamaFlight } from '@/lib/ai/ollama-flight';
 import { runProviderChat } from '@/lib/ai/provider-chat';
 import {
   isAbortError,
@@ -148,6 +149,7 @@ export default defineBackground(() => {
     string,
     { controller: AbortController; rateStamp: RateStamp | null; spend: TokenSpend | null }
   >();
+  const flights = new OllamaFlight();
   let activeChats = 0;
   let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -406,7 +408,11 @@ export default defineBackground(() => {
       }
 
       const requestId = typeof message.requestId === 'string' ? message.requestId : '';
-      const controller = new AbortController();
+      const scope = String(sender.tab?.id ?? 'extension');
+      const feature = featureForRequest(message.action, requestId);
+      // A manual check replaces check-as-you-type so both cannot generate at once.
+      if (feature === 'card') flights.abort(scope, 'auto-check');
+      const controller = flights.start(scope, feature);
       if (requestId) {
         inflightChecks.set(requestId, {
           controller,
@@ -431,6 +437,7 @@ export default defineBackground(() => {
       ): void => {
         if (settled) return;
         settled = true;
+        flights.finish(scope, feature, controller);
         if (refund) releaseCancelled();
         else if (requestId) inflightChecks.delete(requestId);
         releaseWorker();
@@ -497,6 +504,7 @@ export default defineBackground(() => {
             messages,
             temperature: typeof payload.temperature === 'number' ? payload.temperature : 0.2,
             json: wantsJson && provider === 'ollama',
+            kind: message.action === 'translate' ? 'translate' : 'check',
             openAiBody: payload,
             signal: controller.signal,
           });

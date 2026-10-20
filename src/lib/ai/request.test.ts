@@ -2,9 +2,22 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { describe, expect, it } from 'vitest';
 import { readsAsNoIssues } from './no-issues';
-import { buildOllamaChatBody, OLLAMA_KEEP_ALIVE } from './ollama';
+import {
+  buildOllamaChatBody,
+  OLLAMA_CHECK_MAX_TOKENS,
+  OLLAMA_KEEP_ALIVE,
+  OLLAMA_TRANSLATE_MAX_TOKENS,
+} from './ollama';
+import { featureForRequest, OllamaFlight } from './ollama-flight';
 import { runProviderChat } from './provider-chat';
-import { isAbortError, isRequestTimeout, RequestTimeoutError, withTimeout } from './timeout';
+import {
+  isAbortError,
+  isRequestTimeout,
+  OLLAMA_TIMEOUT_MESSAGE,
+  RequestTimeoutError,
+  timeoutMessage,
+  withTimeout,
+} from './timeout';
 
 function listen(server: http.Server): Promise<number> {
   return new Promise((resolve) => {
@@ -135,7 +148,7 @@ describe('Ollama JSON mode', () => {
         stream: false,
         format: 'json',
         keep_alive: OLLAMA_KEEP_ALIVE,
-        options: { temperature: 0.2 },
+        options: { temperature: 0.2, num_predict: OLLAMA_CHECK_MAX_TOKENS },
       });
       expect(body).not.toHaveProperty('response_format');
     } finally {
@@ -143,15 +156,90 @@ describe('Ollama JSON mode', () => {
     }
   });
 
-  it('keeps translation as plain text and still pins keep_alive', () => {
+  it('keeps translation as plain text and caps num_predict', () => {
     const body = buildOllamaChatBody({
       model: 'llama3.2',
       messages: [{ role: 'user', content: 'hello' }],
       json: false,
+      kind: 'translate',
+      maxTokens: 8000,
     });
     expect(body.keep_alive).toBe(OLLAMA_KEEP_ALIVE);
     expect(body.format).toBeUndefined();
     expect(body.stream).toBe(false);
+    expect(body.options.num_predict).toBe(OLLAMA_TRANSLATE_MAX_TOKENS);
+  });
+
+  it('does not raise a smaller requested budget', () => {
+    const body = buildOllamaChatBody({
+      model: 'llama3.2',
+      messages: [{ role: 'user', content: 'hello' }],
+      kind: 'check',
+      maxTokens: 128,
+    });
+    expect(body.options.num_predict).toBe(128);
+  });
+});
+
+describe('one Ollama request per feature', () => {
+  it('classifies checks and translations into separate lanes', () => {
+    expect(featureForRequest('checkGrammar', 'auto-1')).toBe('auto-check');
+    expect(featureForRequest('checkGrammar', 'manual-2')).toBe('card');
+    expect(featureForRequest('translate', 'translate-3')).toBe('translate');
+  });
+
+  it('aborts the stale request and closes its connection', async () => {
+    let closed = 0;
+    const server = http.createServer((req) => {
+      req.on('close', () => {
+        closed += 1;
+      });
+    });
+    const port = await listen(server);
+    const flight = new OllamaFlight();
+    const first = flight.start('4', 'auto-check');
+    const pending = runProviderChat({
+      provider: 'ollama',
+      endpoint: `http://127.0.0.1:${port}`,
+      model: 'stub',
+      messages: [{ role: 'user', content: 'hello' }],
+      timeoutMs: 5_000,
+      signal: first.signal,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    const card = flight.start('4', 'card');
+    flight.abort('4', 'auto-check');
+    try {
+      await expect(pending).rejects.toSatisfy((error: unknown) => isAbortError(error));
+      expect(first.signal.aborted).toBe(true);
+      expect(card.signal.aborted).toBe(false);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(closed).toBeGreaterThan(0);
+    } finally {
+      card.abort();
+      server.closeAllConnections?.();
+      await close(server);
+    }
+  });
+
+  it('replaces a second check in the same lane', () => {
+    const flight = new OllamaFlight();
+    const first = flight.start('9', 'translate');
+    const second = flight.start('9', 'translate');
+    expect(first.signal.aborted).toBe(true);
+    expect(second.signal.aborted).toBe(false);
+    flight.finish('9', 'translate', second);
+    const third = flight.start('9', 'translate');
+    expect(second.signal.aborted).toBe(false);
+    expect(third.signal.aborted).toBe(false);
+  });
+});
+
+describe('Ollama timeout copy', () => {
+  it('points at CPU inference and a smaller model', () => {
+    expect(timeoutMessage('ollama')).toBe(OLLAMA_TIMEOUT_MESSAGE);
+    expect(timeoutMessage('ollama')).toContain('qwen2.5:3b');
+    expect(timeoutMessage('groq')).toContain('timed out');
   });
 });
 

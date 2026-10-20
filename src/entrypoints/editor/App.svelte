@@ -10,6 +10,7 @@
   import { isAbortError, OLLAMA_LOADING_HINT_MS } from '~/lib/ai/timeout';
   import type { ApiProvider } from '~/lib/content/types';
   import { fetchIssues } from '~/lib/editor/check';
+  import { runSequentially } from '~/lib/editor/sequence';
   import {
     createDocument,
     deleteDocument,
@@ -365,24 +366,27 @@
     let parseFailures = 0;
     let rawCount = 0;
     try {
-      for (let index = 0; index < chunks.length; index += 1) {
-        if (controller.signal.aborted) return;
-        status = {
-          kind: 'checking',
-          message: `Checking paragraph ${index + 1} of ${chunks.length}…`,
-        };
-        try {
-          const parsed = await fetchIssues(chunkText(chunks[index]), controller.signal);
-          rawCount += parsed.length;
-          found.push(...matchIssues(chunks[index].paragraphs, parsed));
-        } catch (error) {
-          if (error instanceof IssueParseError) {
-            parseFailures += 1;
-            continue;
+      await runSequentially(
+        chunks,
+        async (chunk, index) => {
+          status = {
+            kind: 'checking',
+            message: `Checking paragraph ${index + 1} of ${chunks.length}…`,
+          };
+          try {
+            const parsed = await fetchIssues(chunkText(chunk), controller.signal);
+            rawCount += parsed.length;
+            found.push(...matchIssues(chunk.paragraphs, parsed));
+          } catch (error) {
+            if (error instanceof IssueParseError) {
+              parseFailures += 1;
+              return;
+            }
+            throw error;
           }
-          throw error;
-        }
-      }
+        },
+        () => controller.signal.aborted
+      );
 
       const kept = only ? issues.filter((issue) => !only.includes(issue.paragraphId)) : [];
       issues = kept.concat(found);
