@@ -1,6 +1,6 @@
 {
   "name": "Safetyper",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "author": "Andras Bacsai",
   "devDependencies": {
     "@tsconfig/svelte": "^5.0.5",
