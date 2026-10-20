@@ -61,9 +61,142 @@
         .instructions li {
             margin-bottom: 8px;
         }
+        .placement-lab {
+            margin-top: 36px;
+            padding-top: 12px;
+            border-top: 2px solid #ddd;
+        }
+        .placement-lab h2 {
+            margin-bottom: 8px;
+        }
+        .placement-case {
+            margin: 28px 0;
+            padding: 16px;
+            background: #fafafa;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+        }
+        .field-wrap {
+            position: relative;
+            max-width: 520px;
+        }
+        .field-wrap input,
+        .field-wrap textarea,
+        .field-wrap [contenteditable='true'] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        input[type='search']::-webkit-search-cancel-button,
+        input[type='search']::-webkit-search-decoration {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .obstacle {
+            position: absolute;
+            z-index: 2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border: 0;
+            border-radius: 4px;
+            background: #fff;
+            box-shadow: 0 0 0 1px #ccc;
+            font-size: 11px;
+            line-height: 1;
+            padding: 0;
+        }
+        .obstacle.end {
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .obstacle.start {
+            left: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .obstacle.corner {
+            top: auto;
+            bottom: 8px;
+            right: 8px;
+            transform: none;
+        }
+        .obstacle.corner.second {
+            right: 36px;
+        }
+        .pm-row .obstacle.end { top: 50%; }
+        .pm-row .obstacle.one { right: 8px; }
+        .pm-row .obstacle.two { right: 34px; }
+        .pm-row .obstacle.three { right: 60px; }
+        .shadow-host {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px;
+            height: 22px;
+            z-index: 2;
+        }
+        .rich-editor {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            min-height: 120px;
+        }
+        .rich-toolbar {
+            display: flex;
+            gap: 6px;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            background: #f7f7f7;
+        }
+        .rich-body {
+            min-height: 72px;
+            padding: 12px 12px 36px;
+        }
+        .scroll-box {
+            max-height: 140px;
+            overflow: auto;
+            border: 1px solid #ddd;
+            background: #fff;
+            padding: 12px;
+        }
+        .scroll-spacer {
+            height: 180px;
+        }
+        .fixed-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 10px 16px;
+            background: #111;
+            color: #fff;
+        }
+        .fixed-bar input {
+            width: 280px;
+            height: 32px;
+            padding: 4px 36px 4px 10px;
+        }
+        body.has-fixed-lab {
+            padding-top: 64px;
+        }
     </style>
 </head>
-<body>
+<body class="has-fixed-lab">
+    <div class="fixed-bar" data-case="fixed-header">
+        <span>Fixed header</span>
+        <div class="field-wrap" style="width: 280px;">
+            <input id="fixed-input" type="text" data-field value="Search the site" />
+            <button type="button" class="obstacle end" data-obstacle aria-label="Submit search">Go</button>
+        </div>
+    </div>
     <div class="container">
         <h1>Safetyper Extension Test Page</h1>
         
@@ -237,6 +370,157 @@ Final paragraph here with more content to test the diff view.</textarea>
             </div>
         </div>
     </div>
+
+    <section class="placement-lab" id="placement-lab">
+        <h2>Icon placement</h2>
+        <p>Each field has something else in a corner. The SafeTyper icon should sit in a free spot.</p>
+
+        <div class="placement-case" data-case="pm-inline">
+            <label for="pm-inline-input">Login field with inline password-manager icons</label>
+            <div class="field-wrap pm-row">
+                <input id="pm-inline-input" type="text" data-field autocomplete="username" value="ada@example.com" style="padding-right: 92px;" />
+                <button type="button" class="obstacle end one" data-obstacle data-lastpass-icon-root aria-label="LastPass">LP</button>
+                <button type="button" class="obstacle end two" data-obstacle data-bwautofill aria-label="Bitwarden">BW</button>
+                <button type="button" class="obstacle end three" data-obstacle data-com-onepassword-filled aria-label="1Password">1P</button>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="pm-shadow">
+            <label for="pm-shadow-input">Field with a shadow-host icon (Dashlane-style)</label>
+            <div class="field-wrap">
+                <input id="pm-shadow-input" type="text" data-field value="shadow host" style="padding-right: 40px;" />
+                <div class="shadow-host" data-dashlanecreated="true"></div>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="show-password">
+            <label for="show-password-input">Password-style field with a show-password eye</label>
+            <div class="field-wrap">
+                <input id="show-password-input" type="text" data-field autocomplete="current-password" value="correct horse" style="padding-right: 40px;" />
+                <button type="button" class="obstacle end" data-obstacle aria-label="Show password">eye</button>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="search-clear">
+            <label for="search-clear-input">Search field with a search icon and a clear button</label>
+            <div class="field-wrap">
+                <input id="search-clear-input" type="search" data-field value="grammar" style="padding-left: 36px; padding-right: 36px;" />
+                <button type="button" class="obstacle start" data-obstacle aria-label="Search">S</button>
+                <button type="button" class="obstacle end" data-obstacle aria-label="Clear">x</button>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="chat-composer">
+            <label for="chat-composer-input">Chat composer with emoji and send buttons</label>
+            <div class="field-wrap">
+                <textarea id="chat-composer-input" data-field rows="4" style="padding-bottom: 40px;">Hey, can you check this sentance?</textarea>
+                <button type="button" class="obstacle corner second" data-obstacle aria-label="Emoji">emoji</button>
+                <button type="button" class="obstacle corner" data-obstacle aria-label="Send">send</button>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="char-counter">
+            <label for="counter-input">Textarea with a character counter</label>
+            <div class="field-wrap">
+                <textarea id="counter-input" data-field rows="4" style="padding-bottom: 28px;">Almost at the limit.</textarea>
+                <span class="obstacle corner" data-obstacle style="width: auto; padding: 0 6px;">12/100</span>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="rich-editor">
+            <label>Contenteditable editor with a toolbar and a corner action</label>
+            <div class="rich-editor">
+                <div class="rich-toolbar" contenteditable="false">
+                    <button type="button" data-obstacle>B</button>
+                    <button type="button" data-obstacle>I</button>
+                </div>
+                <div class="field-wrap">
+                    <div id="rich-editor-input" class="rich-body" contenteditable="true" data-field role="textbox">A rich note with a corner action.</div>
+                    <button type="button" class="obstacle corner" data-obstacle aria-label="Insert">+</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="tiny-input">
+            <label for="tiny-placement-input">Tiny input</label>
+            <div class="field-wrap">
+                <input id="tiny-placement-input" type="text" data-field value="tiny" style="height: 20px; padding: 0 8px; font-size: 11px;" />
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="rtl-input">
+            <label for="rtl-input">RTL input with a control on the end (left) side</label>
+            <div class="field-wrap" dir="rtl">
+                <input id="rtl-input" type="text" data-field dir="rtl" value="مرحبا بالعالم" style="padding-left: 40px;" />
+                <button type="button" class="obstacle start" data-obstacle aria-label="Clear">x</button>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="scroll-container">
+            <label for="scroll-input">Input inside a scrollable container</label>
+            <div class="scroll-box" id="scroll-box">
+                <div class="scroll-spacer"></div>
+                <div class="field-wrap">
+                    <input id="scroll-input" type="text" data-field value="scrolled field" style="padding-right: 40px;" />
+                    <button type="button" class="obstacle end" data-obstacle aria-label="Clear scrolled">x</button>
+                </div>
+                <div class="scroll-spacer"></div>
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="iframe-field">
+            <label>Input inside an iframe</label>
+            <iframe id="placement-iframe" title="Nested field" src="placement-frame.html" style="width: 100%; height: 90px; border: 1px solid #ddd; background: #fff;"></iframe>
+        </div>
+
+        <div class="placement-case" data-case="late-icon">
+            <label for="late-input">Field that gains a password-manager icon after focus</label>
+            <div class="field-wrap" id="late-wrap">
+                <input id="late-input" type="text" data-field value="wait for the icon" style="padding-right: 40px;" />
+            </div>
+        </div>
+
+        <div class="placement-case" data-case="real-password">
+            <label for="real-password">Real password input (icon stays hidden)</label>
+            <div class="field-wrap">
+                <input id="real-password" type="password" value="secret" style="padding-right: 40px;" />
+                <button type="button" class="obstacle end" data-obstacle aria-label="1Password">1P</button>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        (function () {
+            var host = document.querySelector('[data-case="pm-shadow"] .shadow-host');
+            if (host && host.attachShadow) {
+                var root = host.attachShadow({ mode: 'open' });
+                var button = document.createElement('button');
+                button.type = 'button';
+                button.setAttribute('data-obstacle', '');
+                button.setAttribute('aria-label', 'Dashlane');
+                button.textContent = 'DL';
+                button.style.cssText = 'width:22px;height:22px;border:0;border-radius:4px;background:#fff;box-shadow:0 0 0 1px #ccc;font-size:11px;padding:0;';
+                root.appendChild(button);
+            }
+            var late = document.getElementById('late-input');
+            if (late) {
+                late.addEventListener('focus', function () {
+                    if (document.getElementById('late-obstacle')) return;
+                    window.setTimeout(function () {
+                        var button = document.createElement('button');
+                        button.id = 'late-obstacle';
+                        button.type = 'button';
+                        button.className = 'obstacle end';
+                        button.setAttribute('data-obstacle', '');
+                        button.setAttribute('data-protonpass-root', '');
+                        button.setAttribute('aria-label', 'Proton Pass');
+                        button.textContent = 'PP';
+                        document.getElementById('late-wrap').appendChild(button);
+                    }, 400);
+                });
+            }
+        })();
+    </script>
 
     <!-- Load content script for testing (dev mode only) -->
     <script type="module" src="./main.ts"></script>

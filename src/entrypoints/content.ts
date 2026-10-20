@@ -25,6 +25,7 @@ import { CONFIG } from '~/lib/content/config';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
+  allFrames: true,
   async main() {
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Content script starting...');

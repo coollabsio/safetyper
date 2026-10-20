@@ -109,7 +109,59 @@ export function createIcon(): HTMLDivElement {
 /**
  * Position icon near the active input
  */
+let watchedField: HTMLElement | null = null;
+let stopWatchingField: (() => void) | null = null;
+
+function watchField(element: HTMLElement): void {
+  if (watchedField === element) return;
+  stopWatchingField?.();
+  watchedField = element;
+
+  let timer = 0;
+  const schedule = () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      if (stateManager.getActiveInput() === element) positionIcon(element);
+    }, 50);
+  };
+
+  const observer = new MutationObserver(schedule);
+  const options: MutationObserverInit = {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class', 'style', 'hidden'],
+  };
+  const parent = element.parentElement;
+  if (parent && parent !== document.body && parent !== document.documentElement) {
+    observer.observe(parent, options);
+  }
+  const grand = parent?.parentElement;
+  if (
+    grand &&
+    grand !== document.body &&
+    grand !== document.documentElement &&
+    grand.childElementCount <= 40
+  ) {
+    observer.observe(grand, options);
+  }
+
+  const resizeObserver = new ResizeObserver(schedule);
+  resizeObserver.observe(element);
+
+  const late = [300, 900].map((delay) => window.setTimeout(schedule, delay));
+  stopWatchingField = () => {
+    observer.disconnect();
+    resizeObserver.disconnect();
+    window.clearTimeout(timer);
+    late.forEach((id) => window.clearTimeout(id));
+    watchedField = null;
+    stopWatchingField = null;
+  };
+}
+
 export function positionIcon(element: HTMLElement): void {
+  watchField(element);
   const iconContainer = stateManager.getIconContainer();
   if (!iconContainer) {
     if (import.meta.env.DEV) {
@@ -159,6 +211,7 @@ export function positionIcon(element: HTMLElement): void {
  * Hide icon
  */
 export function hideIcon(): void {
+  stopWatchingField?.();
   const iconContainer = stateManager.getIconContainer();
   if (iconContainer) {
     iconContainer.style.display = 'none';
