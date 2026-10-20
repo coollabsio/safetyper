@@ -37,7 +37,7 @@ export default defineContentScript({
     // Listen for theme changes from settings
     browser.storage.onChanged.addListener((changes, areaName) => {
       if (areaName === 'local' && changes.darkMode) {
-        updateTheme(changes.darkMode.newValue ?? false);
+        updateTheme(changes.darkMode.newValue === true);
       }
     });
 

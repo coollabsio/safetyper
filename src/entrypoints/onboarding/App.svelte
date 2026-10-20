@@ -199,28 +199,34 @@
   }
 
   .step-dot {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.75rem;
+    font-size: 13px;
     font-weight: 500;
-    background: var(--st-bg-secondary);
+    background: var(--st-base);
     color: var(--st-text-muted);
-    border: 2px solid var(--st-border);
-    transition: all 0.2s ease;
+    border: 1px solid var(--st-hairline);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+    transition:
+      background 120ms var(--st-ease-out),
+      color 120ms var(--st-ease-out),
+      border-color 120ms var(--st-ease-out);
   }
 
   .progress-step.active .step-dot {
-    background: var(--st-primary-bg);
+    background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
     color: var(--st-primary-text);
     border-color: var(--st-primary-border);
+    box-shadow: 0 2px 0 var(--st-primary-depth);
   }
 
   .progress-step.current .step-dot {
-    box-shadow: 0 0 0 2px var(--st-focus-ring);
+    outline: 1px solid var(--st-focus-ring);
+    outline-offset: 2px;
   }
 
   .step-label {
@@ -237,10 +243,10 @@
 
   .progress-line {
     width: 80px;
-    height: 2px;
-    background: var(--st-border);
+    height: 1px;
+    background: var(--st-hairline);
     margin: 0 8px;
-    margin-bottom: 20px;
+    margin-bottom: 22px;
     transition: background 0.2s ease;
   }
 

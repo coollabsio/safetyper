@@ -449,21 +449,27 @@
     <div class="header-brand">
       <img src="/icon/32.png" alt="SafeTyper" class="header-logo" />
       <span class="header-title">SafeTyper</span>
+      <a
+        href={`https://github.com/coollabsio/safetyper/releases/tag/v${version}`}
+        target="_blank"
+        class="version">v{version}</a
+      >
     </div>
     <div class="header-controls">
       <a
         href="https://safetyper.com/sponsorships"
         target="_blank"
         class="sponsor-link"
-        aria-label="Sponsor SafeTyper"
+        aria-label="Donate"
+        title="Donate"
       >
-        <span>Donate</span>
         <svg
           width="14"
           height="14"
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
         >
           <path
             d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
@@ -474,11 +480,6 @@
           />
         </svg>
       </a>
-      <a
-        href={`https://github.com/coollabsio/safetyper/releases/tag/v${version}`}
-        target="_blank"
-        class="version">v{version}</a
-      >
       <button
         class="theme-toggle"
         onclick={toggleDarkMode}
@@ -521,195 +522,206 @@
     </div>
   </div>
   <div class="content">
-    <div class="form">
-      <div class="field">
-        <label for="provider-select">API Provider</label>
-        <select
-          id="provider-select"
-          class="select"
-          value={selectedProvider}
-          onchange={handleProviderChange}
-        >
-          <option value="openrouter">OpenRouter</option>
-          <option value="groq">Groq</option>
-          <option value="ollama">Ollama</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <div class="label-row">
-          <label for="model-search">LLM Model</label>
-          <button class="refresh-btn" onclick={() => fetchModels(true)} disabled={isLoadingModels}>
-            {isLoadingModels ? '...' : 'Refresh'}
-          </button>
-        </div>
-
-        <!-- svelte-ignore a11y_role_has_required_aria_props -->
-        <div class="combobox" bind:this={comboboxEl} role="combobox">
-          <input
-            id="model-search"
-            type="text"
-            class="combobox-input"
-            placeholder="Search models..."
-            value={isDropdownOpen ? searchQuery : selectedModelDisplay}
-            onfocus={openDropdown}
-            oninput={handleSearchInput}
-            onkeydown={handleComboKeydown}
-            bind:this={inputEl}
-          />
-          <button
-            class="combobox-toggle"
-            onclick={toggleDropdown}
-            tabindex="-1"
-            aria-label="Toggle model list"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 12 12"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+    <section class="layer-card">
+      <header class="layer-card-header">
+        <h2>Settings</h2>
+      </header>
+      <div class="layer-card-body">
+        <div class="form">
+          <div class="field">
+            <label for="provider-select">API Provider</label>
+            <select
+              id="provider-select"
+              class="select"
+              value={selectedProvider}
+              onchange={handleProviderChange}
             >
-              <path
-                d="M3 5L6 2L9 5"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M3 7L6 10L9 7"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </button>
+              <option value="openrouter">OpenRouter</option>
+              <option value="groq">Groq</option>
+              <option value="ollama">Ollama</option>
+            </select>
+          </div>
 
-          {#if isDropdownOpen}
-            <ul class="combobox-list" bind:this={listEl}>
-              {#each filteredModels as model, i (model.id)}
-                <li
-                  class:highlighted={i === highlightedIndex}
-                  class:selected={model.id === selectedModel}
-                  onclick={() => selectModel(model)}
-                  onkeydown={(e: KeyboardEvent) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      selectModel(model);
-                    }
-                  }}
-                  role="option"
-                  aria-selected={model.id === selectedModel}
+          <div class="field">
+            <div class="label-row">
+              <label for="model-search">LLM Model</label>
+              <button
+                class="refresh-btn"
+                onclick={() => fetchModels(true)}
+                disabled={isLoadingModels}
+              >
+                {isLoadingModels ? '...' : 'Refresh'}
+              </button>
+            </div>
+
+            <!-- svelte-ignore a11y_role_has_required_aria_props -->
+            <div class="combobox" bind:this={comboboxEl} role="combobox">
+              <input
+                id="model-search"
+                type="text"
+                class="combobox-input"
+                placeholder="Search models..."
+                value={isDropdownOpen ? searchQuery : selectedModelDisplay}
+                onfocus={openDropdown}
+                oninput={handleSearchInput}
+                onkeydown={handleComboKeydown}
+                bind:this={inputEl}
+              />
+              <button
+                class="combobox-toggle"
+                onclick={toggleDropdown}
+                tabindex="-1"
+                aria-label="Toggle model list"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
                 >
-                  <span class="model-name">{model.name}</span>
-                  {#if showPricing}
-                    <span class="model-price">{formatPrice(model)}</span>
-                  {/if}
-                </li>
-              {/each}
-              {#if filteredModels.length === 0}
-                <li class="no-results">No models found</li>
-              {/if}
-            </ul>
-          {/if}
-        </div>
-      </div>
+                  <path
+                    d="M3 5L6 2L9 5"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M3 7L6 10L9 7"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </button>
 
-      {#if isOllama}
-        <div class="field">
-          <label for="endpoint-input">Ollama Endpoint</label>
-          <input
-            id="endpoint-input"
-            type="text"
-            class="input"
-            placeholder="http://localhost:11434"
-            value={ollamaEndpoint}
-            oninput={handleEndpointChange}
-          />
-          <div class="connection-row">
-            <button
-              class="secondary-btn small"
-              onclick={checkOllamaConnection}
-              disabled={connectionStatus === 'checking'}
-            >
-              {connectionStatus === 'checking' ? 'Checking...' : 'Check Connection'}
+              {#if isDropdownOpen}
+                <ul class="combobox-list" bind:this={listEl}>
+                  {#each filteredModels as model, i (model.id)}
+                    <li
+                      class:highlighted={i === highlightedIndex}
+                      class:selected={model.id === selectedModel}
+                      onclick={() => selectModel(model)}
+                      onkeydown={(e: KeyboardEvent) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          selectModel(model);
+                        }
+                      }}
+                      role="option"
+                      aria-selected={model.id === selectedModel}
+                    >
+                      <span class="model-name">{model.name}</span>
+                      {#if showPricing}
+                        <span class="model-price">{formatPrice(model)}</span>
+                      {/if}
+                    </li>
+                  {/each}
+                  {#if filteredModels.length === 0}
+                    <li class="no-results">No models found</li>
+                  {/if}
+                </ul>
+              {/if}
+            </div>
+          </div>
+
+          {#if isOllama}
+            <div class="field">
+              <label for="endpoint-input">Ollama Endpoint</label>
+              <input
+                id="endpoint-input"
+                type="text"
+                class="input"
+                placeholder="http://localhost:11434"
+                value={ollamaEndpoint}
+                oninput={handleEndpointChange}
+              />
+              <div class="connection-row">
+                <button
+                  class="secondary-btn small"
+                  onclick={checkOllamaConnection}
+                  disabled={connectionStatus === 'checking'}
+                >
+                  {connectionStatus === 'checking' ? 'Checking...' : 'Check Connection'}
+                </button>
+                {#if connectionStatus === 'connected'}
+                  <span class="status-text connected">
+                    Connected ({connectionModelCount}
+                    {connectionModelCount === 1 ? 'model' : 'models'})
+                  </span>
+                {:else if connectionStatus === 'error'}
+                  <span class="status-text error">{connectionError}</span>
+                {/if}
+              </div>
+              <p class="help-text">Enter the URL of your Ollama instance (local or remote)</p>
+            </div>
+          {:else}
+            <div class="field">
+              <label for="api-key-input">{providerConfig.name} API Key</label>
+              <input
+                id="api-key-input"
+                type="password"
+                class="input"
+                placeholder="Enter your {providerConfig.name} API key"
+                value={apiKey}
+                oninput={handleApiKeyChange}
+              />
+              <p class="help-text">
+                Get your API key from <a href={providerConfig.keysUrl} target="_blank"
+                  >{providerConfig.name}</a
+                >
+              </p>
+              {#if isApiKeyFromEnv && import.meta.env.DEV}
+                <div class="env-indicator">API key auto-loaded from .env file</div>
+              {/if}
+            </div>
+          {/if}
+
+          <div class="field">
+            <button class="advanced-toggle" onclick={() => (showAdvanced = !showAdvanced)}>
+              {showAdvanced ? '▾' : '▸'} Advanced Settings
             </button>
-            {#if connectionStatus === 'connected'}
-              <span class="status-text connected">
-                Connected ({connectionModelCount}
-                {connectionModelCount === 1 ? 'model' : 'models'})
-              </span>
-            {:else if connectionStatus === 'error'}
-              <span class="status-text error">{connectionError}</span>
+          </div>
+
+          {#if showAdvanced}
+            <div class="field">
+              <div class="label-row">
+                <label for="system-prompt">System Prompt</label>
+                <button class="refresh-btn" onclick={resetSystemPrompt}>Reset to Default</button>
+              </div>
+              <textarea
+                id="system-prompt"
+                class="input textarea"
+                placeholder={DEFAULT_SYSTEM_PROMPT}
+                bind:value={customSystemPrompt}
+                rows="4"
+              ></textarea>
+              <p class="help-text">
+                Customize the instruction sent to the LLM. Leave empty to use the default prompt.
+              </p>
+            </div>
+          {/if}
+
+          <div class="field">
+            <button class="primary-btn" onclick={saveSettings} disabled={isLoading}>
+              {isLoading ? 'Saving...' : 'Save Settings'}
+            </button>
+            {#if showSavedPopup}
+              <div class="save-feedback" role="status" aria-live="polite">Settings saved.</div>
             {/if}
           </div>
-          <p class="help-text">Enter the URL of your Ollama instance (local or remote)</p>
-        </div>
-      {:else}
-        <div class="field">
-          <label for="api-key-input">{providerConfig.name} API Key</label>
-          <input
-            id="api-key-input"
-            type="password"
-            class="input"
-            placeholder="Enter your {providerConfig.name} API key"
-            value={apiKey}
-            oninput={handleApiKeyChange}
-          />
-          <p class="help-text">
-            Get your API key from <a href={providerConfig.keysUrl} target="_blank"
-              >{providerConfig.name}</a
-            >
-          </p>
-          {#if isApiKeyFromEnv && import.meta.env.DEV}
-            <div class="env-indicator">API key auto-loaded from .env file</div>
+
+          {#if import.meta.env.DEV}
+            <div class="field dev-section">
+              <div class="dev-badge">Development Mode</div>
+              <button class="secondary-btn" onclick={openTestPage}>Open Test Page</button>
+            </div>
           {/if}
         </div>
-      {/if}
-
-      <div class="field">
-        <button class="advanced-toggle" onclick={() => (showAdvanced = !showAdvanced)}>
-          {showAdvanced ? '▾' : '▸'} Advanced Settings
-        </button>
       </div>
-
-      {#if showAdvanced}
-        <div class="field">
-          <div class="label-row">
-            <label for="system-prompt">System Prompt</label>
-            <button class="refresh-btn" onclick={resetSystemPrompt}>Reset to Default</button>
-          </div>
-          <textarea
-            id="system-prompt"
-            class="input textarea"
-            placeholder={DEFAULT_SYSTEM_PROMPT}
-            bind:value={customSystemPrompt}
-            rows="4"
-          ></textarea>
-          <p class="help-text">
-            Customize the instruction sent to the LLM. Leave empty to use the default prompt.
-          </p>
-        </div>
-      {/if}
-
-      <div class="field">
-        <button class="primary-btn" onclick={saveSettings} disabled={isLoading}>
-          {isLoading ? 'Saving...' : 'Save Settings'}
-        </button>
-        {#if showSavedPopup}
-          <div class="save-feedback" role="status" aria-live="polite">Settings saved.</div>
-        {/if}
-      </div>
-
-      {#if import.meta.env.DEV}
-        <div class="field dev-section">
-          <div class="dev-badge">Development Mode</div>
-          <button class="secondary-btn" onclick={openTestPage}>Open Test Page</button>
-        </div>
-      {/if}
-    </div>
+    </section>
   </div>
 </main>
 
@@ -734,7 +746,7 @@
   }
 
   .content {
-    padding: 20px;
+    padding: 12px;
     width: 100%;
     box-sizing: border-box;
     background: var(--st-bg);
@@ -743,7 +755,7 @@
   .form {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
     width: 100%;
   }
 
@@ -755,9 +767,9 @@
   }
 
   .field label {
-    font-size: 0.8125rem;
+    font-size: 13px;
     font-weight: 500;
-    color: var(--st-text);
+    color: var(--st-text-secondary);
   }
 
   .label-row {
@@ -839,41 +851,45 @@
   .save-feedback {
     margin-top: 0.25rem;
     padding: 0.5rem 0.75rem;
-    border: 1px solid var(--st-success-border);
-    border-radius: 0.375rem;
+    border-radius: 8px;
     background: var(--st-success-surface);
+    box-shadow: 0 0 0 1px var(--st-success-border);
     color: var(--st-success-text);
-    font-size: 0.8125rem;
+    font-size: 13px;
     font-weight: 500;
   }
 
-  /* Header */
+  /* Header sits on the page canvas. No separate fill, matching Coolify's top bar. */
   .header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--st-border);
-    background: var(--st-bg-elevated);
+    min-height: 48px;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
 
   .header-brand {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
   }
 
   .header-logo {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
+    align-self: center;
   }
 
   .header-title {
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--st-text);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.025em;
   }
 
   .header-controls {
@@ -885,16 +901,23 @@
   .sponsor-link {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
     color: #ff2d8a;
-    font-size: 0.6875rem;
-    font-weight: 500;
     text-decoration: none;
+    border-radius: 0.25rem;
+  }
+
+  .sponsor-link:hover {
+    background: var(--st-option-hover-bg);
   }
 
   .version {
     font-size: 0.6875rem;
-    color: var(--st-text-secondary);
+    font-weight: 500;
+    line-height: 1;
+    color: var(--st-text-muted);
     text-decoration: none;
     transition: color 0.15s ease;
   }
@@ -913,13 +936,12 @@
   .dev-badge {
     background: var(--st-brand-surface);
     color: var(--st-brand-text);
-    border: 1px solid var(--st-brand);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--st-brand) 25%, transparent);
     padding: 3px 8px;
-    border-radius: 0.375rem;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     display: inline-block;
     margin-bottom: 8px;
   }
@@ -927,10 +949,10 @@
   .env-indicator {
     background: var(--st-warning-surface);
     color: var(--st-warning-text);
-    border: 1px solid var(--st-warning-border);
+    box-shadow: 0 0 0 1px var(--st-warning-border);
     padding: 8px 12px;
-    border-radius: 0.375rem;
-    font-size: 0.6875rem;
+    border-radius: 8px;
+    font-size: 12px;
     font-weight: 500;
     margin-top: 4px;
   }

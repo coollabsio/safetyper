@@ -81,8 +81,9 @@
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: var(--st-primary-bg);
+    background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
     color: var(--st-primary-text);
+    border: 1px solid var(--st-primary-border);
     box-shadow: 0 3px 0 var(--st-primary-depth);
     display: flex;
     align-items: center;
@@ -91,8 +92,10 @@
   }
 
   h2 {
-    font-size: 1.375rem;
-    font-weight: 700;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.75rem;
+    letter-spacing: -0.025em;
     color: var(--st-text);
     margin-bottom: 8px;
   }
@@ -115,23 +118,25 @@
     gap: 14px;
     align-items: flex-start;
     padding: 16px;
-    background: var(--st-bg-secondary);
-    border: 1px solid var(--st-border);
-    border-radius: 0.5rem;
+    background: var(--st-base);
+    border: none;
+    border-radius: 8px;
+    box-shadow: var(--st-card-shadow);
   }
 
   .step-number {
     flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: var(--st-brand-surface);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--st-brand) 10%, transparent);
     color: var(--st-brand);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--st-brand) 25%, transparent);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.8125rem;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
   }
 
   .step-content h3 {

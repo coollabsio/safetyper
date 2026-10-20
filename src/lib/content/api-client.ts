@@ -92,17 +92,23 @@ export async function checkGrammar(text: string): Promise<string> {
     'ollamaSelectedModel',
     'customSystemPrompt',
   ]);
-  const provider: ApiProvider = result.selectedProvider || DEFAULT_PROVIDER;
-  let model: string;
-  if (provider === 'openrouter') {
-    model = result.selectedModel || PROVIDER_CONFIG.openrouter.defaultModel;
-  } else if (provider === 'groq') {
-    model = result.groqSelectedModel || PROVIDER_CONFIG.groq.defaultModel;
-  } else {
-    model = result.ollamaSelectedModel || PROVIDER_CONFIG.ollama.defaultModel;
-  }
+  const provider: ApiProvider =
+    (typeof result.selectedProvider === 'string' &&
+      result.selectedProvider in PROVIDER_CONFIG &&
+      (result.selectedProvider as ApiProvider)) ||
+    DEFAULT_PROVIDER;
+  const storedModel =
+    provider === 'openrouter'
+      ? result.selectedModel
+      : provider === 'groq'
+        ? result.groqSelectedModel
+        : result.ollamaSelectedModel;
+  const model =
+    (typeof storedModel === 'string' && storedModel) || PROVIDER_CONFIG[provider].defaultModel;
 
-  const systemPrompt: string = result.customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
+  const systemPrompt =
+    (typeof result.customSystemPrompt === 'string' && result.customSystemPrompt) ||
+    DEFAULT_SYSTEM_PROMPT;
 
   // Check cache first
   const cacheKey = getCacheKey(text, model, systemPrompt);
