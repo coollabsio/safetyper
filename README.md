@@ -2,7 +2,7 @@
 
 > A Grammarly alternative, where YOU own what you type on your keyboard.
 
-SafeTyper is a browser extension that provides real-time grammar and spelling suggestions powered by AI models through [OpenRouter](https://openrouter.ai), [Groq](https://groq.com), or a local [Ollama](https://ollama.com) instance.
+SafeTyper is a browser extension that provides grammar and spelling suggestions powered by AI models through [OpenRouter](https://openrouter.ai), [Groq](https://groq.com), or a local [Ollama](https://ollama.com) instance. Text is sent only to the provider you select, and only when you run a check. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md).
 
 ## Features
 
@@ -85,14 +85,22 @@ SafeTyper supports [Ollama](https://ollama.com) as a local, private provider —
 
 ### Configuring `OLLAMA_ORIGINS`
 
-By default, Ollama only accepts requests from `localhost`. Browser extensions use a different origin (`chrome-extension://...` or `moz-extension://...`), so Ollama will block requests unless you allow it.
+By default, Ollama only accepts requests from `localhost`. Browser extensions use a different origin (`chrome-extension://...` or `moz-extension://...`), so Ollama returns 403 unless you allow those origins.
 
-Set `OLLAMA_ORIGINS` to `*` to allow all origins, or to your specific extension origin:
+Allow extension origins, which is enough for SafeTyper on Chrome and Firefox:
+
+```bash
+OLLAMA_ORIGINS="chrome-extension://*,moz-extension://*"
+```
+
+`OLLAMA_ORIGINS=*` also works, and it allows every website to call your Ollama server. Prefer the extension-scheme value above.
+
+Firefox's origin includes a per-install id, so a single pinned `moz-extension://` URL will not match every user. The `moz-extension://*` pattern covers those installs. A Chrome Web Store install has a stable extension id; an unpacked developer build has a different one, so `chrome-extension://*` is the setting that works for both.
 
 **macOS:**
 
 ```bash
-launchctl setenv OLLAMA_ORIGINS "*"
+launchctl setenv OLLAMA_ORIGINS "chrome-extension://*,moz-extension://*"
 ```
 
 Then restart the Ollama application.
@@ -107,7 +115,7 @@ Add under `[Service]`:
 
 ```ini
 [Service]
-Environment="OLLAMA_ORIGINS=*"
+Environment="OLLAMA_ORIGINS=chrome-extension://*,moz-extension://*"
 ```
 
 Then reload and restart:
@@ -119,12 +127,12 @@ sudo systemctl restart ollama
 
 **Windows:**
 
-Set `OLLAMA_ORIGINS` as a system environment variable to `*`, then restart Ollama.
+Set `OLLAMA_ORIGINS` as a system environment variable to `chrome-extension://*,moz-extension://*`, then restart Ollama.
 
 **Running from the terminal (any OS):**
 
 ```bash
-OLLAMA_ORIGINS="*" ollama serve
+OLLAMA_ORIGINS="chrome-extension://*,moz-extension://*" ollama serve
 ```
 
 ### Custom Endpoint
