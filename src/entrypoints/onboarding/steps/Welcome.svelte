@@ -129,8 +129,10 @@
   }
 
   h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.75rem;
+    letter-spacing: -0.025em;
     color: var(--st-text);
     margin-bottom: 8px;
   }
@@ -153,23 +155,26 @@
     display: flex;
     align-items: flex-start;
     gap: 12px;
+    min-height: 7rem;
     padding: 16px;
-    background: var(--st-bg-secondary);
-    border: 1px solid var(--st-border);
-    border-radius: 0.5rem;
+    background: var(--st-base);
+    border: none;
+    border-radius: 8px;
+    box-shadow: var(--st-card-shadow);
     text-align: left;
   }
 
   .feature-icon {
     flex-shrink: 0;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--st-brand-surface);
+    background: color-mix(in srgb, var(--st-brand) 10%, transparent);
     color: var(--st-brand);
-    border-radius: 0.5rem;
+    border-radius: 6px;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--st-brand) 25%, transparent);
   }
 
   .feature-text h3 {

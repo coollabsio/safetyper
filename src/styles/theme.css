@@ -1,110 +1,193 @@
 /*
  * Shared theme for the popup and onboarding pages.
- * Coolify "Graphite" look (neutral surfaces, hairline borders, 3D depth
- * buttons) with a green accent. The in-page UI keeps its own scoped copy of
- * these tokens in content.css so nothing leaks into host pages.
+ *
+ * Visual reference: Coolify v4.4.6 (coollabsio/coolify @ resources/css/app.css
+ * and DESIGN.md). Surfaces use that release's neutral oklch ladder. The accent
+ * scale follows the coollabs 100/200/300 roles (gradient start, gradient end
+ * and border, 3D depth) at a green hue, with chroma held inside sRGB.
+ * The in-page UI keeps a scoped copy of these tokens in content.css.
  */
 
 :root {
-  --st-bg: #ffffff;
-  --st-bg-secondary: #f5f5f5;
-  --st-bg-elevated: #fafafa;
-  --st-input-bg: #f5f5f5;
-  --st-text: #0a0a0a;
-  --st-text-secondary: #6b6b6b;
-  --st-text-muted: #a3a3a3;
-  --st-border: #e5e5e5;
-  --st-brand: #15803d;
-  --st-brand-dark: #166534;
-  --st-brand-surface: #f0fdf4;
-  --st-brand-surface-alt: #f7fef9;
-  --st-brand-text: #15803d;
-  --st-success: #15803d;
-  --st-success-surface: #f0fdf4;
-  --st-success-border: #bbf7d0;
-  --st-success-text: #15803d;
-  --st-error: #b91c1c;
-  --st-warning-surface: #fefce8;
-  --st-warning-border: #fde047;
-  --st-warning-text: #854d0e;
-  --st-shadow: rgba(0, 0, 0, 0.08);
-  --st-overlay: rgba(0, 0, 0, 0.3);
-  --st-focus-ring: #16a34a;
+  /* Coolify surface ladder, light. */
+  --st-canvas: oklch(97% 0 0);
+  --st-elevated: oklch(98% 0 0);
+  --st-recessed: oklch(96% 0 0);
+  --st-base: oklch(100% 0 0);
+  --st-fill: oklch(92.2% 0 0);
+  --st-line: oklch(14.5% 0 0 / 0.1);
+  --st-hairline: oklch(85.5% 0 0);
+  --st-subtle: oklch(50% 0 0);
+  --st-fg: oklch(14.5% 0 0);
+  --st-fg-dim: oklch(40% 0 0);
+  --st-fg-faint: oklch(55.6% 0 0);
+
+  /* Green scale. Roles match --color-coollabs / -100 / -200 / -300. */
+  --st-green-50: oklch(96.8% 0.02 150);
+  --st-green: oklch(44.8% 0.119 151.33);
+  --st-green-100: oklch(52.7% 0.154 150.07);
+  --st-green-200: oklch(44.8% 0.119 151.33);
+  --st-green-300: oklch(39.3% 0.095 152.54);
+  --st-green-hover: oklch(49% 0.14 150.2);
+
+  --st-bg: var(--st-canvas);
+  --st-bg-secondary: var(--st-recessed);
+  --st-bg-elevated: var(--st-elevated);
+  --st-input-bg: var(--st-recessed);
+  --st-text: var(--st-fg);
+  --st-text-secondary: var(--st-subtle);
+  --st-text-muted: var(--st-fg-faint);
+  --st-border: var(--st-line);
+  --st-brand: var(--st-green);
+  --st-brand-dark: var(--st-green-300);
+  --st-brand-surface: var(--st-green-50);
+  --st-brand-surface-alt: oklch(98.2% 0.012 150);
+  --st-brand-text: var(--st-green);
+  --st-success: var(--st-green);
+  --st-success-surface: var(--st-green-50);
+  --st-success-border: oklch(88% 0.06 150);
+  --st-success-text: var(--st-green);
+  --st-error: oklch(52% 0.2 27.33);
+  --st-warning-surface: oklch(98% 0.03 95);
+  --st-warning-border: oklch(90% 0.1 95);
+  --st-warning-text: oklch(50% 0.105 80);
+  --st-shadow: rgb(0 0 0 / 0.08);
+  --st-overlay: rgb(0 0 0 / 0.3);
+  --st-focus-ring: var(--st-green);
   --st-btn-bg: #ffffff;
-  --st-btn-text: #0a0a0a;
+  --st-btn-text: oklch(14.5% 0 0);
   --st-btn-border: #e5e5e5;
   --st-btn-hover-bg: #f5f5f5;
-  --st-btn-depth: rgba(0, 0, 0, 0.22);
-  --st-primary-bg: #15803d;
-  --st-primary-hover-bg: #16a34a;
+  --st-btn-depth: rgb(0 0 0 / 0.22);
+  --st-primary-from: var(--st-green-100);
+  --st-primary-to: var(--st-green-200);
+  --st-primary-hover-to: var(--st-green-hover);
+  --st-primary-bg: var(--st-green-200);
+  --st-primary-hover-bg: var(--st-green-hover);
   --st-primary-text: #ffffff;
-  --st-primary-border: #166534;
-  --st-primary-depth: #14532d;
-  --st-disabled-bg: #f5f5f5;
+  --st-primary-border: var(--st-green-200);
+  --st-primary-depth: var(--st-green-300);
+  --st-disabled-bg: transparent;
   --st-disabled-border: #e5e5e5;
-  --st-disabled-text: #a3a3a3;
-  --st-placeholder: #8a8a8a;
-  --st-menu-bg: #ffffff;
-  --st-menu-border: #e5e5e5;
+  --st-disabled-text: #d4d4d4;
+  --st-placeholder: #a3a3a3;
+  --st-menu-bg: var(--st-elevated);
+  --st-menu-border: var(--st-line);
   --st-menu-shadow: 0 4px 12px rgb(0 0 0 / 0.12), 0 2px 4px rgb(0 0 0 / 0.08);
-  --st-selected-bg: #f0fdf4;
-  --st-selected-text: #15803d;
-  --st-option-hover-bg: #f5f5f5;
-  --st-option-hover-text: #0a0a0a;
+  --st-card-shadow: 0 0 0 1px var(--st-hairline), 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --st-selected-bg: var(--st-green-50);
+  --st-selected-text: var(--st-green);
+  --st-option-hover-bg: oklch(14.5% 0 0 / 0.04);
+  --st-option-hover-text: var(--st-fg);
   --st-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5L6 2L9 5' stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 7L6 10L9 7' stroke='%23000000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --st-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%23000000'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9'/%3E%3C/svg%3E");
 }
 
 :root[data-theme='dark'] {
-  --st-bg: #101010;
-  --st-bg-secondary: #1c1c1c;
-  --st-bg-elevated: #1c1c1c;
-  --st-input-bg: #262626;
-  --st-text: #f4f4f4;
-  --st-text-secondary: #a3a3a3;
-  --st-text-muted: #6e6e6e;
-  --st-border: rgba(255, 255, 255, 0.08);
-  --st-brand: #4ade80;
-  --st-brand-dark: #22c55e;
-  --st-brand-surface: rgba(74, 222, 128, 0.12);
-  --st-brand-surface-alt: rgba(74, 222, 128, 0.06);
-  --st-brand-text: #4ade80;
-  --st-success: #4ade80;
-  --st-success-surface: #052e16;
-  --st-success-border: #166534;
-  --st-success-text: #86efac;
-  --st-error: #f87171;
-  --st-warning-surface: #422006;
-  --st-warning-border: #854d0e;
-  --st-warning-text: #fde047;
-  --st-shadow: rgba(0, 0, 0, 0.3);
-  --st-overlay: rgba(0, 0, 0, 0.5);
-  --st-focus-ring: #4ade80;
-  --st-btn-bg: rgba(255, 255, 255, 0.06);
-  --st-btn-text: #f4f4f4;
-  --st-btn-border: rgba(255, 255, 255, 0.08);
-  --st-btn-hover-bg: rgba(255, 255, 255, 0.1);
-  --st-btn-depth: rgba(255, 255, 255, 0.08);
-  --st-primary-bg: #15803d;
-  --st-primary-hover-bg: #16a34a;
-  --st-primary-text: #ffffff;
-  --st-primary-border: #16a34a;
-  --st-primary-depth: #052e16;
-  --st-disabled-bg: rgba(255, 255, 255, 0.03);
-  --st-disabled-border: rgba(255, 255, 255, 0.06);
-  --st-disabled-text: #6e6e6e;
-  --st-placeholder: #737373;
-  --st-menu-bg: #1c1c1c;
-  --st-menu-border: rgba(255, 255, 255, 0.08);
+  /* Coolify surface ladder, dark. sRGB steps: canvas 10, elevated 22, base 28, recessed 34. */
+  --st-canvas: oklch(14.48% 0 0);
+  --st-elevated: oklch(20.02% 0 0);
+  --st-recessed: oklch(25.2% 0 0);
+  --st-base: oklch(22.64% 0 0);
+  --st-fill: oklch(29.31% 0 0);
+  --st-line: oklch(32% 0 0);
+  --st-hairline: oklch(32% 0 0);
+  --st-subtle: oklch(70.8% 0 0);
+  --st-fg: oklch(96.12% 0 0);
+  --st-fg-dim: oklch(76.99% 0 0);
+  --st-fg-faint: oklch(65% 0 0);
+
+  /* Bright green replaces Coolify's dark-mode yellow so text and rings stay readable. */
+  --st-green: oklch(80% 0.16 151.5);
+  --st-green-50: oklch(80% 0.16 151.5 / 0.14);
+  --st-brand: var(--st-green);
+  --st-brand-dark: var(--st-green-100);
+  --st-brand-surface: var(--st-green-50);
+  --st-brand-surface-alt: oklch(80% 0.16 151.5 / 0.08);
+  --st-brand-text: var(--st-green);
+  --st-success: var(--st-green);
+  --st-success-surface: oklch(28% 0.05 150);
+  --st-success-border: oklch(40% 0.07 150);
+  --st-success-text: oklch(86% 0.12 150);
+  --st-error: oklch(66% 0.2 27.33);
+  --st-warning-surface: oklch(28% 0.04 80);
+  --st-warning-border: oklch(42% 0.07 80);
+  --st-warning-text: oklch(88.13% 0.1507 91.7);
+  --st-shadow: rgb(0 0 0 / 0.4);
+  --st-overlay: rgb(0 0 0 / 0.5);
+  --st-focus-ring: var(--st-green);
+  --st-btn-bg: rgb(255 255 255 / 0.06);
+  --st-btn-text: var(--st-fg);
+  --st-btn-border: rgb(255 255 255 / 0.08);
+  --st-btn-hover-bg: rgb(255 255 255 / 0.1);
+  --st-btn-depth: rgb(255 255 255 / 0.08);
+  --st-disabled-bg: transparent;
+  --st-disabled-border: rgb(255 255 255 / 0.06);
+  --st-disabled-text: var(--st-fg-faint);
+  --st-placeholder: oklch(55% 0 0);
+  --st-menu-bg: var(--st-elevated);
+  --st-menu-border: var(--st-hairline);
   --st-menu-shadow: 0 4px 12px rgb(0 0 0 / 0.4), 0 2px 4px rgb(0 0 0 / 0.3);
-  --st-selected-bg: rgba(74, 222, 128, 0.12);
-  --st-selected-text: #4ade80;
-  --st-option-hover-bg: #262626;
-  --st-option-hover-text: #f4f4f4;
-  --st-select-arrow: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 5L6 2L9 5' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M3 7L6 10L9 7' stroke='%23ffffff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --st-selected-bg: oklch(80% 0.16 151.5 / 0.15);
+  --st-selected-text: var(--st-green);
+  --st-option-hover-bg: rgb(255 255 255 / 0.06);
+  --st-option-hover-text: var(--st-fg);
+  --st-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%23ffffff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9'/%3E%3C/svg%3E");
 }
 
-/* Buttons: compact physical edge. Hover lifts 1px, press sinks and drops the depth. */
+/* Layer card: elevated shell, hairline ring, nested base body. Coolify settings section. */
+.layer-card {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  margin: 0;
+  border: none;
+  border-radius: 8px;
+  background: var(--st-elevated);
+  box-shadow: var(--st-card-shadow);
+}
+
+.layer-card-header {
+  display: flex;
+  min-height: 3rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border-radius: 8px 8px 0 0;
+  background: var(--st-elevated);
+  color: var(--st-fg-dim);
+}
+
+.layer-card-header h2,
+.layer-card-header h3 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  letter-spacing: 0;
+  color: var(--st-fg-dim);
+}
+
+.layer-card-header p {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 400;
+  color: var(--st-subtle);
+}
+
+.layer-card-body {
+  position: relative;
+  border-radius: 8px;
+  background: var(--st-base);
+  box-shadow: 0 0 0 1px var(--st-hairline);
+  padding: 1rem;
+}
+
+/* Buttons: Coolify .button physical edge.
+   Hover lifts 1px (depth 3px). Press moves the face down 2px and drops the depth. */
 .primary-btn,
 .secondary-btn {
   --st-depth-color: var(--st-btn-depth);
@@ -113,10 +196,13 @@
   justify-content: center;
   gap: 0.375rem;
   height: 2rem;
+  min-height: 2rem;
   padding: 0 0.625rem;
   font-family: inherit;
-  font-size: 0.8125rem;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1;
+  text-transform: capitalize;
   white-space: nowrap;
   color: var(--st-btn-text);
   background: var(--st-btn-bg);
@@ -133,14 +219,13 @@
 .primary-btn {
   --st-depth-color: var(--st-primary-depth);
   width: 100%;
-  font-size: 0.875rem;
   color: var(--st-primary-text);
-  background: var(--st-primary-bg);
+  background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
   border-color: var(--st-primary-border);
 }
 
 .secondary-btn.small {
-  font-size: 0.75rem;
+  font-size: 12px;
 }
 
 .primary-btn:hover:not(:disabled),
@@ -150,7 +235,7 @@
 }
 
 .primary-btn:hover:not(:disabled) {
-  background: var(--st-primary-hover-bg);
+  background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-hover-to));
 }
 
 .secondary-btn:hover:not(:disabled) {
@@ -163,8 +248,20 @@
   box-shadow: none;
 }
 
-.primary-btn:focus-visible,
 .secondary-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 2px 0 var(--st-depth-color),
+    0 0 0 1px var(--st-focus-ring);
+}
+
+.secondary-btn:hover:focus-visible {
+  box-shadow:
+    0 3px 0 var(--st-depth-color),
+    0 0 0 1px var(--st-focus-ring);
+}
+
+.primary-btn:focus-visible {
   outline: 1px solid var(--st-focus-ring);
   outline-offset: 2px;
 }
@@ -176,6 +273,7 @@
   border-color: var(--st-disabled-border);
   box-shadow: none;
   cursor: not-allowed;
+  transform: none;
 }
 
 /* Text-only buttons */
@@ -183,7 +281,7 @@
 .refresh-btn {
   padding: 2px 6px;
   font-family: inherit;
-  font-size: 0.8125rem;
+  font-size: 13px;
   font-weight: 500;
   color: var(--st-text-secondary);
   background: none;
@@ -194,7 +292,7 @@
 }
 
 .refresh-btn {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--st-brand);
 }
 
@@ -217,22 +315,24 @@
   outline-offset: 1px;
 }
 
-/* Inputs, selects and the model combobox */
+/* Inputs, selects and the model combobox. 32px, 8px radius, recessed fill. */
 .input,
 .select,
 .combobox-input {
   display: block;
   width: 100%;
+  height: 2rem;
   min-height: 2rem;
-  padding: 0.375rem 0.75rem;
+  padding: 0 0.75rem;
   font-family: inherit;
   font-size: 0.875rem;
   color: var(--st-text);
   background-color: var(--st-input-bg);
-  border: 1px solid var(--st-border);
-  border-radius: 0.375rem;
+  border: 1px solid var(--st-line);
+  border-radius: 8px;
   outline: none;
   box-sizing: border-box;
+  box-shadow: none;
   transition-property: color, background-color, border-color, box-shadow;
   transition-duration: 120ms;
   transition-timing-function: var(--st-ease-out);
@@ -243,6 +343,7 @@
   background-image: var(--st-select-arrow);
   background-repeat: no-repeat;
   background-position: right 0.5rem center;
+  background-size: 1rem 1rem;
   padding-right: 2.5rem;
   cursor: pointer;
 }
@@ -256,11 +357,12 @@
 .select:focus,
 .combobox-input:focus {
   border-color: var(--st-focus-ring);
-  box-shadow: 0 0 0 1px var(--st-focus-ring);
+  box-shadow: none;
 }
 
 .input::placeholder,
-.combobox-input::placeholder {
+.combobox-input::placeholder,
+textarea.input::placeholder {
   color: var(--st-placeholder);
 }
 
@@ -268,7 +370,7 @@
 .select:disabled,
 .input:read-only {
   color: var(--st-disabled-text);
-  background-color: var(--st-disabled-bg);
+  background-color: var(--st-fill);
   box-shadow: none;
   cursor: not-allowed;
 }
@@ -276,6 +378,14 @@
 .select option {
   background: var(--st-menu-bg);
   color: var(--st-text);
+}
+
+textarea.input {
+  height: auto;
+  min-height: 5rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  line-height: 1.25rem;
 }
 
 .combobox {
@@ -310,7 +420,7 @@
   list-style: none;
   background: var(--st-menu-bg);
   border: 1px solid var(--st-menu-border);
-  border-radius: 0.5rem;
+  border-radius: 10px;
   box-shadow: var(--st-menu-shadow);
 }
 
@@ -318,10 +428,10 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   font-size: 0.875rem;
   color: var(--st-text);
-  border-radius: 0.375rem;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.1s ease;
 }
@@ -352,14 +462,15 @@
   text-overflow: ellipsis;
 }
 
-/* Field helpers */
 .help-text {
   font-size: 0.75rem;
+  line-height: 1rem;
   color: var(--st-text-secondary);
 }
 
 .help-text a {
   color: var(--st-brand);
+  font-weight: 600;
   text-decoration: none;
 }
 

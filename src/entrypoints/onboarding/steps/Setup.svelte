@@ -344,152 +344,163 @@
 </script>
 
 <div class="setup">
-  <h2>Configure your provider</h2>
-  <p class="subtitle">Choose an AI provider and enter your credentials to get started.</p>
-
-  <div class="form">
-    <div class="field">
-      <label for="provider-select">API Provider</label>
-      <select
-        id="provider-select"
-        class="select"
-        value={selectedProvider}
-        onchange={handleProviderChange}
-      >
-        <option value="openrouter">OpenRouter</option>
-        <option value="groq">Groq</option>
-        <option value="ollama">Ollama (Local)</option>
-      </select>
-    </div>
-
-    {#if isOllama}
-      <div class="field">
-        <label for="endpoint-input">Ollama Endpoint</label>
-        <input
-          id="endpoint-input"
-          type="text"
-          class="input"
-          placeholder="http://localhost:11434"
-          value={ollamaEndpoint}
-          oninput={handleEndpointChange}
-        />
-        <div class="connection-row">
-          <button
-            class="secondary-btn small"
-            onclick={checkOllamaConnection}
-            disabled={connectionStatus === 'checking'}
+  <section class="layer-card">
+    <header class="layer-card-header">
+      <div>
+        <h2>Configure your provider</h2>
+        <p>Choose an AI provider and enter your credentials to get started.</p>
+      </div>
+    </header>
+    <div class="layer-card-body">
+      <div class="form">
+        <div class="field">
+          <label for="provider-select">API Provider</label>
+          <select
+            id="provider-select"
+            class="select"
+            value={selectedProvider}
+            onchange={handleProviderChange}
           >
-            {connectionStatus === 'checking' ? 'Checking...' : 'Check Connection'}
-          </button>
-          {#if connectionStatus === 'connected'}
-            <span class="status-text connected">
-              Connected ({connectionModelCount}
-              {connectionModelCount === 1 ? 'model' : 'models'})
-            </span>
-          {:else if connectionStatus === 'error'}
-            <span class="status-text error">{connectionError}</span>
-          {/if}
+            <option value="openrouter">OpenRouter</option>
+            <option value="groq">Groq</option>
+            <option value="ollama">Ollama (Local)</option>
+          </select>
+        </div>
+
+        {#if isOllama}
+          <div class="field">
+            <label for="endpoint-input">Ollama Endpoint</label>
+            <input
+              id="endpoint-input"
+              type="text"
+              class="input"
+              placeholder="http://localhost:11434"
+              value={ollamaEndpoint}
+              oninput={handleEndpointChange}
+            />
+            <div class="connection-row">
+              <button
+                class="secondary-btn small"
+                onclick={checkOllamaConnection}
+                disabled={connectionStatus === 'checking'}
+              >
+                {connectionStatus === 'checking' ? 'Checking...' : 'Check Connection'}
+              </button>
+              {#if connectionStatus === 'connected'}
+                <span class="status-text connected">
+                  Connected ({connectionModelCount}
+                  {connectionModelCount === 1 ? 'model' : 'models'})
+                </span>
+              {:else if connectionStatus === 'error'}
+                <span class="status-text error">{connectionError}</span>
+              {/if}
+            </div>
+          </div>
+        {:else}
+          <div class="field">
+            <label for="api-key-input">{providerConfig.name} API Key</label>
+            <input
+              id="api-key-input"
+              type="password"
+              class="input"
+              placeholder="Enter your {providerConfig.name} API key"
+              value={apiKey}
+              oninput={(e: Event) => {
+                apiKey = (e.target as HTMLInputElement).value;
+              }}
+            />
+            <p class="help-text">
+              Get your API key from <a href={providerConfig.keysUrl} target="_blank"
+                >{providerConfig.name}</a
+              >
+            </p>
+          </div>
+        {/if}
+
+        <div class="field">
+          <div class="label-row">
+            <label for="model-search">LLM Model</label>
+            <button
+              class="refresh-btn"
+              onclick={() => fetchModels(true)}
+              disabled={isLoadingModels}
+            >
+              {isLoadingModels ? '...' : 'Refresh'}
+            </button>
+          </div>
+
+          <!-- svelte-ignore a11y_role_has_required_aria_props -->
+          <div class="combobox" bind:this={comboboxEl} role="combobox">
+            <input
+              id="model-search"
+              type="text"
+              class="combobox-input"
+              placeholder="Search models..."
+              value={isDropdownOpen ? searchQuery : selectedModelDisplay}
+              onfocus={openDropdown}
+              oninput={handleSearchInput}
+              onkeydown={handleComboKeydown}
+              bind:this={inputEl}
+            />
+            <button
+              class="combobox-toggle"
+              onclick={toggleDropdown}
+              tabindex="-1"
+              aria-label="Toggle model list"
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 5L6 2L9 5"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M3 7L6 10L9 7"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+
+            {#if isDropdownOpen}
+              <ul class="combobox-list" bind:this={listEl}>
+                {#each filteredModels as model, i (model.id)}
+                  <li
+                    class:highlighted={i === highlightedIndex}
+                    class:selected={model.id === selectedModel}
+                    onclick={() => selectModel(model)}
+                    onkeydown={(e: KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        selectModel(model);
+                      }
+                    }}
+                    role="option"
+                    aria-selected={model.id === selectedModel}
+                  >
+                    <span class="model-name">{model.name}</span>
+                  </li>
+                {/each}
+                {#if filteredModels.length === 0}
+                  <li class="no-results">No models found</li>
+                {/if}
+              </ul>
+            {/if}
+          </div>
         </div>
       </div>
-    {:else}
-      <div class="field">
-        <label for="api-key-input">{providerConfig.name} API Key</label>
-        <input
-          id="api-key-input"
-          type="password"
-          class="input"
-          placeholder="Enter your {providerConfig.name} API key"
-          value={apiKey}
-          oninput={(e: Event) => {
-            apiKey = (e.target as HTMLInputElement).value;
-          }}
-        />
-        <p class="help-text">
-          Get your API key from <a href={providerConfig.keysUrl} target="_blank"
-            >{providerConfig.name}</a
-          >
-        </p>
-      </div>
-    {/if}
-
-    <div class="field">
-      <div class="label-row">
-        <label for="model-search">LLM Model</label>
-        <button class="refresh-btn" onclick={() => fetchModels(true)} disabled={isLoadingModels}>
-          {isLoadingModels ? '...' : 'Refresh'}
-        </button>
-      </div>
-
-      <!-- svelte-ignore a11y_role_has_required_aria_props -->
-      <div class="combobox" bind:this={comboboxEl} role="combobox">
-        <input
-          id="model-search"
-          type="text"
-          class="combobox-input"
-          placeholder="Search models..."
-          value={isDropdownOpen ? searchQuery : selectedModelDisplay}
-          onfocus={openDropdown}
-          oninput={handleSearchInput}
-          onkeydown={handleComboKeydown}
-          bind:this={inputEl}
-        />
-        <button
-          class="combobox-toggle"
-          onclick={toggleDropdown}
-          tabindex="-1"
-          aria-label="Toggle model list"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 12 12"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M3 5L6 2L9 5"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-            <path
-              d="M3 7L6 10L9 7"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
-
-        {#if isDropdownOpen}
-          <ul class="combobox-list" bind:this={listEl}>
-            {#each filteredModels as model, i (model.id)}
-              <li
-                class:highlighted={i === highlightedIndex}
-                class:selected={model.id === selectedModel}
-                onclick={() => selectModel(model)}
-                onkeydown={(e: KeyboardEvent) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    selectModel(model);
-                  }
-                }}
-                role="option"
-                aria-selected={model.id === selectedModel}
-              >
-                <span class="model-name">{model.name}</span>
-              </li>
-            {/each}
-            {#if filteredModels.length === 0}
-              <li class="no-results">No models found</li>
-            {/if}
-          </ul>
-        {/if}
-      </div>
     </div>
-  </div>
+  </section>
 
   <div class="actions">
     <button class="primary-btn" onclick={saveAndContinue} disabled={isSaving}>
@@ -506,28 +517,15 @@
   .setup {
     max-width: 480px;
     margin: 0 auto;
-  }
-
-  h2 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--st-text);
-    margin-bottom: 6px;
-    text-align: center;
-  }
-
-  .subtitle {
-    font-size: 0.875rem;
-    color: var(--st-text-secondary);
-    text-align: center;
-    margin-bottom: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
   }
 
   .form {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    margin-bottom: 28px;
+    gap: 16px;
   }
 
   .field {
@@ -537,9 +535,9 @@
   }
 
   .field label {
-    font-size: 0.8125rem;
+    font-size: 13px;
     font-weight: 500;
-    color: var(--st-text);
+    color: var(--st-text-secondary);
   }
 
   .label-row {
