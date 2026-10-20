@@ -585,7 +585,7 @@ function mountPopupShell(): HTMLDivElement {
     const button = cards[next]?.querySelector<HTMLButtonElement>('.st-btn-primary, button');
     if (!button || button === target) return;
     event.preventDefault();
-    button.focus();
+    focusControl(button, true);
   });
 
   const iconContainer = stateManager.getIconContainer();
@@ -1041,14 +1041,25 @@ function dictionaryIcon(): SVGSVGElement {
   return svg;
 }
 
+/**
+ * Script focus does not draw a ring. Keyboard Tab and arrow keys do,
+ * through :focus-visible.
+ */
+function focusControl(element: HTMLElement, focusVisible: boolean): void {
+  const options: FocusOptions & { focusVisible?: boolean } = { focusVisible };
+  element.focus(options);
+}
+
 function focusSuggestion(content: HTMLElement, index: number): void {
   const cards = [...content.querySelectorAll<HTMLElement>('.st-list .st-card')];
   const card = index >= 0 ? cards[index] : undefined;
   if (!card) {
-    content.querySelector<HTMLElement>('.st-done')?.focus();
+    const done = content.querySelector<HTMLElement>('.st-done');
+    if (done) focusControl(done, false);
     return;
   }
-  card.querySelector<HTMLButtonElement>('.st-btn-primary, button')?.focus();
+  const button = card.querySelector<HTMLButtonElement>('.st-btn-primary, button');
+  if (button) focusControl(button, false);
 }
 
 function writeSession(session: SuggestionSession): void {
@@ -1096,7 +1107,7 @@ function showManualCopy(content: HTMLElement, value: string): void {
   area.readOnly = true;
   area.value = value;
   content.append(note, area);
-  area.focus();
+  focusControl(area, false);
   area.select();
 }
 
@@ -1131,7 +1142,7 @@ function toggleRewriteMenu(): void {
   menu.removeAttribute('hidden');
   toggle.setAttribute('aria-expanded', 'true');
   const first = menu.querySelector('button');
-  if (first instanceof HTMLButtonElement) first.focus();
+  if (first instanceof HTMLButtonElement) focusControl(first, toggle.matches(':focus-visible'));
 }
 
 function acceptVisible(content: HTMLElement, session: SuggestionSession): void {

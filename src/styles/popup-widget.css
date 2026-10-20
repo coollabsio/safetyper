@@ -20,7 +20,9 @@
   --st-primary-to: #15803d;
   --st-primary-border: #166534;
   --st-primary-depth: #14532d;
+  --st-focus-ring: var(--st-brand);
   --st-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  color-scheme: light;
   display: block;
   width: min(360px, calc(100vw - 16px));
   max-height: min(680px, calc(100vh - 16px));
@@ -63,6 +65,7 @@
   --st-primary-to: #15803d;
   --st-primary-border: #166534;
   --st-primary-depth: #052e16;
+  color-scheme: dark;
 }
 
 .st-header {
@@ -314,12 +317,6 @@
   --st-group-text: var(--st-delivery-text);
 }
 
-.st-card:focus-within {
-  box-shadow:
-    0 0 0 1px var(--st-line),
-    0 0 0 2px var(--st-brand);
-}
-
 .st-category {
   display: flex;
   align-items: center;
@@ -379,6 +376,7 @@
 }
 
 .st-btn {
+  --st-depth-color: var(--st-btn-depth);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -389,7 +387,9 @@
   border: 1px solid var(--st-btn-border);
   background: var(--st-btn-bg);
   color: var(--st-btn-text);
-  box-shadow: 0 2px 0 var(--st-btn-depth);
+  box-shadow: 0 2px 0 var(--st-depth-color);
+  appearance: none;
+  outline: none;
   font: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -402,7 +402,7 @@
 
 .st-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 0 var(--st-btn-depth);
+  box-shadow: 0 3px 0 var(--st-depth-color);
   background: var(--st-btn-hover);
 }
 
@@ -412,15 +412,35 @@
 }
 
 .st-btn-primary {
+  --st-depth-color: var(--st-primary-depth);
   color: #ffffff;
   background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
   border-color: var(--st-primary-border);
-  box-shadow: 0 2px 0 var(--st-primary-depth);
 }
 
 .st-btn-primary:hover {
   background: linear-gradient(to bottom, var(--st-primary-from), #16a34a);
-  box-shadow: 0 3px 0 var(--st-primary-depth);
+}
+
+.st-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 2px 0 var(--st-depth-color),
+    0 0 0 2px var(--st-card),
+    0 0 0 3px var(--st-focus-ring);
+}
+
+.st-btn:hover:focus-visible {
+  box-shadow:
+    0 3px 0 var(--st-depth-color),
+    0 0 0 2px var(--st-card),
+    0 0 0 3px var(--st-focus-ring);
+}
+
+.st-btn:active:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--st-card),
+    0 0 0 3px var(--st-focus-ring);
 }
 
 .st-text-btn {
@@ -448,16 +468,44 @@
   flex-basis: 100%;
 }
 
-.st-btn:focus-visible,
+.st-text-btn,
+.st-accept-all,
+.st-rewrite,
+.st-chip,
+.st-menu-item,
+.st-close,
+.st-done,
+.st-manual {
+  appearance: none;
+  outline: none;
+}
+
 .st-text-btn:focus-visible,
 .st-accept-all:focus-visible,
 .st-rewrite:focus-visible,
-.st-chip:focus-visible,
 .st-menu-item:focus-visible,
 .st-close:focus-visible,
 .st-done:focus-visible {
-  outline: 1px solid var(--st-brand);
-  outline-offset: 2px;
+  outline: 1px solid var(--st-focus-ring);
+  outline-offset: 1px;
+}
+
+.st-chip:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--st-line),
+    0 0 0 3px var(--st-bg),
+    0 0 0 4px var(--st-focus-ring);
+}
+
+.st-chip[aria-pressed='true']:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--st-group-accent),
+    0 0 0 3px var(--st-bg),
+    0 0 0 4px var(--st-focus-ring);
+}
+
+.st-manual:focus {
+  border-color: var(--st-focus-ring);
 }
 
 .st-done,
