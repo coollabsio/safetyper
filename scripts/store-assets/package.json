@@ -1,0 +1,8 @@
+{
+  "name": "safetyper-store-assets",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.56.1"
+  }
+}
