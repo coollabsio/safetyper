@@ -128,6 +128,21 @@ function run(): void {
     'ollama error includes the endpoint'
   );
 
+  const forbidden = describeTranslateError(
+    new Error('API request failed with status 403: access denied'),
+    'ollama',
+    'http://127.0.0.1:11434'
+  );
+  assert(forbidden.opensSettings, 'ollama 403 opens settings');
+  assert(forbidden.message.includes('403'), 'ollama 403 mentions the status');
+  assert(forbidden.message.includes('Settings'), 'ollama 403 points at settings');
+
+  const hostedForbidden = describeTranslateError(
+    new Error('API request failed with status 403'),
+    'openrouter'
+  );
+  assertEqual(hostedForbidden.opensSettings, false, 'hosted 403 stays generic');
+
   const remoteFetch = describeTranslateError(new Error('Failed to fetch'), 'openrouter');
   assertEqual(remoteFetch.opensSettings, false, 'hosted provider fetch failure stays generic');
   assertEqual(remoteFetch.message, 'Failed to fetch', 'hosted provider message is passed through');

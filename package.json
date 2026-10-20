@@ -34,7 +34,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,svelte,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,svelte,css,json}\"",
-    "test": "bun src/lib/categories.test.ts && bun src/lib/goals.test.ts && bun src/lib/rewrite.test.ts && bun src/lib/translate/prompt.test.ts && bun src/lib/content/suggestions.test.ts && bun src/lib/content/auto-check.test.ts && bun src/lib/content/icon-state.test.ts && bun src/lib/content/preferences.test.ts",
+    "test": "bun src/lib/categories.test.ts && bun src/lib/goals.test.ts && bun src/lib/rewrite.test.ts && bun src/lib/translate/prompt.test.ts && bun src/lib/content/suggestions.test.ts && bun src/lib/content/auto-check.test.ts && bun src/lib/content/icon-state.test.ts && bun src/lib/content/preferences.test.ts && bun src/lib/selection-translate/selection-translate.test.ts",
     "postinstall": "wxt prepare",
     "prepare": "husky"
   },

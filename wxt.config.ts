@@ -8,7 +8,15 @@ export default defineConfig({
     action: {
       default_popup: 'popup.html',
     },
-    permissions: ['storage', 'scripting', 'tabs'],
+    permissions: ['storage', 'scripting', 'tabs', 'contextMenus'],
+    commands: {
+      'translate-selection': {
+        suggested_key: {
+          default: 'Alt+Shift+T',
+        },
+        description: 'Translate the selected text with SafeTyper',
+      },
+    },
     host_permissions: [
       'https://openrouter.ai/*',
       'https://api.groq.com/*',

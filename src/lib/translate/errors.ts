@@ -49,7 +49,18 @@ export function describeTranslateError(
     };
   }
 
+  if (provider === 'ollama' && isForbidden(lower)) {
+    return {
+      message: 'Ollama refused the request (403). Check the endpoint in Settings, then try again.',
+      opensSettings: true,
+    };
+  }
+
   return { message, opensSettings: false };
+}
+
+function isForbidden(message: string): boolean {
+  return message.includes('status 403') || message.includes('http 403') || /\b403\b/.test(message);
 }
 
 function isUnreachable(message: string): boolean {

@@ -1,0 +1,294 @@
+/* On-page translation bubble. Isolated in its own shadow root.
+   Visual language matches the in-page suggestion popup: Coolify green, 3D buttons. */
+
+.tr-root {
+  --st-bg: #f4f4f5;
+  --st-text: #18181b;
+  --st-text-secondary: #52525b;
+  --st-text-muted: #a1a1aa;
+  --st-brand: #15803d;
+  --st-brand-text: #15803d;
+  --st-line: rgb(0 0 0 / 0.08);
+  --st-card: #ffffff;
+  --st-shadow: 0 10px 28px rgb(0 0 0 / 0.12), 0 0 0 1px rgb(0 0 0 / 0.06);
+  --st-btn-bg: #ffffff;
+  --st-btn-text: #18181b;
+  --st-btn-border: #e5e5e5;
+  --st-btn-hover: #f5f5f5;
+  --st-btn-depth: rgb(0 0 0 / 0.22);
+  --st-primary-from: #22a34a;
+  --st-primary-to: #15803d;
+  --st-primary-border: #166534;
+  --st-primary-depth: #14532d;
+  --st-error: #b91c1c;
+  --st-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --st-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%2318181b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+  display: block;
+  width: min(320px, calc(100vw - 16px));
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--st-bg);
+  color: var(--st-text);
+  box-shadow: var(--st-shadow);
+  color-scheme: light;
+  font-family:
+    'Geist Sans',
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tr-root[data-theme='dark'] {
+  --st-bg: #2a2a2a;
+  --st-text: #f4f4f5;
+  --st-text-secondary: #a1a1aa;
+  --st-text-muted: #71717a;
+  --st-brand: #4ade80;
+  --st-brand-text: #4ade80;
+  --st-line: rgb(255 255 255 / 0.08);
+  --st-card: #333333;
+  --st-shadow: 0 12px 32px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --st-btn-bg: rgb(255 255 255 / 0.06);
+  --st-btn-text: #f4f4f5;
+  --st-btn-border: rgb(255 255 255 / 0.1);
+  --st-btn-hover: rgb(255 255 255 / 0.12);
+  --st-btn-depth: rgb(255 255 255 / 0.08);
+  --st-primary-from: #22c55e;
+  --st-primary-to: #15803d;
+  --st-primary-border: #166534;
+  --st-primary-depth: #052e16;
+  --st-error: #fca5a5;
+  --st-select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='%23f4f4f5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+.tr-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+.tr-header:active {
+  cursor: grabbing;
+}
+
+.tr-logo {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.tr-heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.tr-heading strong {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.tr-detected {
+  color: var(--st-text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tr-close {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--st-text-secondary);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tr-close:hover {
+  color: var(--st-text);
+  background: var(--st-btn-hover);
+}
+
+.tr-lang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--st-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tr-select {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--st-line);
+  border-radius: 8px;
+  background-color: var(--st-card);
+  background-image: var(--st-select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px 14px;
+  color: var(--st-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  appearance: none;
+  cursor: pointer;
+}
+
+.tr-select:focus-visible {
+  outline: 1px solid var(--st-brand);
+  outline-offset: 2px;
+}
+
+.tr-body {
+  max-height: 180px;
+  overflow: auto;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--st-card);
+  box-shadow: 0 0 0 1px var(--st-line);
+}
+
+.tr-text,
+.tr-loading,
+.tr-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tr-text {
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.tr-loading {
+  color: var(--st-text-secondary);
+  font-size: 13px;
+}
+
+.tr-error {
+  color: var(--st-error);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.tr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tr-btn,
+.tr-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  white-space: nowrap;
+  border-radius: 8px;
+  border: 1px solid var(--st-btn-border);
+  background: var(--st-btn-bg);
+  color: var(--st-btn-text);
+  box-shadow: 0 2px 0 var(--st-btn-depth);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 80ms var(--st-ease),
+    box-shadow 80ms var(--st-ease),
+    background-color 120ms var(--st-ease);
+}
+
+.tr-btn:hover,
+.tr-settings:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 var(--st-btn-depth);
+  background: var(--st-btn-hover);
+}
+
+.tr-btn:active,
+.tr-settings:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.tr-btn-primary {
+  color: #ffffff;
+  background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
+  border-color: var(--st-primary-border);
+  box-shadow: 0 2px 0 var(--st-primary-depth);
+}
+
+.tr-btn-primary:hover {
+  color: #ffffff;
+  background: linear-gradient(to bottom, var(--st-primary-from), #16a34a);
+  box-shadow: 0 3px 0 var(--st-primary-depth);
+}
+
+.tr-open {
+  flex: 1 1 100%;
+}
+
+.tr-settings {
+  width: 100%;
+  margin-top: 8px;
+  color: var(--st-brand-text);
+}
+
+.tr-btn:focus-visible,
+.tr-settings:focus-visible,
+.tr-close:focus-visible {
+  outline: 1px solid var(--st-brand);
+  outline-offset: 2px;
+}
+
+.tr-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+  transform: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tr-btn,
+  .tr-settings {
+    transition: none;
+  }
+
+  .tr-btn:hover,
+  .tr-settings:hover,
+  .tr-btn:active,
+  .tr-settings:active {
+    transform: none;
+  }
+}

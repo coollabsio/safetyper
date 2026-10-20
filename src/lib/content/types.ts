@@ -105,6 +105,8 @@ export interface StorageSchema {
   iconSize?: 'small' | 'medium' | 'hidden';
   personalDictionary?: string[];
   disabledGroups?: string[];
+  translateDraftEpoch?: number;
+  translateSelectionHandoff?: { text: string; at: number; translation?: string; detected?: string };
 }
 
 /**
