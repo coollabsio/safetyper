@@ -3,33 +3,22 @@
  * Pure functions: parse a model JSON reply, or derive cards from a word diff.
  */
 
+import { classifyIssue, type IssueClassification } from '../categories';
 import { DEFAULT_SYSTEM_PROMPT } from './config';
 import { diffTexts } from './diff-engine';
 
-export const SUGGESTION_CATEGORIES = [
-  'grammar',
-  'spelling',
-  'punctuation',
-  'clarity',
-  'style',
-] as const;
-
-export type SuggestionCategory = (typeof SUGGESTION_CATEGORIES)[number];
-
-export interface Suggestion {
+export interface Suggestion extends IssueClassification {
   id: string;
   quote: string;
   replacement: string;
-  category: SuggestionCategory;
   explanation: string;
   start: number;
   end: number;
 }
 
-export interface ModelIssue {
+export interface ModelIssue extends IssueClassification {
   quote: string;
   replacement: string;
-  category: SuggestionCategory;
   explanation: string;
 }
 
@@ -45,17 +34,10 @@ export function extractJsonObject(raw: string): string | null {
   return body.slice(start, end + 1);
 }
 
-function asCategory(value: unknown): SuggestionCategory {
-  if (typeof value === 'string' && SUGGESTION_CATEGORIES.includes(value as SuggestionCategory)) {
-    return value as SuggestionCategory;
-  }
-  if (value === 'other') return 'style';
-  return 'grammar';
-}
-
 /**
  * Parse a structured model reply. Returns null when the reply is not that JSON shape,
  * so the caller can fall back to a plain corrected-text diff.
+ * `group` and `subcategory` are preferred. Older `category` values still parse.
  */
 export function parseModelIssues(raw: string): ModelIssue[] | null {
   const json = extractJsonObject(raw);
@@ -85,7 +67,11 @@ export function parseModelIssues(raw: string): ModelIssue[] | null {
     result.push({
       quote,
       replacement,
-      category: asCategory(record.category),
+      ...classifyIssue({
+        group: record.group,
+        subcategory: record.subcategory,
+        category: record.category,
+      }),
       explanation,
     });
   }
@@ -114,6 +100,8 @@ export function locateSuggestions(text: string, issues: ModelIssue[]): Suggestio
           id: `issue-${index}-${start}`,
           quote: issue.quote,
           replacement: issue.replacement,
+          group: issue.group,
+          subcategory: issue.subcategory,
           category: issue.category,
           explanation: issue.explanation,
           start,
@@ -127,21 +115,25 @@ export function locateSuggestions(text: string, issues: ModelIssue[]): Suggestio
   return suggestions.sort((a, b) => a.start - b.start);
 }
 
-function inferCategory(original: string, replacement: string): SuggestionCategory {
+function inferClassification(original: string, replacement: string): IssueClassification {
   const punctuation = /[\s.,!?;:'"“”‘’()\-–—/]+/;
   const onlyPunctuation = (value: string) =>
     value.length > 0 && value.replace(punctuation, '').length === 0;
-  if (onlyPunctuation(original) || onlyPunctuation(replacement)) return 'punctuation';
+  if (onlyPunctuation(original) || onlyPunctuation(replacement)) {
+    return classifyIssue({ subcategory: 'punctuation' });
+  }
   if (
     original.includes("'") !== replacement.includes("'") &&
     original.replace(/'/g, '') === replacement.replace(/'/g, '')
   ) {
-    return 'punctuation';
+    return classifyIssue({ subcategory: 'punctuation' });
   }
   const origWords = original.trim().split(/\s+/).filter(Boolean);
   const nextWords = replacement.trim().split(/\s+/).filter(Boolean);
-  if (origWords.length === 1 && nextWords.length === 1) return 'spelling';
-  return 'grammar';
+  if (origWords.length === 1 && nextWords.length === 1) {
+    return classifyIssue({ subcategory: 'spelling' });
+  }
+  return classifyIssue({ subcategory: 'grammar' });
 }
 
 export function genericExplanation(original: string, replacement: string): string {
@@ -182,7 +174,7 @@ export function suggestionsFromDiff(original: string, corrected: string): Sugges
       id: `diff-${pendingStart}-${pendingStart + quote.length}`,
       quote,
       replacement,
-      category: inferCategory(quote, replacement),
+      ...inferClassification(quote, replacement),
       explanation: genericExplanation(quote, replacement),
       start: pendingStart,
       end: pendingStart + quote.length,
@@ -215,6 +207,31 @@ export function suggestionsFromDiff(original: string, corrected: string): Sugges
     if (isWhitespace(suggestion.quote) && isWhitespace(suggestion.replacement)) return false;
     return true;
   });
+}
+
+/** Rebuild a cached card, including ones saved before group and subcategory existed. */
+export function hydrateSuggestion(value: unknown): Suggestion | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.quote !== 'string' || typeof record.replacement !== 'string') return null;
+  if (typeof record.start !== 'number' || typeof record.end !== 'number') return null;
+  const explanation =
+    typeof record.explanation === 'string' && record.explanation.trim().length > 0
+      ? record.explanation.trim()
+      : genericExplanation(record.quote, record.replacement);
+  return {
+    id: typeof record.id === 'string' && record.id.length > 0 ? record.id : `issue-${record.start}`,
+    quote: record.quote,
+    replacement: record.replacement,
+    ...classifyIssue({
+      group: record.group,
+      subcategory: record.subcategory,
+      category: record.category,
+    }),
+    explanation,
+    start: record.start,
+    end: record.end,
+  };
 }
 
 export function applySuggestion(

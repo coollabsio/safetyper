@@ -3,6 +3,7 @@
  * Execute with `bun src/lib/content/icon-state.test.ts`.
  */
 
+import { SUGGESTION_GROUPS } from '../categories';
 import { GROUP_COLORS, GROUP_PRIORITY, highestPriorityGroup } from './group-colors';
 import { ICON_PIXELS, iconIsHidden, iconPixelSize, setIconSizeSetting } from './icon-metrics';
 
@@ -22,6 +23,18 @@ function run(): void {
   assert(GROUP_COLORS.delivery.light.includes('310'), 'delivery stays purple');
   assert(GROUP_COLORS.engagement.light.includes('155'), 'engagement stays green');
   assert(GROUP_COLORS.correctness.light.includes('25'), 'correctness stays red');
+  for (const group of SUGGESTION_GROUPS) {
+    assertEqual(
+      GROUP_COLORS[group.id].light,
+      group.colors.light.text,
+      `${group.id} badge uses the shared text token`
+    );
+    assertEqual(
+      GROUP_COLORS[group.id].dark,
+      group.colors.dark.accent,
+      `${group.id} dark badge uses the shared accent`
+    );
+  }
 
   assertEqual(
     highestPriorityGroup([{ category: 'style' }, { category: 'clarity' }, { group: 'delivery' }]),

@@ -18,8 +18,11 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   PROVIDER_CONFIG,
 } from './config';
+import { composeSystemPrompt, parseWritingGoals, WRITING_GOALS_STORAGE_KEY } from '../goals';
+import { parseRewrite, rewriteOption, rewriteSystemPrompt, type RewriteOptionId } from '../rewrite';
 import {
   applySuggestions,
+  hydrateSuggestion,
   locateSuggestions,
   parseModelIssues,
   suggestionsFromDiff,
@@ -75,15 +78,13 @@ class SimpleCache implements ApiCache {
 const cache = new SimpleCache();
 
 /**
- * Generate cache key from text
+ * Generate cache key from text. The full prompt is included so a goals change
+ * cannot reuse a check or rewrite made for different goals.
  */
-function getCacheKey(text: string, model: string, prompt: string): string {
-  return `${model}:${prompt.substring(0, 32)}:${text}`;
+function getCacheKey(kind: string, text: string, model: string, prompt: string): string {
+  return `${kind}:${model}:${prompt}:${text}`;
 }
 
-/**
- * Check grammar using OpenRouter API
- */
 export interface GrammarCheckResult {
   correctedText: string;
   suggestions: Suggestion[];
@@ -96,21 +97,29 @@ export class GrammarCheckCancelled extends Error {
   }
 }
 
-export async function checkGrammar(text: string, requestId?: string): Promise<GrammarCheckResult> {
-  // Validate text length
+function assertWithinLimit(text: string): void {
   if (text.length > CONFIG.MAX_TEXT_LENGTH) {
     throw new Error(
       `Text is too long (${text.length} characters). Maximum allowed is ${CONFIG.MAX_TEXT_LENGTH} characters.`
     );
   }
+}
 
-  // Get selected model from storage (provider-aware)
+interface ModelContext {
+  model: string;
+  basePrompt: string;
+  usingCustomPrompt: boolean;
+  goals: ReturnType<typeof parseWritingGoals>;
+}
+
+async function loadModelContext(): Promise<ModelContext> {
   const result = await browser.storage.local.get([
     'selectedProvider',
     'selectedModel',
     'groqSelectedModel',
     'ollamaSelectedModel',
     'customSystemPrompt',
+    WRITING_GOALS_STORAGE_KEY,
   ]);
   const provider: ApiProvider =
     (typeof result.selectedProvider === 'string' &&
@@ -125,13 +134,61 @@ export async function checkGrammar(text: string, requestId?: string): Promise<Gr
         : result.ollamaSelectedModel;
   const model =
     (typeof storedModel === 'string' && storedModel) || PROVIDER_CONFIG[provider].defaultModel;
+  const custom =
+    typeof result.customSystemPrompt === 'string' ? result.customSystemPrompt.trim() : '';
+  return {
+    model,
+    basePrompt: custom || DEFAULT_SYSTEM_PROMPT,
+    usingCustomPrompt: custom.length > 0,
+    goals: parseWritingGoals(result[WRITING_GOALS_STORAGE_KEY]),
+  };
+}
 
-  const systemPrompt =
-    (typeof result.customSystemPrompt === 'string' && result.customSystemPrompt) ||
-    DEFAULT_SYSTEM_PROMPT;
+/**
+ * Forward a chat-completions payload through the background script.
+ * That path is the rate limiter (10 requests per minute) for checks and rewrites.
+ */
+async function requestCompletion(
+  model: string,
+  systemPrompt: string,
+  user: string,
+  temperature: number,
+  requestId?: string
+): Promise<string> {
+  const payload: OpenRouterRequestPayload = {
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: user },
+    ],
+    temperature,
+    response_format: { type: 'text' },
+  };
+  const message: CheckGrammarMessage = {
+    action: 'checkGrammar',
+    referer: window.location.href,
+    payload,
+    requestId,
+  };
+  const response = (await browser.runtime.sendMessage(message)) as CheckGrammarResponse;
+  if (!response?.success) {
+    if (response?.cancelled) throw new GrammarCheckCancelled();
+    throw new Error(response?.error || 'Unknown error occurred');
+  }
+  const raw = response.data?.choices?.[0]?.message?.content;
+  return typeof raw === 'string' ? raw : '';
+}
 
-  // Check cache first
-  const cacheKey = getCacheKey(text, model, systemPrompt);
+/**
+ * Check grammar using the selected provider.
+ * `requestId` lets check-as-you-type cancel this call.
+ */
+export async function checkGrammar(text: string, requestId?: string): Promise<GrammarCheckResult> {
+  assertWithinLimit(text);
+  const context = await loadModelContext();
+  const systemPrompt = composeSystemPrompt(context.basePrompt, context.goals);
+
+  const cacheKey = getCacheKey('check', text, context.model, systemPrompt);
   const cachedResult = cache.get(cacheKey);
   if (cachedResult) {
     if (import.meta.env.DEV) {
@@ -143,46 +200,14 @@ export async function checkGrammar(text: string, requestId?: string): Promise<Gr
     };
   }
 
-  // Prepare API request payload
-  const payload: OpenRouterRequestPayload = {
-    model,
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt,
-      },
-      {
-        role: 'user',
-        content: `Please fix the grammar and spelling in this text while preserving EXACTLY the same formatting, line breaks, and structure as the original:\n\n${text}`,
-      },
-    ],
-    temperature: 0.2,
-    response_format: { type: 'text' },
-  };
-
-  if (systemPrompt === DEFAULT_SYSTEM_PROMPT) {
-    payload.messages[1] = { role: 'user', content: text };
-  }
-
-  // Send request to background script
-  const message: CheckGrammarMessage = {
-    action: 'checkGrammar',
-    referer: window.location.href,
-    payload,
-    requestId,
-  };
-
-  const response = (await browser.runtime.sendMessage(message)) as CheckGrammarResponse;
-
-  if (!response?.success) {
-    if (response?.cancelled) throw new GrammarCheckCancelled();
-    throw new Error(response?.error || 'Unknown error occurred');
-  }
+  const user = context.usingCustomPrompt
+    ? `Please fix the grammar and spelling in this text while preserving EXACTLY the same formatting, line breaks, and structure as the original:\n\n${text}`
+    : text;
+  const raw = await requestCompletion(context.model, systemPrompt, user, 0.2, requestId);
 
   let correctedText = text;
   let suggestions: Suggestion[] = [];
-  const raw = response.data?.choices?.[0]?.message?.content;
-  if (typeof raw === 'string' && raw.trim().length > 0) {
+  if (raw.trim().length > 0) {
     const issues = parseModelIssues(raw);
     if (issues) {
       suggestions = locateSuggestions(text, issues);
@@ -202,10 +227,38 @@ export async function checkGrammar(text: string, requestId?: string): Promise<Gr
   return { correctedText, suggestions };
 }
 
+/**
+ * Rewrite the passage with one preset. Uses the same 5,000-character limit
+ * and the same background rate limiter as a grammar check.
+ */
+export async function rewritePassage(text: string, optionId: RewriteOptionId): Promise<string> {
+  assertWithinLimit(text);
+  const option = rewriteOption(optionId);
+  if (!option) throw new Error('That rewrite is not available.');
+
+  const context = await loadModelContext();
+  const systemPrompt = composeSystemPrompt(rewriteSystemPrompt(option), context.goals);
+  const cacheKey = getCacheKey(`rewrite:${option.id}`, text, context.model, systemPrompt);
+  const cachedResult = cache.get(cacheKey);
+  if (cachedResult) return cachedResult.correctedText;
+
+  const raw = await requestCompletion(context.model, systemPrompt, text, 0.3);
+  const rewritten = parseRewrite(raw);
+  if (!rewritten) throw new Error('The rewrite did not come back in a usable form.');
+
+  cache.set(cacheKey, rewritten);
+  return rewritten;
+}
+
 function readCachedSuggestions(text: string, entry: CacheEntry): Suggestion[] {
   try {
     const parsed = JSON.parse(entry.suggestionsJson || '[]') as unknown;
-    if (Array.isArray(parsed)) return parsed as Suggestion[];
+    if (Array.isArray(parsed)) {
+      const hydrated = parsed
+        .map((item) => hydrateSuggestion(item))
+        .filter((item): item is Suggestion => item !== null);
+      if (hydrated.length > 0 || parsed.length === 0) return hydrated;
+    }
   } catch {
     // Fall through and rebuild cards from the cached corrected text.
   }

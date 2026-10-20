@@ -664,14 +664,9 @@
   box-shadow: none;
 }
 
-/* One neutral underline. Each category has its own variable so colors can diverge later. */
+/* Group underlines. Accent values are published from src/lib/categories.ts. */
 :root {
   --st-underline: #52525b;
-  --st-cat-grammar: var(--st-underline);
-  --st-cat-spelling: var(--st-underline);
-  --st-cat-punctuation: var(--st-underline);
-  --st-cat-clarity: var(--st-underline);
-  --st-cat-style: var(--st-underline);
 }
 
 .safetyper-measure {
@@ -708,27 +703,11 @@
   cursor: pointer;
 }
 
-::highlight(safetyper-grammar) {
+::highlight(safetyper-correctness) {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 2px;
-  text-decoration-color: var(--st-cat-grammar);
-  text-decoration-skip-ink: none;
-}
-
-::highlight(safetyper-spelling) {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
-  text-decoration-color: var(--st-cat-spelling);
-  text-decoration-skip-ink: none;
-}
-
-::highlight(safetyper-punctuation) {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 2px;
-  text-decoration-color: var(--st-cat-punctuation);
+  text-decoration-color: var(--st-correctness-accent);
   text-decoration-skip-ink: none;
 }
 
@@ -736,14 +715,22 @@
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 2px;
-  text-decoration-color: var(--st-cat-clarity);
+  text-decoration-color: var(--st-clarity-accent);
   text-decoration-skip-ink: none;
 }
 
-::highlight(safetyper-style) {
+::highlight(safetyper-engagement) {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 2px;
-  text-decoration-color: var(--st-cat-style);
+  text-decoration-color: var(--st-engagement-accent);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-delivery) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-delivery-accent);
   text-decoration-skip-ink: none;
 }

@@ -5,11 +5,20 @@
 
 import { browser } from 'wxt/browser';
 import { stateManager } from './state-manager';
-import { checkGrammar } from './api-client';
+import { checkGrammar, rewritePassage } from './api-client';
 import { cancelAutoCheck, getAutoCheckSnapshot } from './auto-check-state';
+import { applyGroupColorVariables } from './category-colors';
 import { groupFill, highestPriorityGroup } from './group-colors';
 import { getIconSizeSetting, iconIsHidden, setIconSizeSetting } from './icon-metrics';
 import popupCss from '../../styles/popup-widget.css?inline';
+import {
+  countByGroup,
+  groupColorStyle,
+  groupLabel,
+  SUGGESTION_GROUPS,
+  type SuggestionGroupId,
+} from '../categories';
+import { REWRITE_OPTIONS, type RewriteOption } from '../rewrite';
 import {
   applySuggestion,
   applySuggestions,
@@ -32,6 +41,7 @@ let activeDragMove: ((e: MouseEvent) => void) | null = null;
 let activeKeyDown: ((e: KeyboardEvent) => void) | null = null;
 let suggestionCloseTimer = 0;
 let popupDragged = false;
+let activeSession: SuggestionSession | null = null;
 
 function popupContent(popup: HTMLElement | null): HTMLElement | null {
   return popup?.shadowRoot?.querySelector('.safetyper-popup-content') ?? null;
@@ -54,22 +64,31 @@ export async function loadTheme(): Promise<void> {
   } catch {
     currentTheme = 'light';
   }
+  applyGroupColorVariables(currentTheme);
 }
 
 /**
  * Update theme on existing UI elements
  */
+function paintPopup(popup: HTMLElement | null): void {
+  if (!popup) return;
+  popup.setAttribute('data-theme', currentTheme);
+  const root = popupRoot(popup);
+  if (!root) return;
+  root.setAttribute('data-theme', currentTheme);
+  for (const [name, value] of Object.entries(groupColorStyle(currentTheme))) {
+    root.style.setProperty(name, value);
+  }
+}
+
 export function updateTheme(isDark: boolean): void {
   currentTheme = isDark ? 'dark' : 'light';
+  applyGroupColorVariables(currentTheme);
   const iconContainer = stateManager.getIconContainer();
   if (iconContainer) {
     iconContainer.setAttribute('data-theme', currentTheme);
   }
-  const popup = stateManager.getPopup();
-  if (popup) {
-    popup.setAttribute('data-theme', currentTheme);
-    popupRoot(popup)?.setAttribute('data-theme', currentTheme);
-  }
+  paintPopup(stateManager.getPopup());
 }
 
 let typingTimer = 0;
@@ -450,6 +469,10 @@ function sessionForField(
     range: null,
     insertedNode: null,
     initialEmpty: suggestions.length === 0,
+    filter: 'all',
+    rewrite: null,
+    rewriteError: '',
+    rewriteBusy: false,
   };
 }
 
@@ -468,22 +491,53 @@ function mountPopupShell(): HTMLDivElement {
   root.setAttribute('data-theme', currentTheme);
   root.innerHTML = `
       <div class="st-header" title="Drag to move">
+      <div class="st-header-row">
       <img class="st-logo" alt="" src="${browser.runtime.getURL('/icon/32.png')}" />
       <div class="st-heading"><strong>SafeTyper</strong><span class="st-count" aria-live="polite"></span></div>
       <button type="button" class="st-accept-all" hidden>Accept all</button>
+      <div class="st-rewrite-wrap">
+        <button type="button" class="st-rewrite" hidden aria-haspopup="menu" aria-expanded="false" aria-controls="st-rewrite-menu">Rewrite</button>
+        <div id="st-rewrite-menu" class="st-menu" role="menu" hidden></div>
+      </div>
       <button type="button" class="st-close" aria-label="Close">×</button>
+      </div>
+      <div class="st-filters" role="group" aria-label="Filter by suggestion type" hidden></div>
     </div>
     <div class="safetyper-popup-content">
       <p class="st-loading">Checking...</p>
     </div>
   `;
   shadow.append(style, root);
+  paintPopup(popup);
   root.querySelector('.st-close')?.addEventListener('click', closePopup);
+  root.querySelector('.st-rewrite')?.addEventListener('click', () => {
+    toggleRewriteMenu();
+  });
+  const rewriteMenu = root.querySelector('.st-menu');
+  for (const option of REWRITE_OPTIONS) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'st-menu-item';
+    item.setAttribute('role', 'menuitem');
+    item.textContent = option.label;
+    item.addEventListener('click', () => {
+      closeRewriteMenu();
+      const content = popupContent(stateManager.getPopup());
+      if (!content || !activeSession || activeSession.rewriteBusy) return;
+      void runRewrite(content, activeSession, option);
+    });
+    rewriteMenu?.append(item);
+  }
   activeKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
+    if (event.key !== 'Escape') return;
+    const menu = popupRoot(stateManager.getPopup())?.querySelector('.st-menu');
+    if (menu && !menu.hasAttribute('hidden')) {
       event.preventDefault();
-      closePopup();
+      closeRewriteMenu();
+      return;
     }
+    event.preventDefault();
+    closePopup();
   };
   document.addEventListener('keydown', activeKeyDown);
 
@@ -559,10 +613,7 @@ export function showPopup(e: Event): void {
       const freshTheme = result.darkMode ? 'dark' : 'light';
       if (freshTheme !== currentTheme) {
         currentTheme = freshTheme;
-        if (popup) {
-          popup.setAttribute('data-theme', currentTheme);
-          popupRoot(popup)?.setAttribute('data-theme', currentTheme);
-        }
+        paintPopup(popup);
         const iconContainer = stateManager.getIconContainer();
         if (iconContainer) {
           iconContainer.setAttribute('data-theme', currentTheme);
@@ -701,6 +752,7 @@ function openSettings(): void {
  * Close popup and clean up all associated listeners
  */
 export function closePopup(): void {
+  activeSession = null;
   const popup = stateManager.getPopup();
   if (popup) {
     window.clearTimeout(suggestionCloseTimer);
@@ -820,6 +872,11 @@ function repositionPopup(popup: HTMLElement): void {
   constrainPopupToViewport(popup);
 }
 
+interface RewritePreview {
+  label: string;
+  text: string;
+}
+
 interface SuggestionSession {
   workingText: string;
   suggestions: Suggestion[];
@@ -831,6 +888,10 @@ interface SuggestionSession {
   range: Range | null;
   insertedNode: Text | null;
   initialEmpty: boolean;
+  filter: SuggestionGroupId | 'all';
+  rewrite: RewritePreview | null;
+  rewriteError: string;
+  rewriteBusy: boolean;
 }
 
 function writeSession(session: SuggestionSession): void {
@@ -882,62 +943,241 @@ function showManualCopy(content: HTMLElement, value: string): void {
   area.select();
 }
 
+function visibleSuggestions(session: SuggestionSession): Suggestion[] {
+  if (
+    session.filter !== 'all' &&
+    !session.suggestions.some((item) => item.group === session.filter)
+  ) {
+    session.filter = 'all';
+  }
+  if (session.filter === 'all') return session.suggestions;
+  return session.suggestions.filter((item) => item.group === session.filter);
+}
+
+function closeRewriteMenu(): void {
+  const root = popupRoot(stateManager.getPopup());
+  const menu = root?.querySelector('.st-menu');
+  const toggle = root?.querySelector('.st-rewrite');
+  if (menu) menu.setAttribute('hidden', '');
+  if (toggle instanceof HTMLButtonElement) toggle.setAttribute('aria-expanded', 'false');
+}
+
+function toggleRewriteMenu(): void {
+  const root = popupRoot(stateManager.getPopup());
+  const menu = root?.querySelector('.st-menu');
+  const toggle = root?.querySelector('.st-rewrite');
+  if (!(menu instanceof HTMLElement) || !(toggle instanceof HTMLButtonElement)) return;
+  if (!menu.hasAttribute('hidden')) {
+    closeRewriteMenu();
+    return;
+  }
+  menu.removeAttribute('hidden');
+  toggle.setAttribute('aria-expanded', 'true');
+  const first = menu.querySelector('button');
+  if (first instanceof HTMLButtonElement) first.focus();
+}
+
+function acceptVisible(content: HTMLElement, session: SuggestionSession): void {
+  const visible = visibleSuggestions(session);
+  if (session.isComplex) {
+    const corrected = applySuggestions(session.workingText, visible);
+    void copyText(corrected).then((ok) => {
+      if (!ok) {
+        showManualCopy(content, corrected);
+        return;
+      }
+      const visibleIds = new Set(visible.map((item) => item.id));
+      session.suggestions = session.suggestions.filter((item) => !visibleIds.has(item.id));
+      session.initialEmpty = false;
+      renderSuggestionCards(content, session);
+    });
+    return;
+  }
+  const ordered = [...visible].sort((a, b) => b.start - a.start);
+  for (const suggestion of ordered) {
+    const applied = applySuggestion(session.workingText, suggestion);
+    if (!applied.changed) {
+      session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
+      continue;
+    }
+    session.workingText = applied.text;
+    session.suggestions = removeSuggestion(
+      session.suggestions,
+      suggestion.id,
+      applied.start,
+      applied.end,
+      applied.delta
+    );
+  }
+  writeSession(session);
+  session.initialEmpty = false;
+  renderSuggestionCards(content, session);
+}
+
+async function runRewrite(
+  content: HTMLElement,
+  session: SuggestionSession,
+  option: RewriteOption
+): Promise<void> {
+  if (session.rewriteBusy) return;
+  session.rewriteBusy = true;
+  session.rewriteError = '';
+  const popup = stateManager.getPopup();
+  if (popup) popup.dataset.busy = '1';
+  renderSuggestionCards(content, session);
+  try {
+    const text = await rewritePassage(session.workingText, option.id);
+    if (activeSession !== session) return;
+    session.rewrite = { label: option.label, text };
+  } catch (error: unknown) {
+    if (activeSession !== session) return;
+    session.rewriteError = error instanceof Error ? error.message : 'The rewrite failed.';
+  } finally {
+    if (activeSession === session) {
+      session.rewriteBusy = false;
+      const current = stateManager.getPopup();
+      if (current) current.dataset.busy = '';
+      renderSuggestionCards(content, session);
+      setTimeout(() => {
+        const open = stateManager.getPopup();
+        if (open) repositionPopup(open);
+      }, 0);
+    }
+  }
+}
+
+function renderFilters(
+  container: HTMLElement,
+  content: HTMLElement,
+  session: SuggestionSession
+): void {
+  container.replaceChildren();
+  const total = session.suggestions.length;
+  if (total === 0) {
+    container.hidden = true;
+    return;
+  }
+  container.hidden = false;
+  const counts = countByGroup(session.suggestions);
+
+  const all = document.createElement('button');
+  all.type = 'button';
+  all.className = 'st-chip';
+  all.dataset.group = 'all';
+  all.setAttribute('aria-pressed', session.filter === 'all' ? 'true' : 'false');
+  all.textContent = `All ${total}`;
+  all.addEventListener('click', () => {
+    session.filter = 'all';
+    renderSuggestionCards(content, session);
+  });
+  container.append(all);
+
+  for (const group of SUGGESTION_GROUPS) {
+    const count = counts[group.id];
+    if (count === 0) continue;
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'st-chip';
+    chip.dataset.group = group.id;
+    const pressed = session.filter === group.id;
+    chip.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    const dot = document.createElement('span');
+    dot.className = 'st-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('span');
+    label.textContent = `${count} ${group.label}`;
+    chip.append(dot, label);
+    chip.addEventListener('click', () => {
+      session.filter = pressed ? 'all' : group.id;
+      renderSuggestionCards(content, session);
+    });
+    container.append(chip);
+  }
+}
+
 function renderSuggestionCards(content: HTMLElement, session: SuggestionSession): void {
+  activeSession = session;
+  closeRewriteMenu();
   const popup = stateManager.getPopup();
   const root = popupRoot(popup);
   const count = root?.querySelector('.st-count');
   const acceptAll = root?.querySelector('.st-accept-all');
+  const rewriteButton = root?.querySelector('.st-rewrite');
+  const filters = root?.querySelector('.st-filters');
+  const visible = visibleSuggestions(session);
   const remaining = session.suggestions.length;
+  const idle = remaining === 0 && !session.rewrite && !session.rewriteBusy && !session.rewriteError;
+
   if (count) {
-    count.textContent =
-      remaining === 0
-        ? session.initialEmpty
-          ? 'Nothing to change'
-          : 'All done'
-        : `${remaining} suggestion${remaining === 1 ? '' : 's'}`;
+    if (session.rewriteBusy) {
+      count.textContent = 'Rewriting…';
+    } else if (remaining === 0) {
+      count.textContent = session.initialEmpty
+        ? 'Nothing to change'
+        : session.rewrite
+          ? 'Rewrite'
+          : 'All done';
+    } else if (session.filter === 'all') {
+      count.textContent = `${remaining} suggestion${remaining === 1 ? '' : 's'}`;
+    } else {
+      count.textContent = `${visible.length} of ${remaining}`;
+    }
   }
   if (acceptAll instanceof HTMLButtonElement) {
-    acceptAll.hidden = remaining === 0;
+    acceptAll.hidden = visible.length === 0;
     acceptAll.textContent = session.isComplex ? 'Copy all' : 'Accept all';
     acceptAll.setAttribute(
       'aria-label',
-      session.isComplex ? 'Copy all corrected text' : 'Accept all suggestions'
+      session.filter === 'all'
+        ? session.isComplex
+          ? 'Copy all corrected text'
+          : 'Accept all suggestions'
+        : session.isComplex
+          ? `Copy ${groupLabel(session.filter)} suggestions`
+          : `Accept ${groupLabel(session.filter)} suggestions`
     );
     acceptAll.onclick = () => {
-      const corrected = applySuggestions(session.workingText, session.suggestions);
-      if (session.isComplex) {
-        void copyText(corrected).then((ok) => {
-          if (!ok) {
-            showManualCopy(content, corrected);
-            return;
-          }
-          session.suggestions = [];
-          session.initialEmpty = false;
-          renderSuggestionCards(content, session);
-        });
-        return;
-      }
-      session.workingText = corrected;
-      writeSession(session);
-      session.suggestions = [];
-      session.initialEmpty = false;
-      renderSuggestionCards(content, session);
+      acceptVisible(content, session);
     };
   }
+  if (rewriteButton instanceof HTMLButtonElement) {
+    rewriteButton.hidden = idle;
+    rewriteButton.disabled = session.rewriteBusy;
+  }
+  if (filters instanceof HTMLElement) renderFilters(filters, content, session);
 
   content.replaceChildren();
-  if (remaining === 0) {
-    const done = document.createElement('p');
-    done.className = 'st-done';
-    done.setAttribute('role', 'status');
-    done.textContent = session.initialEmpty ? 'Nothing to change' : 'All done';
-    content.append(done);
-    window.clearTimeout(suggestionCloseTimer);
-    suggestionCloseTimer = window.setTimeout(closePopup, 1600);
+  if (session.rewriteBusy) {
+    const loading = document.createElement('p');
+    loading.className = 'st-loading';
+    loading.textContent = 'Rewriting…';
+    content.append(loading);
+  }
+  if (session.rewriteError) {
+    const error = document.createElement('p');
+    error.className = 'st-error';
+    error.textContent = session.rewriteError;
+    content.append(error);
+  }
+  if (session.rewrite) {
+    content.append(renderRewriteCard(content, session, session.rewrite));
+  }
+
+  if (remaining === 0 && !session.rewrite && !session.rewriteBusy) {
+    if (!session.rewriteError) {
+      const done = document.createElement('p');
+      done.className = 'st-done';
+      done.setAttribute('role', 'status');
+      done.textContent = session.initialEmpty ? 'Nothing to change' : 'All done';
+      content.append(done);
+      window.clearTimeout(suggestionCloseTimer);
+      suggestionCloseTimer = window.setTimeout(closePopup, 1600);
+    }
     return;
   }
 
   window.clearTimeout(suggestionCloseTimer);
+  if (visible.length === 0) return;
   if (session.isComplex) {
     const note = document.createElement('p');
     note.className = 'st-notice';
@@ -947,84 +1187,159 @@ function renderSuggestionCards(content: HTMLElement, session: SuggestionSession)
 
   const list = document.createElement('div');
   list.className = 'st-list';
-  for (const suggestion of session.suggestions) {
-    const card = document.createElement('article');
-    card.className = 'st-card';
-    const category = document.createElement('p');
-    category.className = 'st-category';
-    category.textContent = suggestion.category;
-    const quote = document.createElement('p');
-    quote.className = 'st-quote';
-    const original = suggestion.quote.trim();
-    const fixed = suggestion.replacement.trim();
-    if (original) {
-      const struck = document.createElement('del');
-      struck.textContent = original;
-      quote.append(struck, document.createTextNode(' '));
-    }
-    const replacement = document.createElement('strong');
-    replacement.textContent = fixed || suggestion.replacement;
-    quote.append(replacement);
-    const explanation = document.createElement('p');
-    explanation.className = 'st-explanation';
-    explanation.textContent = suggestion.explanation;
-    const actions = document.createElement('div');
-    actions.className = 'st-actions';
-    const accept = document.createElement('button');
-    accept.type = 'button';
-    accept.className = 'st-btn st-btn-primary';
-    accept.textContent = session.isComplex ? 'Copy fixed text' : 'Accept';
-    accept.setAttribute(
-      'aria-label',
-      session.isComplex
-        ? `Copy fixed text for ${original || 'this suggestion'}`
-        : `Accept change from ${original || 'empty'} to ${fixed || 'empty'}`
-    );
-    accept.addEventListener('click', () => {
-      if (session.isComplex) {
-        void copyText(suggestion.replacement).then((ok) => {
-          if (!ok) {
-            showManualCopy(content, suggestion.replacement);
-            return;
-          }
-          session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
-          session.initialEmpty = false;
-          renderSuggestionCards(content, session);
-        });
-        return;
-      }
-      const applied = applySuggestion(session.workingText, suggestion);
-      if (applied.changed) {
-        session.workingText = applied.text;
-        writeSession(session);
-        session.suggestions = removeSuggestion(
-          session.suggestions,
-          suggestion.id,
-          applied.start,
-          applied.end,
-          applied.delta
-        );
-      } else {
-        session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
-      }
-      session.initialEmpty = false;
-      renderSuggestionCards(content, session);
-    });
-    const dismiss = document.createElement('button');
-    dismiss.type = 'button';
-    dismiss.className = 'st-btn';
-    dismiss.textContent = 'Dismiss';
-    dismiss.setAttribute('aria-label', `Dismiss suggestion for ${original || 'this text'}`);
-    dismiss.addEventListener('click', () => {
-      session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
-      session.initialEmpty = false;
-      renderSuggestionCards(content, session);
-    });
-    actions.append(accept, dismiss);
-    card.append(category, quote, explanation, actions);
-    list.append(card);
+  for (const suggestion of visible) {
+    list.append(renderIssueCard(content, session, suggestion));
   }
   content.append(list);
+}
+
+function renderRewriteCard(
+  content: HTMLElement,
+  session: SuggestionSession,
+  rewrite: RewritePreview
+): HTMLElement {
+  const card = document.createElement('article');
+  card.className = 'st-card st-rewrite-card';
+  const category = document.createElement('p');
+  category.className = 'st-category';
+  const dot = document.createElement('span');
+  dot.className = 'st-dot';
+  dot.setAttribute('aria-hidden', 'true');
+  const name = document.createElement('span');
+  name.textContent = 'Rewrite';
+  category.append(dot, name);
+  const kicker = document.createElement('p');
+  kicker.className = 'st-kicker';
+  kicker.textContent = rewrite.label;
+  const body = document.createElement('p');
+  body.className = 'st-rewrite-text';
+  body.textContent = rewrite.text;
+  const actions = document.createElement('div');
+  actions.className = 'st-actions';
+  const accept = document.createElement('button');
+  accept.type = 'button';
+  accept.className = 'st-btn st-btn-primary';
+  accept.textContent = session.isComplex ? 'Copy rewrite' : 'Accept';
+  accept.addEventListener('click', () => {
+    if (session.isComplex) {
+      void copyText(rewrite.text).then((ok) => {
+        if (!ok) {
+          showManualCopy(content, rewrite.text);
+          return;
+        }
+        session.rewrite = null;
+        session.initialEmpty = false;
+        renderSuggestionCards(content, session);
+      });
+      return;
+    }
+    session.workingText = rewrite.text;
+    session.suggestions = [];
+    session.rewrite = null;
+    session.initialEmpty = false;
+    writeSession(session);
+    renderSuggestionCards(content, session);
+  });
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.className = 'st-btn';
+  dismiss.textContent = 'Dismiss';
+  dismiss.addEventListener('click', () => {
+    session.rewrite = null;
+    renderSuggestionCards(content, session);
+  });
+  actions.append(accept, dismiss);
+  card.append(category, kicker, body, actions);
+  return card;
+}
+
+function renderIssueCard(
+  content: HTMLElement,
+  session: SuggestionSession,
+  suggestion: Suggestion
+): HTMLElement {
+  const card = document.createElement('article');
+  card.className = 'st-card';
+  card.dataset.group = suggestion.group;
+  card.dataset.subcategory = suggestion.subcategory;
+  const category = document.createElement('p');
+  category.className = 'st-category';
+  const dot = document.createElement('span');
+  dot.className = 'st-dot';
+  dot.setAttribute('aria-hidden', 'true');
+  const name = document.createElement('span');
+  name.textContent = groupLabel(suggestion.group);
+  category.append(dot, name);
+  const quote = document.createElement('p');
+  quote.className = 'st-quote';
+  const original = suggestion.quote.trim();
+  const fixed = suggestion.replacement.trim();
+  if (original) {
+    const struck = document.createElement('del');
+    struck.textContent = original;
+    quote.append(struck, document.createTextNode(' '));
+  }
+  const replacement = document.createElement('strong');
+  replacement.textContent = fixed || suggestion.replacement;
+  quote.append(replacement);
+  const explanation = document.createElement('p');
+  explanation.className = 'st-explanation';
+  explanation.textContent = suggestion.explanation;
+  const actions = document.createElement('div');
+  actions.className = 'st-actions';
+  const accept = document.createElement('button');
+  accept.type = 'button';
+  accept.className = 'st-btn st-btn-primary';
+  accept.textContent = session.isComplex ? 'Copy fixed text' : 'Accept';
+  accept.setAttribute(
+    'aria-label',
+    session.isComplex
+      ? `Copy fixed text for ${original || 'this suggestion'}`
+      : `Accept change from ${original || 'empty'} to ${fixed || 'empty'}`
+  );
+  accept.addEventListener('click', () => {
+    if (session.isComplex) {
+      void copyText(suggestion.replacement).then((ok) => {
+        if (!ok) {
+          showManualCopy(content, suggestion.replacement);
+          return;
+        }
+        session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
+        session.initialEmpty = false;
+        renderSuggestionCards(content, session);
+      });
+      return;
+    }
+    const applied = applySuggestion(session.workingText, suggestion);
+    if (applied.changed) {
+      session.workingText = applied.text;
+      writeSession(session);
+      session.suggestions = removeSuggestion(
+        session.suggestions,
+        suggestion.id,
+        applied.start,
+        applied.end,
+        applied.delta
+      );
+    } else {
+      session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
+    }
+    session.initialEmpty = false;
+    renderSuggestionCards(content, session);
+  });
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.className = 'st-btn';
+  dismiss.textContent = 'Dismiss';
+  dismiss.setAttribute('aria-label', `Dismiss suggestion for ${original || 'this text'}`);
+  dismiss.addEventListener('click', () => {
+    session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
+    session.initialEmpty = false;
+    renderSuggestionCards(content, session);
+  });
+  actions.append(accept, dismiss);
+  card.append(category, quote, explanation, actions);
+  return card;
 }
 
 /**
@@ -1131,6 +1446,10 @@ async function handleGrammarCheck(): Promise<void> {
       range,
       insertedNode: null,
       initialEmpty: result.suggestions.length === 0,
+      filter: 'all',
+      rewrite: null,
+      rewriteError: '',
+      rewriteBusy: false,
     });
     setTimeout(() => repositionPopup(currentPopup), 0);
   } catch (error: unknown) {

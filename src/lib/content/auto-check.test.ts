@@ -3,9 +3,9 @@
  * Execute with `bun src/lib/content/auto-check.test.ts`.
  */
 
+import { SUGGESTION_GROUP_IDS } from '../categories';
 import { CONFIG } from './config';
-import { SUGGESTION_CATEGORIES } from './suggestions';
-import { CATEGORY_COLOR_VARS } from './category-colors';
+import { GROUP_UNDERLINE_VARS, categoryColorVariable } from './category-colors';
 import { consumeTokenBudget, estimateTokens, refundTokenSpend, TOKEN_BUDGET } from './budget';
 import {
   AUTO_CHECK_BACKOFF_MAX_MS,
@@ -61,10 +61,16 @@ function run(): void {
   );
   assert(CONFIG.AUTO_CHECK_MIN_CHARS >= 8, 'auto-check ignores very short text');
 
-  for (const category of SUGGESTION_CATEGORIES) {
-    assert(
-      CATEGORY_COLOR_VARS[category].startsWith('--st-cat-'),
-      `${category} has its own underline variable`
+  for (const group of SUGGESTION_GROUP_IDS) {
+    assertEqual(
+      GROUP_UNDERLINE_VARS[group],
+      `--st-${group}-accent`,
+      `${group} underline uses the shared accent`
+    );
+    assertEqual(
+      categoryColorVariable(group),
+      `var(--st-${group}-accent)`,
+      `${group} underline reads the shared variable`
     );
   }
 

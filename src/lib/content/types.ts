@@ -2,6 +2,8 @@
  * Type definitions for SafeTyper content script
  */
 
+import type { WritingGoals } from '../goals';
+
 /**
  * Supported API providers
  */
@@ -90,6 +92,7 @@ export interface StorageSchema {
   darkMode?: boolean;
   hasCompletedOnboarding?: boolean;
   customSystemPrompt?: string;
+  writingGoals?: WritingGoals;
   popupTab?: 'translate' | 'settings';
   translateSourceLanguage?: string;
   translateTargetLanguage?: string;
