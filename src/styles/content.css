@@ -148,36 +148,54 @@
   flex-shrink: 0;
 }
 
+.safetyper-icon,
+.safetyper-icon-preview {
+  width: var(--st-icon-size, 22px);
+  height: var(--st-icon-size, 22px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  font:
+    700 12px/1 Inter,
+    'Geist Sans',
+    sans-serif;
+  line-height: 1;
+  color: inherit;
+}
+
 .safetyper-icon {
   position: fixed;
-  width: 24px;
-  height: 24px;
   z-index: 999999;
-  cursor: pointer;
   display: none;
-  align-items: center;
-  justify-content: center;
-  background: #000000;
-  border: 1px solid var(--st-border);
-  border-radius: 50% !important;
   overflow: visible;
-  box-shadow: none;
-  transition:
-    transform 0.15s ease,
-    background 0.15s ease;
+  opacity: 1;
+  transition: opacity 140ms ease;
 }
 
-.safetyper-icon[data-theme='dark'] {
-  border-color: var(--st-border);
+.safetyper-icon[data-size='medium'],
+.safetyper-icon-preview[data-size='medium'] {
+  --st-icon-size: 28px;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
 }
 
-.safetyper-icon:hover {
-  transform: scale(1.05);
-  background: #000000;
+.safetyper-icon[data-typing='true']:not([data-state='issues']):not([data-state='checking']):not(
+    [data-state='clean']
+  ):not(:hover):not(:focus-within),
+.safetyper-icon-preview[data-typing='true'] {
+  opacity: 0.6;
 }
 
-.safetyper-icon[data-theme='dark']:hover {
-  background: #262626;
+.safetyper-icon[data-size='hidden'] {
+  display: none !important;
+}
+
+.safetyper-icon-preview {
+  position: relative;
+  display: block;
+  overflow: visible;
 }
 
 .safetyper-popup-host {
@@ -610,31 +628,6 @@
   --st-cat-punctuation: var(--st-underline);
   --st-cat-clarity: var(--st-underline);
   --st-cat-style: var(--st-underline);
-}
-
-.safetyper-badge {
-  display: none;
-  position: absolute;
-  top: -6px;
-  right: -7px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
-  box-sizing: border-box;
-  border-radius: 999px;
-  background: #15803d;
-  color: #fff;
-  font-family: Inter, 'Geist Sans', sans-serif;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 15px;
-  text-align: center;
-  box-shadow: 0 0 0 1px #fff;
-  pointer-events: none;
-}
-
-.safetyper-badge.is-visible {
-  display: inline-block;
 }
 
 .safetyper-measure {

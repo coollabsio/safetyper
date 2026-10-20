@@ -61,10 +61,40 @@
         .instructions li {
             margin-bottom: 8px;
         }
-        .placement-lab {
+        .placement-lab,
+        .icon-lab {
             margin-top: 36px;
             padding-top: 12px;
             border-top: 2px solid #ddd;
+        }
+        .icon-gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 18px 22px;
+            align-items: end;
+            padding: 28px 12px 8px;
+        }
+        .icon-gallery figure {
+            margin: 0;
+            min-width: 72px;
+            text-align: center;
+        }
+        .icon-gallery figcaption {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #52525b;
+        }
+        .icon-gallery-dark {
+            margin-top: 16px;
+            padding: 8px 12px 16px;
+            border-radius: 12px;
+            background: #18181b;
+        }
+        .icon-gallery-dark figcaption {
+            color: #d4d4d8;
+        }
+        #icon-live {
+            min-height: 72px;
         }
         .placement-lab h2 {
             margin-bottom: 8px;
@@ -380,6 +410,19 @@ Final paragraph here with more content to test the diff view.</textarea>
             </div>
         </div>
     </div>
+
+    <section class="icon-lab" id="icon-states">
+        <h2>Icon states</h2>
+        <p>The same in-field icon, in each state. Hidden is a setting: underlines stay, and Alt+Shift+S opens suggestions.</p>
+        <div id="icon-state-gallery" class="icon-gallery"></div>
+        <div class="icon-gallery-dark">
+            <div id="icon-state-gallery-dark" class="icon-gallery"></div>
+        </div>
+        <div class="input-group">
+            <label for="icon-live">Live icon on a field</label>
+            <textarea id="icon-live" rows="3">Teh meeting notes from yesterday has several problem that we should fix.</textarea>
+        </div>
+    </section>
 
     <section class="placement-lab" id="placement-lab">
         <h2>Icon placement</h2>

@@ -1,0 +1,187 @@
+/* In-field icon. Injected into the icon shadow root. */
+
+.face {
+  --face: #ffffff;
+  --line: #d4d4d8;
+  --mark: #15803d;
+  --clean: #15803d;
+  --ink: var(--st-ink, #ffffff);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.14), 0 3px 8px rgb(0 0 0 / 0.08);
+  --state: var(--st-state, var(--line));
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--face);
+  color: var(--mark);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+:host([data-surface='dark']) .face {
+  --face: #27272a;
+  --line: rgb(255 255 255 / 0.2);
+  --mark: #4ade80;
+  --clean: #4ade80;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 4px 10px rgb(0 0 0 / 0.35);
+}
+
+.face:focus {
+  outline: none;
+}
+
+.face:focus-visible {
+  outline: 2px solid var(--mark);
+  outline-offset: 2px;
+}
+
+.mark,
+.check {
+  width: 68%;
+  height: 68%;
+  display: block;
+}
+
+.check {
+  display: none;
+}
+
+.ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  border-top-color: var(--mark);
+  opacity: 0;
+  pointer-events: none;
+}
+
+:host([data-state='checking']) .ring {
+  opacity: 1;
+  animation: st-spin 0.9s linear infinite;
+}
+
+:host([data-state='clean']) .face {
+  border-color: var(--clean);
+  color: var(--clean);
+}
+
+:host([data-state='clean']) .mark {
+  display: none;
+}
+
+:host([data-state='clean']) .check {
+  display: block;
+}
+
+.num,
+.badge {
+  display: none;
+  place-items: center;
+  box-sizing: border-box;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: var(--state);
+  color: var(--ink);
+  font-size: 9px;
+  box-shadow: 0 0 0 1px var(--face);
+}
+
+:host([data-presentation='badge']) .badge {
+  display: grid;
+}
+
+:host([data-presentation='badge']) .face {
+  border-color: var(--state);
+}
+
+:host([data-presentation='count']) .mark,
+:host([data-presentation='count']) .check {
+  display: none;
+}
+
+:host([data-presentation='count']) .num {
+  display: grid;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+:host([data-presentation='count']) .face {
+  background: var(--state);
+  border-color: transparent;
+  color: var(--ink);
+}
+
+:host([data-presentation='count']:hover) .face,
+:host([data-presentation='count']:focus-within) .face,
+:host([data-reveal='true']) .face {
+  background: var(--face);
+  border-color: var(--state);
+  color: var(--mark);
+}
+
+:host([data-presentation='count']:hover) .num,
+:host([data-presentation='count']:focus-within) .num,
+:host([data-reveal='true']) .num {
+  display: none;
+}
+
+:host([data-presentation='count']:hover) .mark,
+:host([data-presentation='count']:focus-within) .mark,
+:host([data-reveal='true']) .mark {
+  display: block;
+}
+
+.tip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: #18181b;
+  color: #fafafa;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.18);
+}
+
+:host([data-presentation='count']:hover) .tip,
+:host([data-presentation='count']:focus-within) .tip,
+:host([data-reveal='true']) .tip {
+  opacity: 1;
+}
+
+@keyframes st-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host([data-state='checking']) .ring {
+    animation: none;
+    border-color: var(--mark);
+    opacity: 0.9;
+  }
+}

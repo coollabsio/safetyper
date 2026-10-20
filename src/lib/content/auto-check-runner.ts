@@ -23,7 +23,7 @@ import { CONFIG } from './config';
 import { getTextContent, isEditableElement } from './dom-utils';
 import type { Suggestion } from './suggestions';
 import { clearUnderlines, renderUnderlines, setUnderlineClickHandler } from './underlines';
-import { setIssueCount, showFieldIssues } from './ui-manager';
+import { setIconActivity, setIconAutoCheck, showFieldIssues } from './ui-manager';
 
 interface Settings {
   enabled: boolean;
@@ -89,6 +89,7 @@ async function loadSettings(): Promise<void> {
       enabled: stored.autoCheckEnabled === true,
       disabledHosts: readHosts(stored.autoCheckDisabledHosts),
     };
+    setIconAutoCheck(settings.enabled);
   } catch (error) {
     console.error('[SafeTyper] Failed to load auto-check settings:', error);
   }
@@ -101,6 +102,7 @@ function onStorageChanged(changes: Record<string, { newValue?: unknown }>, areaN
   if (changes.autoCheckDisabledHosts) {
     settings.disabledHosts = readHosts(changes.autoCheckDisabledHosts.newValue);
   }
+  setIconAutoCheck(settings.enabled);
   if (!settings.enabled || isHostDisabled(location.hostname, settings.disabledHosts)) {
     issues = [];
     publish();
@@ -209,6 +211,7 @@ async function run(token: number): Promise<void> {
   issues = keepPending(text, issues, segments, plan.pending, plan.issues);
   publish();
   if (plan.pending.length === 0) return;
+  setIconActivity('checking');
 
   for (const segment of plan.pending) {
     if (token !== generation || document.hidden || !eligible()) return;
@@ -235,12 +238,13 @@ async function run(token: number): Promise<void> {
       issues = mergeSegmentResult(currentText, issues, current, result.suggestions);
       backoffMs = 0;
       backoffUntil = 0;
-      publish();
+      publish('checked');
     } catch (error) {
       if (isCancelled(error) || token !== generation) return;
       backoffMs = nextBackoffMs(backoffMs);
       backoffUntil = Date.now() + backoffMs;
       console.error('[SafeTyper] Auto-check failed:', error);
+      setIconActivity(issues.length > 0 ? 'issues' : 'idle', issues);
       if (token === generation) schedule();
       return;
     } finally {
@@ -305,13 +309,15 @@ function focused(element: HTMLElement): boolean {
   return active instanceof Node && element.contains(active);
 }
 
-function publish(): void {
+function publish(outcome?: 'checked'): void {
   setAutoCheckSnapshot({ field, text, issues });
-  setIssueCount(issues.length);
+  setIconAutoCheck(settings.enabled);
   if (!field || issues.length === 0) {
     clearUnderlines();
+    setIconActivity(outcome === 'checked' ? 'clean' : 'idle');
     return;
   }
+  setIconActivity('issues', issues);
   renderUnderlines(field, text, issues);
 }
 

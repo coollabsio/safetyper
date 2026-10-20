@@ -3,7 +3,7 @@
  */
 
 import type { Position } from './types';
-import { CONFIG } from './config';
+import { iconPixelSize } from './icon-metrics';
 import { avoidObstacles, calculateSmartIconPosition } from './icon-placement';
 
 /**
@@ -265,7 +265,7 @@ export function escapeHtml(text: string): string {
  */
 export function calculateSelectionIconPosition(range: Range): Position {
   const rect = range.getBoundingClientRect();
-  const iconSize = CONFIG.ICON_SIZE;
+  const iconSize = iconPixelSize();
 
   let left = rect.right + 4;
   let top = rect.bottom - iconSize;
