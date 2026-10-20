@@ -8,6 +8,7 @@
     DEFAULT_PROVIDER,
     DEFAULT_SYSTEM_PROMPT,
   } from '../../lib/content/config';
+  import TranslatePanel from './TranslatePanel.svelte';
 
   const version = browser.runtime.getManifest().version;
 
@@ -41,6 +42,10 @@
 
   const customSystemPromptStorage = storage.defineItem<string>('local:customSystemPrompt', {
     fallback: '',
+  });
+
+  const popupTabStorage = storage.defineItem<'translate' | 'settings'>('local:popupTab', {
+    fallback: 'translate',
   });
 
   // Fallback models per provider
@@ -109,6 +114,7 @@
   let connectionModelCount = $state(0);
   let customSystemPrompt = $state('');
   let showAdvanced = $state(false);
+  let activeTab = $state<'translate' | 'settings'>('translate');
 
   let providerConfig = $derived(PROVIDER_CONFIG[selectedProvider]);
   let showPricing = $derived(selectedProvider === 'openrouter');
@@ -390,9 +396,40 @@
     browser.tabs.create({ url: testUrl });
   }
 
+  async function selectTab(tab: 'translate' | 'settings'): Promise<void> {
+    activeTab = tab;
+    try {
+      await popupTabStorage.setValue(tab);
+    } catch (error) {
+      console.error('Failed to save popup tab:', error);
+    }
+  }
+
+  function handleTabKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+    event.preventDefault();
+    const next =
+      event.key === 'ArrowRight'
+        ? activeTab === 'translate'
+          ? 'settings'
+          : 'translate'
+        : activeTab === 'settings'
+          ? 'translate'
+          : 'settings';
+    void selectTab(next);
+    queueMicrotask(() => {
+      document.getElementById(next === 'translate' ? 'tab-translate' : 'tab-settings')?.focus();
+    });
+  }
+
   onMount(async () => {
     darkMode = (await darkModeStorage.getValue()) ?? false;
     applyTheme(darkMode);
+
+    const storedTab = await popupTabStorage.getValue();
+    if (storedTab === 'settings' || storedTab === 'translate') {
+      activeTab = storedTab;
+    }
 
     try {
       selectedProvider = (await selectedProviderStorage.getValue()) || DEFAULT_PROVIDER;
@@ -523,203 +560,238 @@
   </div>
   <div class="content">
     <section class="layer-card">
-      <header class="layer-card-header">
-        <h2>Settings</h2>
+      <header
+        class="layer-card-header tab-header"
+        role="tablist"
+        aria-label="Popup sections"
+        tabindex="-1"
+        onkeydown={handleTabKeydown}
+      >
+        <button
+          type="button"
+          class="tab"
+          role="tab"
+          id="tab-translate"
+          aria-selected={activeTab === 'translate'}
+          aria-controls="panel-translate"
+          tabindex={activeTab === 'translate' ? 0 : -1}
+          onclick={() => void selectTab('translate')}
+        >
+          Translate
+        </button>
+        <button
+          type="button"
+          class="tab"
+          role="tab"
+          id="tab-settings"
+          aria-selected={activeTab === 'settings'}
+          aria-controls="panel-settings"
+          tabindex={activeTab === 'settings' ? 0 : -1}
+          onclick={() => void selectTab('settings')}
+        >
+          Settings
+        </button>
       </header>
       <div class="layer-card-body">
-        <div class="form">
-          <div class="field">
-            <label for="provider-select">API Provider</label>
-            <select
-              id="provider-select"
-              class="select"
-              value={selectedProvider}
-              onchange={handleProviderChange}
-            >
-              <option value="openrouter">OpenRouter</option>
-              <option value="groq">Groq</option>
-              <option value="ollama">Ollama</option>
-            </select>
+        {#if activeTab === 'translate'}
+          <div id="panel-translate" role="tabpanel" aria-labelledby="tab-translate">
+            <TranslatePanel onOpenSettings={() => void selectTab('settings')} />
           </div>
-
-          <div class="field">
-            <div class="label-row">
-              <label for="model-search">LLM Model</label>
-              <button
-                class="refresh-btn"
-                onclick={() => fetchModels(true)}
-                disabled={isLoadingModels}
-              >
-                {isLoadingModels ? '...' : 'Refresh'}
-              </button>
-            </div>
-
-            <!-- svelte-ignore a11y_role_has_required_aria_props -->
-            <div class="combobox" bind:this={comboboxEl} role="combobox">
-              <input
-                id="model-search"
-                type="text"
-                class="combobox-input"
-                placeholder="Search models..."
-                value={isDropdownOpen ? searchQuery : selectedModelDisplay}
-                onfocus={openDropdown}
-                oninput={handleSearchInput}
-                onkeydown={handleComboKeydown}
-                bind:this={inputEl}
-              />
-              <button
-                class="combobox-toggle"
-                onclick={toggleDropdown}
-                tabindex="-1"
-                aria-label="Toggle model list"
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M3 5L6 2L9 5"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                  <path
-                    d="M3 7L6 10L9 7"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  />
-                </svg>
-              </button>
-
-              {#if isDropdownOpen}
-                <ul class="combobox-list" bind:this={listEl}>
-                  {#each filteredModels as model, i (model.id)}
-                    <li
-                      class:highlighted={i === highlightedIndex}
-                      class:selected={model.id === selectedModel}
-                      onclick={() => selectModel(model)}
-                      onkeydown={(e: KeyboardEvent) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          selectModel(model);
-                        }
-                      }}
-                      role="option"
-                      aria-selected={model.id === selectedModel}
-                    >
-                      <span class="model-name">{model.name}</span>
-                      {#if showPricing}
-                        <span class="model-price">{formatPrice(model)}</span>
-                      {/if}
-                    </li>
-                  {/each}
-                  {#if filteredModels.length === 0}
-                    <li class="no-results">No models found</li>
-                  {/if}
-                </ul>
-              {/if}
-            </div>
-          </div>
-
-          {#if isOllama}
+        {:else}
+          <div id="panel-settings" class="form" role="tabpanel" aria-labelledby="tab-settings">
             <div class="field">
-              <label for="endpoint-input">Ollama Endpoint</label>
-              <input
-                id="endpoint-input"
-                type="text"
-                class="input"
-                placeholder="http://localhost:11434"
-                value={ollamaEndpoint}
-                oninput={handleEndpointChange}
-              />
-              <div class="connection-row">
-                <button
-                  class="secondary-btn small"
-                  onclick={checkOllamaConnection}
-                  disabled={connectionStatus === 'checking'}
-                >
-                  {connectionStatus === 'checking' ? 'Checking...' : 'Check Connection'}
-                </button>
-                {#if connectionStatus === 'connected'}
-                  <span class="status-text connected">
-                    Connected ({connectionModelCount}
-                    {connectionModelCount === 1 ? 'model' : 'models'})
-                  </span>
-                {:else if connectionStatus === 'error'}
-                  <span class="status-text error">{connectionError}</span>
-                {/if}
-              </div>
-              <p class="help-text">Enter the URL of your Ollama instance (local or remote)</p>
+              <label for="provider-select">API Provider</label>
+              <select
+                id="provider-select"
+                class="select"
+                value={selectedProvider}
+                onchange={handleProviderChange}
+              >
+                <option value="openrouter">OpenRouter</option>
+                <option value="groq">Groq</option>
+                <option value="ollama">Ollama</option>
+              </select>
             </div>
-          {:else}
-            <div class="field">
-              <label for="api-key-input">{providerConfig.name} API Key</label>
-              <input
-                id="api-key-input"
-                type="password"
-                class="input"
-                placeholder="Enter your {providerConfig.name} API key"
-                value={apiKey}
-                oninput={handleApiKeyChange}
-              />
-              <p class="help-text">
-                Get your API key from <a href={providerConfig.keysUrl} target="_blank"
-                  >{providerConfig.name}</a
-                >
-              </p>
-              {#if isApiKeyFromEnv && import.meta.env.DEV}
-                <div class="env-indicator">API key auto-loaded from .env file</div>
-              {/if}
-            </div>
-          {/if}
 
-          <div class="field">
-            <button class="advanced-toggle" onclick={() => (showAdvanced = !showAdvanced)}>
-              {showAdvanced ? '▾' : '▸'} Advanced Settings
-            </button>
-          </div>
-
-          {#if showAdvanced}
             <div class="field">
               <div class="label-row">
-                <label for="system-prompt">System Prompt</label>
-                <button class="refresh-btn" onclick={resetSystemPrompt}>Reset to Default</button>
+                <label for="model-search">LLM Model</label>
+                <button
+                  class="refresh-btn"
+                  onclick={() => fetchModels(true)}
+                  disabled={isLoadingModels}
+                >
+                  {isLoadingModels ? '...' : 'Refresh'}
+                </button>
               </div>
-              <textarea
-                id="system-prompt"
-                class="input textarea"
-                placeholder={DEFAULT_SYSTEM_PROMPT}
-                bind:value={customSystemPrompt}
-                rows="4"
-              ></textarea>
-              <p class="help-text">
-                Customize the instruction sent to the LLM. Leave empty to use the default prompt.
-              </p>
-            </div>
-          {/if}
 
-          <div class="field">
-            <button class="primary-btn" onclick={saveSettings} disabled={isLoading}>
-              {isLoading ? 'Saving...' : 'Save Settings'}
-            </button>
-            {#if showSavedPopup}
-              <div class="save-feedback" role="status" aria-live="polite">Settings saved.</div>
+              <!-- svelte-ignore a11y_role_has_required_aria_props -->
+              <div class="combobox" bind:this={comboboxEl} role="combobox">
+                <input
+                  id="model-search"
+                  type="text"
+                  class="combobox-input"
+                  placeholder="Search models..."
+                  value={isDropdownOpen ? searchQuery : selectedModelDisplay}
+                  onfocus={openDropdown}
+                  oninput={handleSearchInput}
+                  onkeydown={handleComboKeydown}
+                  bind:this={inputEl}
+                />
+                <button
+                  class="combobox-toggle"
+                  onclick={toggleDropdown}
+                  tabindex="-1"
+                  aria-label="Toggle model list"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 12 12"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M3 5L6 2L9 5"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M3 7L6 10L9 7"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+
+                {#if isDropdownOpen}
+                  <ul class="combobox-list" bind:this={listEl}>
+                    {#each filteredModels as model, i (model.id)}
+                      <li
+                        class:highlighted={i === highlightedIndex}
+                        class:selected={model.id === selectedModel}
+                        onclick={() => selectModel(model)}
+                        onkeydown={(e: KeyboardEvent) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            selectModel(model);
+                          }
+                        }}
+                        role="option"
+                        aria-selected={model.id === selectedModel}
+                      >
+                        <span class="model-name">{model.name}</span>
+                        {#if showPricing}
+                          <span class="model-price">{formatPrice(model)}</span>
+                        {/if}
+                      </li>
+                    {/each}
+                    {#if filteredModels.length === 0}
+                      <li class="no-results">No models found</li>
+                    {/if}
+                  </ul>
+                {/if}
+              </div>
+            </div>
+
+            {#if isOllama}
+              <div class="field">
+                <label for="endpoint-input">Ollama Endpoint</label>
+                <input
+                  id="endpoint-input"
+                  type="text"
+                  class="input"
+                  placeholder="http://localhost:11434"
+                  value={ollamaEndpoint}
+                  oninput={handleEndpointChange}
+                />
+                <div class="connection-row">
+                  <button
+                    class="secondary-btn small"
+                    onclick={checkOllamaConnection}
+                    disabled={connectionStatus === 'checking'}
+                  >
+                    {connectionStatus === 'checking' ? 'Checking...' : 'Check Connection'}
+                  </button>
+                  {#if connectionStatus === 'connected'}
+                    <span class="status-text connected">
+                      Connected ({connectionModelCount}
+                      {connectionModelCount === 1 ? 'model' : 'models'})
+                    </span>
+                  {:else if connectionStatus === 'error'}
+                    <span class="status-text error">{connectionError}</span>
+                  {/if}
+                </div>
+                <p class="help-text">Enter the URL of your Ollama instance (local or remote)</p>
+              </div>
+            {:else}
+              <div class="field">
+                <label for="api-key-input">{providerConfig.name} API Key</label>
+                <input
+                  id="api-key-input"
+                  type="password"
+                  class="input"
+                  placeholder="Enter your {providerConfig.name} API key"
+                  value={apiKey}
+                  oninput={handleApiKeyChange}
+                />
+                <p class="help-text">
+                  Get your API key from <a href={providerConfig.keysUrl} target="_blank"
+                    >{providerConfig.name}</a
+                  >
+                </p>
+                {#if isApiKeyFromEnv && import.meta.env.DEV}
+                  <div class="env-indicator">API key auto-loaded from .env file</div>
+                {/if}
+              </div>
+            {/if}
+
+            <div class="field">
+              <button class="advanced-toggle" onclick={() => (showAdvanced = !showAdvanced)}>
+                {showAdvanced ? '▾' : '▸'} Advanced Settings
+              </button>
+            </div>
+
+            {#if showAdvanced}
+              <div class="field">
+                <div class="label-row">
+                  <label for="system-prompt">System Prompt</label>
+                  <button class="refresh-btn" onclick={resetSystemPrompt}>Reset to Default</button>
+                </div>
+                <textarea
+                  id="system-prompt"
+                  class="input textarea"
+                  placeholder={DEFAULT_SYSTEM_PROMPT}
+                  bind:value={customSystemPrompt}
+                  rows="4"
+                ></textarea>
+                <p class="help-text">
+                  Customize the instruction sent to the LLM. Leave empty to use the default prompt.
+                </p>
+              </div>
+            {/if}
+
+            <div class="field">
+              <button class="primary-btn" onclick={saveSettings} disabled={isLoading}>
+                {isLoading ? 'Saving...' : 'Save Settings'}
+              </button>
+              {#if showSavedPopup}
+                <div class="save-feedback" role="status" aria-live="polite">Settings saved.</div>
+              {/if}
+            </div>
+
+            {#if import.meta.env.DEV}
+              <div class="field dev-section">
+                <div class="dev-badge">Development Mode</div>
+                <button class="secondary-btn" onclick={openTestPage}>Open Test Page</button>
+              </div>
             {/if}
           </div>
-
-          {#if import.meta.env.DEV}
-            <div class="field dev-section">
-              <div class="dev-badge">Development Mode</div>
-              <button class="secondary-btn" onclick={openTestPage}>Open Test Page</button>
-            </div>
-          {/if}
-        </div>
+        {/if}
       </div>
     </section>
   </div>
@@ -955,5 +1027,51 @@
     font-size: 12px;
     font-weight: 500;
     margin-top: 4px;
+  }
+
+  .tab-header {
+    justify-content: flex-start;
+    gap: 0.25rem;
+    padding: 0 0.5rem;
+  }
+
+  .tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    height: 3rem;
+    padding: 0 0.75rem;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--st-fg-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+
+  .tab:hover {
+    color: var(--st-text);
+  }
+
+  .tab[aria-selected='true'] {
+    color: var(--st-text);
+  }
+
+  .tab[aria-selected='true']::after {
+    content: '';
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0;
+    left: 0.75rem;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--st-brand);
+  }
+
+  .tab:focus-visible {
+    outline: 1px solid var(--st-focus-ring);
+    outline-offset: -2px;
+    border-radius: 6px;
   }
 </style>

@@ -315,8 +315,8 @@ export default defineBackground(() => {
       })();
 
       return true; // async response
-    } else if (message.action === 'checkGrammar') {
-      // Check rate limit
+    } else if (message.action === 'checkGrammar' || message.action === 'translate') {
+      // Translate uses the same provider, key, and chat-completions request as grammar checks.
       const rateLimitStatus = checkRateLimit();
       if (!rateLimitStatus.allowed) {
         sendResponse({
@@ -326,7 +326,7 @@ export default defineBackground(() => {
         return false;
       }
 
-      // Handle grammar check request - retrieve API key securely from storage
+      // Retrieve the API key from storage and forward the caller's payload.
       browser.storage.local
         .get(['selectedProvider', 'openRouterKey', 'groqKey', 'ollamaEndpoint'])
         .then((result) => {
