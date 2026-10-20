@@ -10,6 +10,7 @@
     isLanguageCode,
   } from '../../lib/translate/languages';
   import type { TranslationAlternative } from '../../lib/translate/types';
+  import { isTranslateHandoff } from '../../lib/selection-translate/handoff';
 
   interface Props {
     onOpenSettings: () => void;
@@ -30,6 +31,12 @@
     'local:translateAlternatives',
     { fallback: [] }
   );
+  const handoffStorage = storage.defineItem<unknown>('local:translateSelectionHandoff', {
+    fallback: null,
+  });
+  const epochStorage = storage.defineItem<number>('local:translateDraftEpoch', {
+    fallback: 0,
+  });
 
   const shortcutLabel = /Mac|iPhone|iPad/i.test(navigator.userAgent) ? '⌘+Enter' : 'Ctrl+Enter';
 
@@ -45,6 +52,7 @@
   let copied = $state(false);
   let requestSeq = 0;
   let copyTimer = 0;
+  let loadedEpoch = 0;
 
   let canSwap = $derived(sourceLanguage !== AUTO_DETECT);
   let panelState = $derived(loading ? 'loading' : error ? 'error' : output ? 'result' : 'empty');
@@ -178,15 +186,26 @@
   onMount(async () => {
     window.addEventListener('keydown', handleKeydown);
     try {
-      const [storedSource, storedTarget, storedDraft, storedResult, storedDetected, storedAlts] =
-        await Promise.all([
-          sourceStorage.getValue(),
-          targetStorage.getValue(),
-          draftStorage.getValue(),
-          resultStorage.getValue(),
-          detectedStorage.getValue(),
-          alternativesStorage.getValue(),
-        ]);
+      const [
+        storedSource,
+        storedTarget,
+        storedDraft,
+        storedResult,
+        storedDetected,
+        storedAlts,
+        storedEpoch,
+        storedHandoff,
+      ] = await Promise.all([
+        sourceStorage.getValue(),
+        targetStorage.getValue(),
+        draftStorage.getValue(),
+        resultStorage.getValue(),
+        detectedStorage.getValue(),
+        alternativesStorage.getValue(),
+        epochStorage.getValue(),
+        handoffStorage.getValue(),
+      ]);
+      loadedEpoch = storedEpoch;
 
       sourceLanguage =
         storedSource === AUTO_DETECT || isLanguageCode(storedSource) ? storedSource : AUTO_DETECT;
@@ -199,6 +218,21 @@
       detectedLanguage = storedDetected ?? '';
       alternatives = readStoredAlternatives(storedAlts);
 
+      if (
+        isTranslateHandoff(storedHandoff) &&
+        storedHandoff.at === loadedEpoch &&
+        loadedEpoch > 0
+      ) {
+        inputText = storedHandoff.text;
+        output = storedHandoff.translation ?? '';
+        detectedLanguage = storedHandoff.detected ?? '';
+        alternatives = [];
+        error = '';
+        errorOpensSettings = false;
+        await handoffStorage.removeValue();
+        await persistSession();
+      }
+
       if (!storedTarget || !isLanguageCode(storedTarget)) {
         await targetStorage.setValue(targetLanguage);
       }
@@ -210,7 +244,16 @@
   onDestroy(() => {
     window.removeEventListener('keydown', handleKeydown);
     window.clearTimeout(copyTimer);
-    void draftStorage.setValue(inputText);
+    const epochAtOpen = loadedEpoch;
+    void (async () => {
+      try {
+        const epoch = await epochStorage.getValue();
+        if (epoch !== epochAtOpen) return;
+        await draftStorage.setValue(inputText);
+      } catch (caught) {
+        console.error('Failed to save translation draft:', caught);
+      }
+    })();
   });
 </script>
 

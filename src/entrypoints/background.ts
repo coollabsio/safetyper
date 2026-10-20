@@ -6,6 +6,7 @@ import {
   refundTokenSpend,
   type TokenSpend,
 } from '@/lib/content/budget';
+import { installSelectionTranslate } from '@/lib/selection-translate/background';
 
 // Groq models shut down by Groq (https://console.groq.com/docs/deprecations)
 const REMOVED_GROQ_MODELS = [
@@ -16,6 +17,7 @@ const REMOVED_GROQ_MODELS = [
 ];
 
 export default defineBackground(() => {
+  installSelectionTranslate();
   console.log('Background script initialized', { id: browser.runtime.id });
 
   // Register content scripts on install/startup (dev mode fix)

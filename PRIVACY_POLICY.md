@@ -8,9 +8,11 @@ SafeTyper is a browser extension that checks grammar and spelling, and translate
 
 ## When text leaves your browser
 
-Text is sent only to the provider selected in SafeTyper. That happens when you run a grammar check, when you click Translate, and when automatic checking is turned on.
+Text is sent only to the provider selected in SafeTyper. That happens when you run a grammar check, when you choose Translate, and when automatic checking is turned on.
 
-Automatic checking is off unless you enable **Check as you type** in Settings. While that setting is on, the text in the field you are typing is sent to the selected provider after you pause. Password fields, hidden fields, credit-card fields, and one-time-code fields are skipped. You can pause automatic checking for a site from Settings; those site names are stored on this device. A tab that is in the background does not send text. Turning the setting off stops those automatic requests. Typing in the Translate box is sent when you click Translate.
+Automatic checking is off unless you enable **Check as you type** in Settings. While that setting is on, the text in the field you are typing is sent to the selected provider after you pause. Password fields, hidden fields, credit-card fields, and one-time-code fields are skipped. You can pause automatic checking for a site from Settings; those site names are stored on this device. A tab that is in the background does not send text. Turning the setting off stops those automatic requests.
+
+Selecting text does not send it anywhere. Choosing Translate includes the Translate button, the “Translate with SafeTyper” context-menu item (including “Translate to …” for the saved target language), the Alt+Shift+T shortcut, and changing the target language in the on-page translation bubble. “Change language…” and “Open in Translate tab” only copy the selection into extension storage on this device so the Translate tab can show it. That copy is not sent to a provider until you translate. Typing in the Translate box is sent when you click Translate.
 
 Translate uses the same provider as grammar checks. It does not use a separate translation service. A local Ollama address keeps the translated text on your machine, the same way a grammar check does.
 
@@ -42,6 +44,7 @@ SafeTyper stores settings in the browser's extension storage (`browser.storage.l
 - whether automatic checking is on, and the sites where you paused it
 - words in your personal dictionary
 - suggestion groups you turned off
+- a selection you chose to open in the Translate tab, kept until that tab shows it
 
 API keys are sent only to the matching provider, as the `Authorization` header. They are not sent to coolLabs. Extension storage is removed when you uninstall SafeTyper.
 
@@ -49,9 +52,10 @@ SafeTyper does not store the text of the pages you visit. It does not use analyt
 
 ## Permissions
 
-- **Host access (`<all_urls>`, plus `https://openrouter.ai/*` and `https://api.groq.com/*`).** The extension icon needs to appear on sites where you type, and checks need to reach the provider you chose, including a local Ollama address. SafeTyper reads a field when you check it. It does not collect browsing history.
+- **Host access (`<all_urls>`, plus `https://openrouter.ai/*` and `https://api.groq.com/*`).** The extension icon needs to appear on sites where you type, and checks need to reach the provider you chose, including a local Ollama address. SafeTyper reads a field when you check it, and reads a selection when you translate it. It does not collect browsing history.
 - **`storage`.** Saves the settings and API keys listed above, on this device.
 - **`scripting` and `tabs`.** Used to register the content script and to open extension pages such as onboarding.
+- **`contextMenus`.** Adds “Translate with SafeTyper” when text is selected. The selection is sent to your provider only after you choose Translate.
 
 ## Planned features
 
