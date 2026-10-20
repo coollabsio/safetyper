@@ -1,13 +1,10 @@
-/* In-field icon. Injected into the icon shadow root. */
+/* In-field icon. Injected into the icon shadow root.
+   Black disc and the original green pixel S. State color stays on the badge. */
 
 .face {
-  --face: #ffffff;
-  --line: #d4d4d8;
-  --mark: #15803d;
-  --clean: #15803d;
+  --mark: #00ff31;
+  --state: var(--st-state, #15803d);
   --ink: var(--st-ink, #ffffff);
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.14), 0 3px 8px rgb(0 0 0 / 0.08);
-  --state: var(--st-state, var(--line));
   position: relative;
   display: grid;
   place-items: center;
@@ -15,22 +12,20 @@
   height: 100%;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: 50%;
-  background: var(--face);
+  background: #000000;
   color: var(--mark);
-  box-shadow: var(--shadow);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
   cursor: pointer;
   font: inherit;
   line-height: 1;
+  overflow: visible;
 }
 
 :host([data-surface='dark']) .face {
-  --face: #27272a;
-  --line: rgb(255 255 255 / 0.2);
-  --mark: #4ade80;
-  --clean: #4ade80;
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 4px 10px rgb(0 0 0 / 0.35);
+  outline: 1px solid rgb(255 255 255 / 0.55);
+  outline-offset: 0;
 }
 
 .face:focus {
@@ -42,23 +37,35 @@
   outline-offset: 2px;
 }
 
+:host([data-surface='dark']) .face:focus-visible {
+  outline: 2px solid var(--mark);
+}
+
 .mark {
-  display: block;
-  width: 18px;
-  height: 19px;
+  display: none;
   shape-rendering: crispEdges;
   image-rendering: pixelated;
 }
 
-.check {
+.mark-small {
+  display: block;
+  width: 8px;
+  height: 10px;
+}
+
+:host([data-size='medium']) .mark-small {
   display: none;
-  width: 68%;
-  height: 68%;
+}
+
+:host([data-size='medium']) .mark-medium {
+  display: block;
+  width: 16px;
+  height: 18px;
 }
 
 .ring {
   position: absolute;
-  inset: -2px;
+  inset: -3px;
   border-radius: 50%;
   border: 1.5px solid transparent;
   border-top-color: var(--mark);
@@ -71,73 +78,83 @@
   animation: st-spin 0.9s linear infinite;
 }
 
-:host([data-state='clean']) .face {
-  border-color: var(--clean);
-  color: var(--clean);
-}
-
-:host([data-state='clean']) .mark {
-  display: none;
-}
-
-:host([data-state='clean']) .check {
-  display: block;
-}
-
 .num,
 .badge {
   display: none;
   place-items: center;
   box-sizing: border-box;
+}
+
+.num {
+  color: #ffffff;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
-.badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 12px;
-  height: 12px;
-  padding: 0 2px;
-  border-radius: 999px;
-  background: var(--state);
-  color: var(--ink);
-  font-size: 8px;
-  box-shadow: 0 0 0 1px var(--face);
+:host([data-size='medium']) .num {
+  font-size: 14px;
 }
 
-:host([data-presentation='badge']) .badge {
+.badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--state);
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 12px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.clean-badge {
+  background: #15803d;
+}
+
+.clean-badge svg {
+  width: 10px;
+  height: 10px;
+}
+
+:host([data-presentation='badge']) .count-badge {
   display: grid;
 }
 
-:host([data-presentation='badge']) .face {
-  border-color: var(--state);
+:host([data-state='clean']) .clean-badge {
+  display: grid;
 }
 
-:host([data-presentation='count']) .mark,
-:host([data-presentation='count']) .check {
+:host([data-presentation='count']) .mark {
   display: none;
 }
 
 :host([data-presentation='count']) .num {
   display: grid;
-  color: var(--ink);
-  font-size: 12px;
 }
 
 :host([data-presentation='count']) .face {
   background: var(--state);
-  border-color: transparent;
-  color: var(--ink);
+  outline: none;
+  box-shadow: none;
 }
 
 :host([data-presentation='count']:hover) .face,
 :host([data-presentation='count']:focus-within) .face,
 :host([data-reveal='true']) .face {
-  background: var(--face);
-  border-color: var(--state);
+  background: #000000;
   color: var(--mark);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
+}
+
+:host([data-surface='dark'][data-presentation='count']:hover) .face,
+:host([data-surface='dark'][data-presentation='count']:focus-within) .face,
+:host([data-surface='dark'][data-reveal='true']) .face {
+  outline: 1px solid rgb(255 255 255 / 0.55);
 }
 
 :host([data-presentation='count']:hover) .num,
@@ -146,16 +163,28 @@
   display: none;
 }
 
-:host([data-presentation='count']:hover) .mark,
-:host([data-presentation='count']:focus-within) .mark,
-:host([data-reveal='true']) .mark {
+:host([data-presentation='count']:hover) .mark-small,
+:host([data-presentation='count']:focus-within) .mark-small,
+:host([data-reveal='true']) .mark-small {
+  display: block;
+}
+
+:host([data-size='medium'][data-presentation='count']:hover) .mark-small,
+:host([data-size='medium'][data-presentation='count']:focus-within) .mark-small,
+:host([data-size='medium'][data-reveal='true']) .mark-small {
+  display: none;
+}
+
+:host([data-size='medium'][data-presentation='count']:hover) .mark-medium,
+:host([data-size='medium'][data-presentation='count']:focus-within) .mark-medium,
+:host([data-size='medium'][data-reveal='true']) .mark-medium {
   display: block;
 }
 
 .tip {
   position: absolute;
   left: 50%;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   transform: translateX(-50%);
   padding: 3px 6px;
   border-radius: 6px;
@@ -185,6 +214,6 @@
   :host([data-state='checking']) .ring {
     animation: none;
     border-color: var(--mark);
-    opacity: 0.9;
+    opacity: 0.85;
   }
 }

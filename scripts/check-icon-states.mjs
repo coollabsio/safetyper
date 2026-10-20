@@ -103,7 +103,7 @@ async function launch(extensionDir, label) {
       customSystemPrompt: '',
       autoCheckEnabled: true,
       autoCheckDisabledHosts: [],
-      iconSize: 'small',
+      iconSize: 'medium',
     });
   }, `http://127.0.0.1:${stubPort}`);
   const page = await context.newPage();
@@ -123,16 +123,24 @@ async function zoomIcon(page, file) {
   const icon = page.locator('.safetyper-icon');
   const box = await icon.boundingBox();
   assert(box, 'icon box');
-  const pad = 28;
-  await page.screenshot({
-    path: path.join(shots, file),
-    clip: {
-      x: Math.max(0, box.x - pad),
-      y: Math.max(0, box.y - pad),
-      width: box.width + pad * 2,
-      height: box.height + pad * 2,
-    },
-  });
+  const pad = 18;
+  const clip = {
+    x: Math.max(0, box.x - pad),
+    y: Math.max(0, box.y - pad),
+    width: box.width + pad * 2,
+    height: box.height + pad * 2,
+  };
+  const raw = path.join(shots, `${file}.raw.png`);
+  await page.screenshot({ path: raw, clip });
+  execFileSync('python3', [
+    '-c',
+    `
+from PIL import Image
+im = Image.open(${JSON.stringify(raw)})
+# Capture is already 2x. Nearest-neighbor 2x more makes each CSS pixel 4 image pixels.
+im.resize((im.width * 2, im.height * 2), Image.Resampling.NEAREST).save(${JSON.stringify(path.join(shots, file))})
+`,
+  ]);
   return box;
 }
 

@@ -8,7 +8,7 @@ export const ICON_SIZE_SETTINGS = ['small', 'medium', 'hidden'] as const;
 export type IconSizeSetting = (typeof ICON_SIZE_SETTINGS)[number];
 
 export const ICON_PIXELS = {
-  small: 22,
+  small: 16,
   medium: 28,
 } as const;
 

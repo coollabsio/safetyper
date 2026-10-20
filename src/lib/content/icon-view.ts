@@ -7,12 +7,13 @@ import type { SuggestionGroupId } from './group-colors';
 import { groupFill } from './group-colors';
 import { iconAriaLabel, suggestionTooltip, type IconActivity } from './icon-state';
 
-/** Exact opaque pixels from public/icon/32.png, cropped to the 18×19 glyph. */
-const MARK = `<svg class="mark" viewBox="0 0 18 19" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="4" y="0" width="12" height="1"/><rect x="4" y="1" width="13" height="1"/><rect x="4" y="2" width="14" height="1"/><rect x="0" y="3" width="18" height="1"/><rect x="0" y="4" width="4" height="1"/><rect x="5" y="4" width="13" height="1"/><rect x="0" y="5" width="6" height="1"/><rect x="0" y="6" width="12" height="1"/><rect x="2" y="7" width="11" height="1"/><rect x="2" y="8" width="12" height="1"/><rect x="4" y="9" width="10" height="1"/><rect x="5" y="10" width="11" height="1"/><rect x="5" y="11" width="12" height="1"/><rect x="12" y="12" width="6" height="1"/><rect x="0" y="13" width="18" height="1"/><rect x="0" y="14" width="13" height="1"/><rect x="14" y="14" width="4" height="1"/><rect x="0" y="15" width="14" height="1"/><rect x="0" y="16" width="14" height="1"/><rect x="2" y="17" width="12" height="1"/><rect x="2" y="18" width="12" height="1"/></svg>`;
+/** Solid pixels from public/icon/16.png. Drawn at 1× inside the 16px disc. */
+const MARK_SMALL = `<svg class="mark mark-small" viewBox="0 0 8 10" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="2" y="0" width="5" height="1"/><rect x="1" y="1" width="7" height="1"/><rect x="0" y="2" width="8" height="1"/><rect x="0" y="3" width="6" height="1"/><rect x="1" y="4" width="6" height="1"/><rect x="2" y="5" width="6" height="1"/><rect x="0" y="6" width="8" height="1"/><rect x="0" y="7" width="8" height="1"/><rect x="0" y="8" width="7" height="1"/></svg>`;
 
-const CHECK = `<svg class="check" viewBox="0 0 16 16" aria-hidden="true">
-  <path d="M3.4 8.2 6.5 11.3 12.7 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
-</svg>`;
+/** Solid pixels from public/icon/32.png. Drawn at 1× inside the 28px disc. */
+const MARK_MEDIUM = `<svg class="mark mark-medium" viewBox="0 0 16 18" shape-rendering="crispEdges" fill="currentColor" aria-hidden="true"><rect x="3" y="0" width="12" height="1"/><rect x="3" y="1" width="12" height="1"/><rect x="3" y="2" width="13" height="1"/><rect x="0" y="3" width="16" height="1"/><rect x="0" y="4" width="3" height="1"/><rect x="5" y="4" width="11" height="1"/><rect x="0" y="5" width="5" height="1"/><rect x="0" y="6" width="5" height="1"/><rect x="1" y="7" width="10" height="1"/><rect x="2" y="8" width="11" height="1"/><rect x="3" y="9" width="10" height="1"/><rect x="4" y="10" width="11" height="1"/><rect x="5" y="11" width="11" height="1"/><rect x="11" y="12" width="5" height="1"/><rect x="0" y="13" width="16" height="1"/><rect x="0" y="14" width="12" height="1"/><rect x="13" y="14" width="3" height="1"/><rect x="0" y="15" width="13" height="1"/><rect x="0" y="16" width="13" height="1"/><rect x="1" y="17" width="12" height="1"/></svg>`;
+
+const CLEAN = `<span class="badge clean-badge" aria-hidden="true"><svg viewBox="0 0 12 12" fill="none"><path d="M2.8 6.2 5 8.4 9.3 3.8" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>`;
 
 export interface IconFaceOptions {
   activity: IconActivity;
@@ -31,7 +32,7 @@ export function mountIconFace(host: HTMLElement, options: IconFaceOptions): void
     const face = document.createElement('button');
     face.type = 'button';
     face.className = 'face';
-    face.innerHTML = `<span class="ring"></span>${MARK}<span class="num"></span><span class="badge"></span>${CHECK}<span class="tip" role="tooltip"></span>`;
+    face.innerHTML = `<span class="ring"></span>${MARK_SMALL}${MARK_MEDIUM}<span class="num"></span><span class="badge count-badge"></span>${CLEAN}<span class="tip" role="tooltip"></span>`;
     shadow.append(style, face);
     face.addEventListener('mousedown', (event) => event.preventDefault());
   }
@@ -43,8 +44,8 @@ export function mountIconFace(host: HTMLElement, options: IconFaceOptions): void
   host.setAttribute('data-state', options.activity);
   host.setAttribute('data-presentation', presentation);
   host.setAttribute('data-surface', options.surface);
-  host.style.setProperty('--st-state', groupFill(options.group, options.surface));
-  host.style.setProperty('--st-ink', options.surface === 'dark' ? '#18181b' : '#ffffff');
+  host.style.setProperty('--st-state', groupFill(options.group, 'light'));
+  host.style.setProperty('--st-ink', '#ffffff');
 
   const label = iconAriaLabel(options.activity, options.count);
   face.setAttribute('aria-label', label);
@@ -59,7 +60,7 @@ export function mountIconFace(host: HTMLElement, options: IconFaceOptions): void
   }
   const digits = options.count > 9 ? '9+' : String(options.count);
   const num = shadow.querySelector('.num');
-  const badge = shadow.querySelector('.badge');
+  const badge = shadow.querySelector('.count-badge');
   if (num) num.textContent = digits;
   if (badge) badge.textContent = digits;
 }

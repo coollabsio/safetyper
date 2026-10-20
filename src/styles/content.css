@@ -150,8 +150,8 @@
 
 .safetyper-icon,
 .safetyper-icon-preview {
-  width: var(--st-icon-size, 22px);
-  height: var(--st-icon-size, 22px);
+  width: var(--st-icon-size, 16px);
+  height: var(--st-icon-size, 16px);
   padding: 0;
   border: 0;
   background: transparent;

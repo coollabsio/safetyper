@@ -67,6 +67,7 @@ function run(): void {
 
   setIconSizeSetting('medium');
   assertEqual(iconPixelSize(), ICON_PIXELS.medium, 'medium is 28px');
+  assertEqual(ICON_PIXELS.small, 16, 'small disc is the 16px asset');
   setIconSizeSetting('hidden');
   assert(iconIsHidden(), 'hidden setting');
   assertEqual(iconPixelSize(), ICON_PIXELS.small, 'hidden placement still uses the small box');

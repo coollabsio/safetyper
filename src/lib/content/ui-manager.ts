@@ -10,7 +10,7 @@ import { cancelAutoCheck, getAutoCheckSnapshot } from './auto-check-state';
 import { backdropLuminance } from './icon-placement';
 import { highestPriorityGroup, type SuggestionGroupId } from './group-colors';
 import { mountIconFace } from './icon-view';
-import { iconIsHidden, iconPixelSize, setIconSizeSetting } from './icon-metrics';
+import { ICON_PIXELS, iconIsHidden, iconPixelSize, setIconSizeSetting } from './icon-metrics';
 import { presentIcon, type IconActivity } from './icon-state';
 import popupCss from '../../styles/popup-widget.css?inline';
 import {
@@ -91,7 +91,10 @@ function syncIconFace(host: HTMLElement): void {
     group: iconGroup,
   });
   const pixels = iconPixelSize();
-  host.setAttribute('data-size', iconIsHidden() ? 'hidden' : pixels === 28 ? 'medium' : 'small');
+  host.setAttribute(
+    'data-size',
+    iconIsHidden() ? 'hidden' : pixels === ICON_PIXELS.medium ? 'medium' : 'small'
+  );
   host.style.width = `${pixels}px`;
   host.style.height = `${pixels}px`;
   mountIconFace(host, {

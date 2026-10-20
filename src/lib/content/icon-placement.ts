@@ -8,6 +8,8 @@ import { iconPixelSize } from './icon-metrics';
 
 const GAP = 3;
 const INSET = 4;
+/** The 12px badge hangs 8px off the disc. Inside placements leave that much room. */
+const BADGE_HANG = 8;
 
 interface Box {
   left: number;
@@ -205,7 +207,7 @@ function isRtl(field: HTMLElement): boolean {
 
 function vertical(rect: DOMRect, align: 'center' | 'top' | 'bottom'): number {
   if (align === 'center') return rect.top + (rect.height - iconPixelSize()) / 2;
-  if (align === 'top') return rect.top + INSET;
+  if (align === 'top') return rect.top + INSET + BADGE_HANG;
   return rect.bottom - iconPixelSize() - INSET;
 }
 
@@ -217,7 +219,7 @@ function buildCandidates(field: HTMLElement, rect: DOMRect): Position[] {
   const start = rtl ? 'right' : 'left';
 
   const inside = (side: 'left' | 'right', align: 'center' | 'top' | 'bottom'): Position => ({
-    left: side === 'right' ? rect.right - iconPixelSize() - INSET : rect.left + INSET,
+    left: side === 'right' ? rect.right - iconPixelSize() - INSET - BADGE_HANG : rect.left + INSET,
     top: vertical(rect, align),
   });
   const outside = (side: 'left' | 'right', align: 'center' | 'top' | 'bottom'): Position => ({
