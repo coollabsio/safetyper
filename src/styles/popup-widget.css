@@ -1,0 +1,288 @@
+/* In-page result popup. Copied from the editor suggestion card and the Coolify 3D buttons.
+   Injected into the popup shadow root so page styles cannot restyle it. */
+
+.st-root {
+  --st-bg: #f4f4f5;
+  --st-text: #18181b;
+  --st-text-secondary: #52525b;
+  --st-text-muted: #a1a1aa;
+  --st-brand: #15803d;
+  --st-brand-text: #15803d;
+  --st-line: rgb(0 0 0 / 0.08);
+  --st-card: #ffffff;
+  --st-shadow: 0 10px 28px rgb(0 0 0 / 0.12), 0 0 0 1px rgb(0 0 0 / 0.06);
+  --st-btn-bg: #ffffff;
+  --st-btn-text: #18181b;
+  --st-btn-border: #e5e5e5;
+  --st-btn-hover: #f5f5f5;
+  --st-btn-depth: rgb(0 0 0 / 0.22);
+  --st-primary-from: #22a34a;
+  --st-primary-to: #15803d;
+  --st-primary-border: #166534;
+  --st-primary-depth: #14532d;
+  --st-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  display: block;
+  width: min(360px, calc(100vw - 16px));
+  max-height: min(520px, calc(100vh - 16px));
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--st-bg);
+  color: var(--st-text);
+  box-shadow: var(--st-shadow);
+  font-family:
+    'Geist Sans',
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+.st-root[data-theme='dark'] {
+  --st-bg: #2a2a2a;
+  --st-text: #f4f4f5;
+  --st-text-secondary: #a1a1aa;
+  --st-text-muted: #71717a;
+  --st-brand: #4ade80;
+  --st-brand-text: #4ade80;
+  --st-line: rgb(255 255 255 / 0.08);
+  --st-card: #333333;
+  --st-shadow: 0 12px 32px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
+  --st-btn-bg: rgb(255 255 255 / 0.06);
+  --st-btn-text: #f4f4f5;
+  --st-btn-border: rgb(255 255 255 / 0.1);
+  --st-btn-hover: rgb(255 255 255 / 0.12);
+  --st-btn-depth: rgb(255 255 255 / 0.08);
+  --st-primary-from: #22c55e;
+  --st-primary-to: #15803d;
+  --st-primary-border: #166534;
+  --st-primary-depth: #052e16;
+}
+
+.st-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  cursor: grab;
+  user-select: none;
+}
+
+.st-header:active {
+  cursor: grabbing;
+}
+
+.st-logo {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.st-heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.st-heading strong {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.st-count {
+  color: var(--st-text-secondary);
+  font-size: 12px;
+}
+
+.st-accept-all,
+.st-close {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.st-accept-all {
+  border: 0;
+  background: transparent;
+  color: var(--st-brand-text);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 6px;
+}
+
+.st-accept-all:hover {
+  text-decoration: underline;
+}
+
+.st-close {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--st-text-secondary);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.st-close:hover {
+  color: var(--st-text);
+  background: var(--st-btn-hover);
+}
+
+.st-notice {
+  margin: 0 0 8px;
+  color: var(--st-text-secondary);
+  font-size: 12px;
+}
+
+.st-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.st-card {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--st-card);
+  box-shadow: 0 0 0 1px var(--st-line);
+}
+
+.st-category {
+  margin: 0 0 6px;
+  color: var(--st-brand-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.st-quote {
+  margin: 0 0 6px;
+  font-size: 15px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.st-quote del {
+  color: var(--st-text-muted);
+  text-decoration: line-through;
+  margin-right: 6px;
+}
+
+.st-quote strong {
+  color: var(--st-text);
+  font-weight: 700;
+}
+
+.st-explanation {
+  margin: 0 0 10px;
+  color: var(--st-text-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.st-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.st-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 12px;
+  white-space: nowrap;
+  border-radius: 8px;
+  border: 1px solid var(--st-btn-border);
+  background: var(--st-btn-bg);
+  color: var(--st-btn-text);
+  box-shadow: 0 2px 0 var(--st-btn-depth);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 80ms var(--st-ease),
+    box-shadow 80ms var(--st-ease),
+    background-color 120ms var(--st-ease);
+}
+
+.st-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 var(--st-btn-depth);
+  background: var(--st-btn-hover);
+}
+
+.st-btn:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+.st-btn-primary {
+  color: #ffffff;
+  background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
+  border-color: var(--st-primary-border);
+  box-shadow: 0 2px 0 var(--st-primary-depth);
+}
+
+.st-btn-primary:hover {
+  background: linear-gradient(to bottom, var(--st-primary-from), #16a34a);
+  box-shadow: 0 3px 0 var(--st-primary-depth);
+}
+
+.st-btn:focus-visible,
+.st-accept-all:focus-visible,
+.st-close:focus-visible {
+  outline: 1px solid var(--st-brand);
+  outline-offset: 2px;
+}
+
+.st-done,
+.st-status {
+  margin: 8px 0 0;
+  color: var(--st-text-secondary);
+  font-size: 13px;
+}
+
+.st-done {
+  color: var(--st-brand-text);
+  font-weight: 650;
+}
+
+.st-loading,
+.st-error {
+  margin: 0;
+  font-size: 13px;
+}
+
+.st-error {
+  color: #b91c1c;
+}
+
+.st-root[data-theme='dark'] .st-error {
+  color: #fca5a5;
+}
+
+.st-manual {
+  width: 100%;
+  min-height: 72px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--st-line);
+  background: var(--st-card);
+  color: var(--st-text);
+  font: inherit;
+  resize: vertical;
+}

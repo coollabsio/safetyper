@@ -297,7 +297,17 @@ export default defineContentScript({
           commonAncestor.nodeType === Node.TEXT_NODE
             ? commonAncestor.parentElement
             : (commonAncestor as HTMLElement);
-        if (ancestorEl?.closest('.safetyper-popup, .safetyper-icon')) return;
+        if (ancestorEl?.closest('.safetyper-popup, .safetyper-popup-host, .safetyper-icon')) {
+          return;
+        }
+        const root = ancestorEl?.getRootNode();
+        if (
+          root instanceof ShadowRoot &&
+          root.host instanceof HTMLElement &&
+          root.host.classList.contains('safetyper-popup-host')
+        ) {
+          return;
+        }
 
         // Only activate for selections inside editable elements
         if (!isSelectionInEditableArea(selection)) return;

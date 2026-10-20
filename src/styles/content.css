@@ -180,6 +180,13 @@
   background: #262626;
 }
 
+.safetyper-popup-host {
+  position: fixed;
+  z-index: 1000000;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+}
+
 .safetyper-popup {
   position: fixed;
   z-index: 1000000;
