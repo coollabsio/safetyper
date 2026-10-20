@@ -155,6 +155,9 @@ try {
       await armField(before.page);
       await before.page.locator('.safetyper-badge.is-visible').waitFor({ timeout: 12000 });
       await zoomIcon(before.page, 'icon-before-zoom.png');
+      await before.page.locator('.safetyper-icon img').screenshot({
+        path: path.join(shots, 'logo-before.png'),
+      });
     } finally {
       await before.context.close();
     }
@@ -166,11 +169,11 @@ try {
     await page.goto(`http://127.0.0.1:${pagePort}/index.html`, { waitUntil: 'domcontentloaded' });
     await page.locator('#icon-state-gallery figure').first().waitFor({ timeout: 8000 });
     assert(
-      (await page.locator('#icon-state-gallery figure').count()) >= 12,
+      (await page.locator('#icon-state-gallery figure').count()) >= 8,
       'light gallery lists the states'
     );
     assert(
-      (await page.locator('#icon-state-gallery-dark figure').count()) >= 12,
+      (await page.locator('#icon-state-gallery-dark figure').count()) >= 8,
       'dark gallery lists the states'
     );
     await page.locator('#icon-state-gallery').screenshot({
@@ -180,19 +183,16 @@ try {
       path: path.join(shots, 'icon-states-overview-dark.png'),
     });
 
-    await page.addStyleTag({ content: 'button { background: red !important; }' });
     await armField(page);
     const icon = page.locator('.safetyper-icon');
     await icon.waitFor({ state: 'visible' });
-    await page.waitForFunction(
-      () => document.querySelector('.safetyper-icon')?.getAttribute('data-presentation') === 'count',
-      null,
-      { timeout: 12000 }
-    );
-    const label = await icon.locator('.face').getAttribute('aria-label');
+    await page.locator('.safetyper-icon .safetyper-badge.is-visible').waitFor({ timeout: 12000 });
+    const label = await icon.getAttribute('aria-label');
     assert(label && label.includes('suggestion'), `aria-label was ${label}`);
-    const faceBg = await icon.locator('.face').evaluate((element) => getComputedStyle(element).backgroundColor);
-    assert(!faceBg.includes('255, 0, 0'), 'page button styles do not paint the icon');
+    const rendering = await icon.locator('img').evaluate((element) => getComputedStyle(element).imageRendering);
+    assert(rendering === 'pixelated', `image rendering was ${rendering}`);
+    const disc = await icon.evaluate((element) => getComputedStyle(element).backgroundColor);
+    assert(disc === 'rgb(0, 0, 0)', `disc color was ${disc}`);
     const fieldBox = await page.locator('#icon-live').boundingBox();
     const iconBox = await icon.boundingBox();
     assert(fieldBox && iconBox, 'live field');
@@ -208,20 +208,7 @@ try {
       },
     });
     await zoomIcon(page, 'icon-after-zoom.png');
-    await icon.hover();
-    await page.waitForTimeout(150);
-    const tip = await icon.locator('.tip').innerText();
-    assert(tip.includes('suggestion'), `tooltip was ${tip}`);
-    const hoverBox = await icon.boundingBox();
-    await page.screenshot({
-      path: path.join(shots, 'icon-hover-tooltip.png'),
-      clip: {
-        x: Math.max(0, hoverBox.x - 70),
-        y: Math.max(0, hoverBox.y - 40),
-        width: 180,
-        height: 90,
-      },
-    });
+    await icon.locator('img').screenshot({ path: path.join(shots, 'logo-after.png') });
 
     const popupUrl = await worker.evaluate(() => chrome.runtime.getURL('/popup.html'));
     const popup = await session.context.newPage();
@@ -270,6 +257,17 @@ draw = ImageDraw.Draw(canvas)
 draw.text((12, 6), 'Before', fill='#18181b')
 draw.text((old.width + 24, 6), 'After', fill='#18181b')
 canvas.save('${path.join(shots, 'before-after-icon.png')}')
+old_logo = Image.open('${path.join(shots, 'logo-before.png')}').convert('RGB')
+new_logo = Image.open('${path.join(shots, 'logo-after.png')}').convert('RGB')
+if old_logo.size != new_logo.size:
+    raise SystemExit(f'logo size {old_logo.size} != {new_logo.size}')
+diff = 0
+for y in range(old_logo.height):
+    for x in range(old_logo.width):
+        a = old_logo.getpixel((x, y))
+        b = new_logo.getpixel((x, y))
+        diff += sum(abs(p - q) for p, q in zip(a, b))
+print('logo channel diff', diff)
 `,
     ]);
   }

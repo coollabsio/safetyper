@@ -1,10 +1,10 @@
 /**
- * Icon state, group priority, and size. Execute with `bun src/lib/content/icon-state.test.ts`.
+ * Icon size and suggestion-group colors for the count badge.
+ * Execute with `bun src/lib/content/icon-state.test.ts`.
  */
 
 import { GROUP_COLORS, GROUP_PRIORITY, highestPriorityGroup } from './group-colors';
 import { ICON_PIXELS, iconIsHidden, iconPixelSize, setIconSizeSetting } from './icon-metrics';
-import { iconAriaLabel, presentIcon, suggestionTooltip } from './icon-state';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -39,40 +39,17 @@ function run(): void {
     'unknown category has no group'
   );
 
-  const counted = presentIcon({
-    activity: 'issues',
-    count: 3,
-    autoCheck: true,
-    group: 'correctness',
-  });
-  assert(counted.countAsIcon, 'automatic checking turns the icon into the count');
-  assertEqual(counted.group, 'correctness', 'count keeps the group');
-  assertEqual(suggestionTooltip(3), '3 suggestions', 'tooltip plural');
-  assertEqual(suggestionTooltip(1), '1 suggestion', 'tooltip singular');
-
-  const badge = presentIcon({
-    activity: 'issues',
-    count: 2,
-    autoCheck: false,
-    group: 'clarity',
-  });
-  assert(!badge.countAsIcon, 'manual checks keep a separate badge');
-  assertEqual(iconAriaLabel('issues', 2), 'SafeTyper, 2 suggestions', 'label includes the count');
-  assertEqual(iconAriaLabel('clean', 0), 'SafeTyper, no issues', 'clean label');
-  assertEqual(iconAriaLabel('idle', 0), 'Check grammar with SafeTyper', 'idle label');
-
-  const hidden = presentIcon({ activity: 'issues', count: 0, autoCheck: true, group: null });
-  assertEqual(hidden.activity, 'idle', 'a zero count is not an issue state');
-  assert(!hidden.countAsIcon, 'zero issues hide the count');
-
+  assertEqual(ICON_PIXELS.medium, 24, 'medium is the original disc');
+  assertEqual(ICON_PIXELS.small, 18, 'small is three quarters of medium');
   setIconSizeSetting('medium');
-  assertEqual(iconPixelSize(), ICON_PIXELS.medium, 'medium is 28px');
-  assertEqual(ICON_PIXELS.small, 16, 'small disc is the 16px asset');
+  assertEqual(iconPixelSize(), 24, 'default placement size is 24');
+  setIconSizeSetting('small');
+  assertEqual(iconPixelSize(), 18, 'small placement size');
   setIconSizeSetting('hidden');
   assert(iconIsHidden(), 'hidden setting');
-  assertEqual(iconPixelSize(), ICON_PIXELS.small, 'hidden placement still uses the small box');
+  assertEqual(iconPixelSize(), 24, 'hidden placement still uses the original disc');
   setIconSizeSetting('nope');
-  assertEqual(iconPixelSize(), ICON_PIXELS.small, 'unknown size falls back to small');
+  assertEqual(iconPixelSize(), 24, 'unknown size falls back to medium');
 
   console.log('icon state tests passed');
 }

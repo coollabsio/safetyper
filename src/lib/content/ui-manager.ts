@@ -7,11 +7,8 @@ import { browser } from 'wxt/browser';
 import { stateManager } from './state-manager';
 import { checkGrammar } from './api-client';
 import { cancelAutoCheck, getAutoCheckSnapshot } from './auto-check-state';
-import { backdropLuminance } from './icon-placement';
-import { highestPriorityGroup, type SuggestionGroupId } from './group-colors';
-import { mountIconFace } from './icon-view';
-import { ICON_PIXELS, iconIsHidden, iconPixelSize, setIconSizeSetting } from './icon-metrics';
-import { presentIcon, type IconActivity } from './icon-state';
+import { groupFill, highestPriorityGroup } from './group-colors';
+import { getIconSizeSetting, iconIsHidden, setIconSizeSetting } from './icon-metrics';
 import popupCss from '../../styles/popup-widget.css?inline';
 import {
   applySuggestion,
@@ -75,49 +72,11 @@ export function updateTheme(isDark: boolean): void {
   }
 }
 
-let iconActivity: IconActivity = 'idle';
-let iconCount = 0;
-let iconGroup: SuggestionGroupId | null = null;
-let iconAutoCheck = false;
-let iconSurface: 'light' | 'dark' = 'light';
-let cleanTimer = 0;
 let typingTimer = 0;
 
-function syncIconFace(host: HTMLElement): void {
-  const view = presentIcon({
-    activity: iconActivity,
-    count: iconCount,
-    autoCheck: iconAutoCheck,
-    group: iconGroup,
-  });
-  const pixels = iconPixelSize();
-  host.setAttribute(
-    'data-size',
-    iconIsHidden() ? 'hidden' : pixels === ICON_PIXELS.medium ? 'medium' : 'small'
-  );
-  host.style.width = `${pixels}px`;
-  host.style.height = `${pixels}px`;
-  mountIconFace(host, {
-    activity: view.activity,
-    count: view.count,
-    countAsIcon: view.countAsIcon,
-    group: view.group,
-    surface: iconSurface,
-    onActivate: showPopup,
-  });
-}
-
-/**
- * Show the icon unless the user hid it in settings.
- */
-export function revealIcon(): HTMLDivElement | null {
-  if (iconIsHidden()) {
-    hideIcon();
-    return null;
-  }
-  const icon = stateManager.getIconContainer() || createIcon();
-  icon.style.display = 'flex';
-  return icon;
+function applyIconChrome(host: HTMLElement): void {
+  const size = getIconSizeSetting();
+  host.setAttribute('data-size', size);
 }
 
 export function noteIconTyping(): void {
@@ -126,32 +85,6 @@ export function noteIconTyping(): void {
   icon.setAttribute('data-typing', 'true');
   window.clearTimeout(typingTimer);
   typingTimer = window.setTimeout(() => icon.removeAttribute('data-typing'), 700);
-}
-
-export function setIconAutoCheck(enabled: boolean): void {
-  iconAutoCheck = enabled;
-  const icon = stateManager.getIconContainer();
-  if (icon) syncIconFace(icon);
-}
-
-export function setIconActivity(
-  activity: IconActivity,
-  issues: Array<{ group?: unknown; category?: unknown }> = []
-): void {
-  window.clearTimeout(cleanTimer);
-  iconActivity = activity;
-  iconCount = activity === 'issues' ? issues.length : 0;
-  iconGroup = activity === 'issues' ? highestPriorityGroup(issues) : null;
-  const icon = stateManager.getIconContainer();
-  if (icon) syncIconFace(icon);
-  if (activity === 'clean') {
-    cleanTimer = window.setTimeout(() => {
-      if (iconActivity !== 'clean') return;
-      iconActivity = 'idle';
-      const current = stateManager.getIconContainer();
-      if (current) syncIconFace(current);
-    }, 1600);
-  }
 }
 
 /**
@@ -178,7 +111,7 @@ export function applyIconSize(value: unknown): void {
   setIconSizeSetting(value);
   const icon = stateManager.getIconContainer();
   if (!icon) return;
-  syncIconFace(icon);
+  applyIconChrome(icon);
   if (iconIsHidden()) {
     hideIcon();
     return;
@@ -191,62 +124,54 @@ export function applyIconSize(value: unknown): void {
 
 const GALLERY_STATES: Array<{
   label: string;
-  activity: IconActivity;
   count: number;
-  autoCheck: boolean;
-  group: SuggestionGroupId | null;
+  group: 'correctness' | 'clarity' | 'engagement' | 'delivery' | null;
   typing?: boolean;
-  reveal?: boolean;
-  medium?: boolean;
+  small?: boolean;
 }> = [
-  { label: 'Idle', activity: 'idle', count: 0, autoCheck: false, group: null },
-  { label: 'Typing', activity: 'idle', count: 0, autoCheck: false, group: null, typing: true },
-  { label: 'Checking', activity: 'checking', count: 0, autoCheck: true, group: null },
-  { label: 'Clean', activity: 'clean', count: 0, autoCheck: true, group: null },
-  { label: 'Correctness', activity: 'issues', count: 2, autoCheck: false, group: 'correctness' },
-  { label: 'Clarity', activity: 'issues', count: 2, autoCheck: false, group: 'clarity' },
-  { label: 'Engagement', activity: 'issues', count: 1, autoCheck: false, group: 'engagement' },
-  { label: 'Delivery', activity: 'issues', count: 1, autoCheck: false, group: 'delivery' },
-  { label: 'Count', activity: 'issues', count: 3, autoCheck: true, group: 'correctness' },
-  {
-    label: 'Hover',
-    activity: 'issues',
-    count: 3,
-    autoCheck: true,
-    group: 'correctness',
-    reveal: true,
-  },
-  { label: 'Small', activity: 'idle', count: 0, autoCheck: false, group: null },
-  { label: 'Medium', activity: 'idle', count: 0, autoCheck: false, group: null, medium: true },
+  { label: 'Idle', count: 0, group: null },
+  { label: 'Typing', count: 0, group: null, typing: true },
+  { label: 'Correctness', count: 2, group: 'correctness' },
+  { label: 'Clarity', count: 2, group: 'clarity' },
+  { label: 'Engagement', count: 1, group: 'engagement' },
+  { label: 'Delivery', count: 1, group: 'delivery' },
+  { label: 'Small', count: 0, group: null, small: true },
+  { label: 'Medium', count: 0, group: null },
 ];
 
-function paintGallery(root: HTMLElement, surface: 'light' | 'dark'): void {
+function paintPreview(
+  host: HTMLElement,
+  item: (typeof GALLERY_STATES)[number],
+  theme: 'light' | 'dark'
+): void {
+  host.className = 'safetyper-icon-preview';
+  host.setAttribute('data-theme', theme);
+  host.setAttribute('data-size', item.small ? 'small' : 'medium');
+  if (item.typing) host.setAttribute('data-typing', 'true');
+  if (item.count > 0) host.setAttribute('data-results', 'true');
+  const img = document.createElement('img');
+  img.src = browser.runtime.getURL('/icon/32.png');
+  img.alt = '';
+  img.width = 20;
+  img.height = 20;
+  img.style.imageRendering = 'pixelated';
+  host.append(img);
+  if (item.count > 0) {
+    const badge = document.createElement('span');
+    badge.className = 'safetyper-badge is-visible';
+    badge.textContent = String(item.count);
+    if (item.group) badge.style.background = groupFill(item.group, 'light');
+    host.append(badge);
+  }
+}
+
+function paintGallery(root: HTMLElement, theme: 'light' | 'dark'): void {
   root.replaceChildren();
   for (const item of GALLERY_STATES) {
     const figure = document.createElement('figure');
     figure.className = 'icon-state';
     const host = document.createElement('div');
-    host.className = 'safetyper-icon-preview';
-    if (item.medium) {
-      host.setAttribute('data-size', 'medium');
-      host.style.width = '28px';
-      host.style.height = '28px';
-    }
-    if (item.typing) host.setAttribute('data-typing', 'true');
-    const view = presentIcon({
-      activity: item.activity,
-      count: item.count,
-      autoCheck: item.autoCheck,
-      group: item.group,
-    });
-    mountIconFace(host, {
-      activity: view.activity,
-      count: view.count,
-      countAsIcon: view.countAsIcon,
-      group: view.group,
-      surface,
-    });
-    if (item.reveal) host.setAttribute('data-reveal', 'true');
+    paintPreview(host, item, theme);
     const caption = document.createElement('figcaption');
     caption.textContent = item.label;
     figure.append(host, caption);
@@ -264,15 +189,14 @@ export function mountIconStateGallery(): void {
 
 export async function loadIconPreferences(): Promise<void> {
   try {
-    const stored = await browser.storage.local.get(['iconSize', 'autoCheckEnabled']);
+    const stored = await browser.storage.local.get(['iconSize']);
     setIconSizeSetting(stored.iconSize);
-    iconAutoCheck = stored.autoCheckEnabled === true;
   } catch {
-    setIconSizeSetting('small');
+    setIconSizeSetting('medium');
   }
   const icon = stateManager.getIconContainer();
   if (icon) {
-    syncIconFace(icon);
+    applyIconChrome(icon);
     if (iconIsHidden()) hideIcon();
   }
 }
@@ -287,8 +211,31 @@ export function createIcon(): HTMLDivElement {
 
   const iconContainer = document.createElement('div');
   iconContainer.className = 'safetyper-icon';
-  syncIconFace(iconContainer);
+  iconContainer.setAttribute('role', 'button');
+  iconContainer.setAttribute('aria-label', 'Check grammar');
+  iconContainer.setAttribute('tabindex', '0');
+  iconContainer.setAttribute('data-theme', currentTheme);
+  applyIconChrome(iconContainer);
+  const iconImg = document.createElement('img');
+  iconImg.src = browser.runtime.getURL('/icon/32.png');
+  iconImg.alt = '';
+  iconImg.width = 20;
+  iconImg.height = 20;
+  iconImg.style.imageRendering = 'pixelated';
+  iconContainer.appendChild(iconImg);
+  const badge = document.createElement('span');
+  badge.className = 'safetyper-badge';
+  badge.setAttribute('aria-hidden', 'true');
+  iconContainer.appendChild(badge);
+
   iconContainer.addEventListener('mousedown', (event) => event.preventDefault());
+  iconContainer.addEventListener('click', showPopup);
+  iconContainer.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      showPopup(event);
+    }
+  });
 
   if (import.meta.env.DEV) {
     console.log('[SafeTyper UI] Icon element created:', iconContainer);
@@ -320,12 +267,27 @@ export function setIssueCount(
   count: number,
   issues: Array<{ group?: unknown; category?: unknown }> = []
 ): void {
+  const iconContainer = stateManager.getIconContainer();
+  if (!iconContainer) return;
+  const badge = iconContainer.querySelector('.safetyper-badge');
+  if (!(badge instanceof HTMLElement)) return;
   if (count <= 0) {
-    setIconActivity(iconActivity === 'checking' ? 'checking' : 'idle');
+    badge.classList.remove('is-visible');
+    badge.textContent = '';
+    badge.style.background = '';
+    iconContainer.removeAttribute('data-results');
+    iconContainer.setAttribute('aria-label', 'Check grammar');
     return;
   }
-  const sample = issues.length > 0 ? issues : Array.from({ length: count }, () => ({}));
-  setIconActivity('issues', sample);
+  badge.textContent = count > 9 ? '9+' : String(count);
+  badge.classList.add('is-visible');
+  const group = highestPriorityGroup(issues);
+  badge.style.background = group ? groupFill(group, 'light') : '';
+  iconContainer.setAttribute('data-results', 'true');
+  iconContainer.setAttribute(
+    'aria-label',
+    `Check grammar, ${count} suggestion${count === 1 ? '' : 's'}`
+  );
 }
 
 /**
@@ -418,12 +380,6 @@ export function positionIcon(element: HTMLElement): void {
     }
   }
 
-  const luminance = backdropLuminance(position);
-  const surface = luminance !== null && luminance <= 0.45 ? 'dark' : 'light';
-  if (surface !== iconSurface) {
-    iconSurface = surface;
-    syncIconFace(iconContainer);
-  }
   iconContainer.style.display = iconIsHidden() ? 'none' : 'flex';
 
   if (import.meta.env.DEV) {
@@ -474,13 +430,7 @@ export function positionIconAtSelection(range: Range): void {
     stateManager.setCachedPosition(position);
   }
 
-  const luminance = backdropLuminance(position);
-  const surface = luminance !== null && luminance <= 0.45 ? 'dark' : 'light';
-  if (surface !== iconSurface) {
-    iconSurface = surface;
-    syncIconFace(iconContainer);
-  }
-  iconContainer.style.display = 'flex';
+  iconContainer.style.display = iconIsHidden() ? 'none' : 'flex';
 }
 
 function sessionForField(
@@ -1134,7 +1084,6 @@ async function handleGrammarCheck(): Promise<void> {
       const count = popupRoot(popup)?.querySelector('.st-count');
       if (count) count.textContent = 'Checking…';
       content.innerHTML = '<p class="st-loading">Checking grammar...</p>';
-      setIconActivity('checking');
     }
   }
 
@@ -1170,7 +1119,7 @@ async function handleGrammarCheck(): Promise<void> {
       }
     }
 
-    setIconActivity(result.suggestions.length > 0 ? 'issues' : 'clean', result.suggestions);
+    setIssueCount(result.suggestions.length, result.suggestions);
     renderSuggestionCards(content, {
       workingText: text,
       suggestions: result.suggestions,

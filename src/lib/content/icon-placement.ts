@@ -9,7 +9,7 @@ import { iconPixelSize } from './icon-metrics';
 const GAP = 3;
 const INSET = 4;
 /** The 12px badge hangs 8px off the disc. Inside placements leave that much room. */
-const BADGE_HANG = 8;
+const BADGE_HANG = 11;
 
 interface Box {
   left: number;
