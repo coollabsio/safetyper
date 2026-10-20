@@ -4,6 +4,7 @@
  * Groups and colors come from src/lib/categories.ts.
  */
 
+import { readsAsNoIssues } from '../ai/no-issues';
 import {
   classifyIssue,
   groupMembershipRules,
@@ -156,6 +157,21 @@ export function parseIssues(raw: string): GrammarIssue[] {
     });
   });
   return result;
+}
+
+/**
+ * A parsed issues array, including an empty one, is usable.
+ * Plain text that says the passage is clean is an empty list.
+ * Anything else returns null so the caller can retry once.
+ */
+export function resolveIssueReply(raw: string, original: string): GrammarIssue[] | null {
+  try {
+    return parseIssues(raw);
+  } catch (error) {
+    if (!(error instanceof IssueParseError)) throw error;
+    if (readsAsNoIssues(raw, original)) return [];
+    return null;
+  }
 }
 
 function rangesOverlap(start: number, end: number, ranges: Array<[number, number]>): boolean {

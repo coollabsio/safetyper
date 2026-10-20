@@ -5,8 +5,12 @@
 
 import { browser } from 'wxt/browser';
 import { stateManager } from './state-manager';
-import { checkGrammar, rewritePassage } from './api-client';
-import { cancelAutoCheck, getAutoCheckSnapshot } from './auto-check-state';
+import { checkGrammar, GrammarCheckCancelled, rewritePassage } from './api-client';
+import { OLLAMA_LOADING_HINT_MS } from '../ai/timeout';
+import { cancelAutoCheck, getAutoCheckSnapshot, refreshAutoCheckIssues } from './auto-check-state';
+import { dismissalsFor, rememberDismissal, withoutDismissed } from './dismissals';
+import { placePopupNearRect } from './popup-position';
+import { suggestionClientRect } from './underlines';
 import { applyGroupColorVariables } from './category-colors';
 import { groupFill, highestPriorityGroup } from './group-colors';
 import { getIconSizeSetting, iconIsHidden, setIconSizeSetting } from './icon-metrics';
@@ -41,13 +45,18 @@ import {
   getTextContent,
   setTextContent,
   isComplexEditor,
-  escapeHtml,
 } from './dom-utils';
 
 // Track document-level listeners for cleanup
 let activeDragEnd: (() => void) | null = null;
 let activeDragMove: ((e: MouseEvent) => void) | null = null;
 let activeKeyDown: ((e: KeyboardEvent) => void) | null = null;
+let anchorFollow: (() => void) | null = null;
+let popupAnchorMode: 'icon' | 'text' = 'icon';
+let popupAnchorIssue: Suggestion | null = null;
+let checkGeneration = 0;
+let manualRequestId: string | null = null;
+let loadingHint = 0;
 let suggestionCloseTimer = 0;
 let popupDragged = false;
 let activeSession: SuggestionSession | null = null;
@@ -521,6 +530,13 @@ function mountPopupShell(): HTMLDivElement {
   shadow.append(style, root);
   paintPopup(popup);
   root.querySelector('.st-close')?.addEventListener('click', closePopup);
+  anchorFollow = () => {
+    const open = stateManager.getPopup();
+    if (!open || popupDragged || popupAnchorMode !== 'text') return;
+    repositionPopup(open);
+  };
+  window.addEventListener('scroll', anchorFollow, true);
+  window.addEventListener('resize', anchorFollow);
   root.querySelector('.st-rewrite')?.addEventListener('click', () => {
     toggleRewriteMenu();
   });
@@ -599,7 +615,7 @@ export function showFieldIssues(issues: Suggestion[], focusId?: string): void {
   const text = getTextContent(anchor);
   const focused = focusId ? issues.filter((issue) => issue.id === focusId) : [];
   const source = focused.length > 0 ? focused : issues;
-  const shown = source.filter((issue) => !dismissalsFor(anchor).has(issue.quote));
+  const shown = withoutDismissed(text, source, dismissalsFor(anchor));
   const popup = stateManager.getPopup() ?? mountPopupShell();
   const content = popupContent(popup);
   if (!content) return;
@@ -608,6 +624,7 @@ export function showFieldIssues(issues: Suggestion[], focusId?: string): void {
     session.initialEmpty = true;
     session.emptyLabel = 'Nothing left to review.';
   }
+  choosePopupAnchor(shown, focusId);
   renderSuggestionCards(content, session, shown.length === 0 ? -1 : 0);
   setTimeout(() => repositionPopup(popup), 0);
 }
@@ -624,6 +641,8 @@ export function showPopup(e: Event): void {
   }
 
   const popup = mountPopupShell();
+  popupAnchorMode = 'icon';
+  popupAnchorIssue = null;
   const field = stateManager.getActiveInput();
   const snap = getAutoCheckSnapshot();
   if (
@@ -635,7 +654,9 @@ export function showPopup(e: Event): void {
   ) {
     const content = popupContent(popup);
     if (content) {
-      renderSuggestionCards(content, sessionForField(field, snap.text, snap.issues));
+      const session = sessionForField(field, snap.text, snap.issues);
+      choosePopupAnchor(snap.issues);
+      renderSuggestionCards(content, session);
       setTimeout(() => repositionPopup(popup), 0);
     }
     return;
@@ -789,7 +810,16 @@ function openSettings(): void {
  * Close popup and clean up all associated listeners
  */
 export function closePopup(): void {
+  cancelManualCheck();
   activeSession = null;
+  popupAnchorMode = 'icon';
+  popupAnchorIssue = null;
+  window.clearTimeout(loadingHint);
+  if (anchorFollow) {
+    window.removeEventListener('scroll', anchorFollow, true);
+    window.removeEventListener('resize', anchorFollow);
+    anchorFollow = null;
+  }
   const popup = stateManager.getPopup();
   if (popup) {
     window.clearTimeout(suggestionCloseTimer);
@@ -844,6 +874,33 @@ function constrainPopupToViewport(popup: HTMLElement): void {
   popup.style.top = `${top}px`;
 }
 
+function choosePopupAnchor(issues: readonly Suggestion[], focusId?: string): void {
+  const focused = focusId ? issues.find((issue) => issue.id === focusId) : undefined;
+  if (focused) {
+    popupAnchorMode = 'text';
+    popupAnchorIssue = focused;
+    return;
+  }
+  if (issues.length === 1) {
+    popupAnchorMode = 'text';
+    popupAnchorIssue = issues[0];
+    return;
+  }
+  popupAnchorMode = 'icon';
+  popupAnchorIssue = null;
+}
+
+function quoteAnchorRect(): DOMRect | null {
+  if (popupAnchorMode !== 'text' || !popupAnchorIssue) return null;
+  const field = stateManager.getActiveInput() ?? stateManager.getSelectionAnchorElement();
+  if (!field) return null;
+  const text = activeSession?.workingText || getTextContent(field);
+  return suggestionClientRect(field, text, popupAnchorIssue);
+}
+
+/**
+ * Side-of-field placement is only the fallback. A quote rect anchors the card instead.
+ */
 function placeBesideField(
   iconRect: DOMRect,
   fieldRect: DOMRect | null,
@@ -890,6 +947,18 @@ function repositionPopup(popup: HTMLElement): void {
     constrainPopupToViewport(popup);
     return;
   }
+  const rect = popup.getBoundingClientRect();
+  const quoteRect = quoteAnchorRect();
+  if (quoteRect) {
+    const placed = placePopupNearRect(
+      quoteRect,
+      { width: rect.width || 360, height: rect.height || 180 },
+      { width: window.innerWidth, height: window.innerHeight }
+    );
+    popup.style.left = `${placed.left}px`;
+    popup.style.top = `${placed.top}px`;
+    return;
+  }
   const icon = stateManager.getIconContainer();
   const field = stateManager.getActiveInput() ?? stateManager.getSelectionAnchorElement();
   const iconRect = icon?.getBoundingClientRect() ?? field?.getBoundingClientRect();
@@ -897,7 +966,6 @@ function repositionPopup(popup: HTMLElement): void {
     constrainPopupToViewport(popup);
     return;
   }
-  const rect = popup.getBoundingClientRect();
   const position = placeBesideField(
     iconRect,
     field?.getBoundingClientRect() ?? null,
@@ -933,21 +1001,17 @@ interface SuggestionSession {
   emptyLabel: string;
 }
 
-const pageDismissals = new Set<string>();
-const sessionDismissals = new WeakMap<HTMLElement, Set<string>>();
-
-function dismissalsFor(anchor: HTMLElement | null): Set<string> {
-  if (!anchor) return pageDismissals;
-  let quotes = sessionDismissals.get(anchor);
-  if (!quotes) {
-    quotes = new Set();
-    sessionDismissals.set(anchor, quotes);
-  }
-  return quotes;
-}
-
-function rememberDismissal(anchor: HTMLElement | null, quote: string): void {
-  dismissalsFor(anchor).add(quote);
+function cancelManualCheck(): void {
+  const requestId = manualRequestId;
+  manualRequestId = null;
+  checkGeneration += 1;
+  window.clearTimeout(loadingHint);
+  if (!requestId) return;
+  void browser.runtime
+    .sendMessage({ action: 'cancelGrammarCheck', requestId })
+    .catch((error: unknown) => {
+      console.error('[SafeTyper] Failed to cancel a grammar check:', error);
+    });
 }
 
 async function saveDictionaryWord(word: string): Promise<void> {
@@ -1281,6 +1345,7 @@ function renderSuggestionCards(
       suggestionCloseTimer = window.setTimeout(closePopup, 1600);
       if (focusIndex !== null) queueMicrotask(() => focusSuggestion(content, -1));
     }
+    repositionPopupIfOpen();
     return;
   }
 
@@ -1301,6 +1366,13 @@ function renderSuggestionCards(
   });
   content.append(list);
   if (focusIndex !== null) queueMicrotask(() => focusSuggestion(content, focusIndex));
+  repositionPopupIfOpen();
+}
+
+function repositionPopupIfOpen(): void {
+  const popup = stateManager.getPopup();
+  if (!popup) return;
+  repositionPopup(popup);
 }
 
 function renderRewriteCard(
@@ -1453,10 +1525,23 @@ function renderIssueCard(
   dismiss.textContent = 'Dismiss';
   dismiss.setAttribute('aria-label', `Dismiss suggestion for ${original || 'this text'}`);
   dismiss.addEventListener('click', () => {
-    rememberDismissal(session.anchor, suggestion.quote);
-    session.suggestions = session.suggestions.filter((item) => item.quote !== suggestion.quote);
+    rememberDismissal(session.anchor, suggestion);
+    session.suggestions = session.suggestions.filter(
+      (item) =>
+        `${item.quote}\u0000${item.replacement}` !==
+        `${suggestion.quote}\u0000${suggestion.replacement}`
+    );
     session.initialEmpty = false;
     session.notice = '';
+    if (popupAnchorIssue?.id === suggestion.id) {
+      popupAnchorIssue = session.suggestions[0] ?? null;
+      if (!popupAnchorIssue) popupAnchorMode = 'icon';
+    }
+    if (session.anchor && getAutoCheckSnapshot().field === session.anchor) {
+      refreshAutoCheckIssues();
+    } else {
+      setIssueCount(session.suggestions.length, session.suggestions);
+    }
     renderSuggestionCards(
       content,
       session,
@@ -1553,6 +1638,11 @@ async function handleGrammarCheck(): Promise<void> {
     return;
   }
 
+  cancelManualCheck();
+  const generation = ++checkGeneration;
+  const requestId = `manual-${generation}`;
+  manualRequestId = requestId;
+
   const popup = stateManager.getPopup();
   if (popup) {
     const content = popupContent(popup);
@@ -1563,9 +1653,19 @@ async function handleGrammarCheck(): Promise<void> {
       content.innerHTML = '<p class="st-loading">Checking grammar...</p>';
     }
   }
+  void browser.storage.local.get('selectedProvider').then((stored) => {
+    if (generation !== checkGeneration || stored.selectedProvider !== 'ollama') return;
+    loadingHint = window.setTimeout(() => {
+      if (generation !== checkGeneration) return;
+      const open = stateManager.getPopup();
+      const loading = open ? popupContent(open)?.querySelector('.st-loading') : null;
+      if (loading) loading.textContent = 'Loading model…';
+    }, OLLAMA_LOADING_HINT_MS);
+  });
 
   try {
-    const result = await checkGrammar(text);
+    const result = await checkGrammar(text, requestId);
+    if (generation !== checkGeneration) return;
     delete stateManager.getPopup()?.dataset.busy;
 
     const currentPopup = stateManager.getPopup();
@@ -1596,10 +1696,10 @@ async function handleGrammarCheck(): Promise<void> {
       }
     }
 
-    const dismissed = dismissalsFor(anchor);
-    const visible = result.suggestions.filter((item) => !dismissed.has(item.quote));
+    const visible = withoutDismissed(text, result.suggestions, dismissalsFor(anchor));
     const hiddenByDismissal = result.suggestions.length - visible.length;
     setIssueCount(visible.length, visible);
+    choosePopupAnchor(visible);
     renderSuggestionCards(
       content,
       {
@@ -1621,25 +1721,57 @@ async function handleGrammarCheck(): Promise<void> {
         emptyLabel:
           result.hiddenCount > 0 || hiddenByDismissal > 0
             ? 'Nothing left to review.'
-            : 'Nothing to change',
+            : 'Looks good',
       },
       visible.length === 0 ? -1 : 0
     );
     setTimeout(() => repositionPopup(currentPopup), 0);
   } catch (error: unknown) {
+    if (generation !== checkGeneration) return;
+    if (error instanceof GrammarCheckCancelled) {
+      // A superseded check must not leave the card on "Checking…".
+      // A newer check in this page has already replaced the loading state.
+      const popup = stateManager.getPopup();
+      const loading = popup ? popupContent(popup)?.querySelector('.st-loading') : null;
+      const stillThisCheck =
+        popup?.dataset.busy === '1' && /check|loading model/i.test(loading?.textContent ?? '');
+      if (stillThisCheck) showCheckError('The check was interrupted. Try again.');
+      return;
+    }
     if (import.meta.env.DEV) {
       console.error('Grammar check error:', error);
     }
-    const errorPopup = stateManager.getPopup();
-    if (errorPopup) {
-      const content = popupContent(errorPopup);
-      if (content) {
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        errorPopup.dataset.busy = '';
-        content.innerHTML = `<p class="st-error">Error checking grammar: ${escapeHtml(message)}</p>`;
-
-        setTimeout(() => repositionPopup(errorPopup), 0);
-      }
-    }
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    showCheckError(message);
+  } finally {
+    window.clearTimeout(loadingHint);
+    if (manualRequestId === requestId) manualRequestId = null;
   }
+}
+
+function showCheckError(message: string): void {
+  const popup = stateManager.getPopup();
+  if (!popup) return;
+  const content = popupContent(popup);
+  if (!content) return;
+  delete popup.dataset.busy;
+  const count = popupRoot(popup)?.querySelector('.st-count');
+  if (count) count.textContent = 'Could not check';
+  content.replaceChildren();
+  const error = document.createElement('p');
+  error.className = 'st-error';
+  error.textContent = message;
+  error.style.marginBottom = '10px';
+  const actions = document.createElement('div');
+  actions.className = 'st-actions';
+  const retry = document.createElement('button');
+  retry.type = 'button';
+  retry.className = 'st-btn st-btn-primary st-retry';
+  retry.textContent = 'Retry';
+  retry.addEventListener('click', () => {
+    void handleGrammarCheck();
+  });
+  actions.append(retry);
+  content.append(error, actions);
+  repositionPopup(popup);
 }

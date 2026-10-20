@@ -7,7 +7,10 @@
   import { groupLabel } from '~/lib/categories';
   import { applyGroupColorVariables } from '~/lib/content/category-colors';
   import { ChatError, OLLAMA_ORIGINS_VALUE, resolveProvider } from '~/lib/ai/chat';
+  import { isAbortError, OLLAMA_LOADING_HINT_MS } from '~/lib/ai/timeout';
+  import type { ApiProvider } from '~/lib/content/types';
   import { fetchIssues } from '~/lib/editor/check';
+  import { runSequentially } from '~/lib/editor/sequence';
   import {
     createDocument,
     deleteDocument,
@@ -48,6 +51,8 @@
   let title = $state('');
   let darkMode = $state(false);
   let providerLabel = $state('');
+  let providerId = $state<ApiProvider>('openrouter');
+  let loadToken = 0;
   let issues = $state<MatchedIssue[]>([]);
   let activeKey = $state<string | null>(null);
   let checking = $state(false);
@@ -324,6 +329,7 @@
   async function refreshProvider(): Promise<void> {
     try {
       const resolved = await resolveProvider();
+      providerId = resolved.provider;
       providerLabel = `${resolved.providerName} · ${resolved.model}`;
     } catch (error) {
       console.error('Failed to read provider settings', error);
@@ -338,12 +344,15 @@
     abort = controller;
     checking = true;
     card = null;
+    const token = ++loadToken;
+    armLoadHint(token);
     const blocks = collectBlocks(editor.state.doc).filter((block) => block.text.trim().length > 0);
     const targets = only ? blocks.filter((block) => only.includes(block.id)) : blocks;
     const chunks = chunkParagraphs(targets.map((block) => ({ id: block.id, text: block.text })));
 
     if (chunks.length === 0) {
       checking = false;
+      if (loadToken === token) loadToken += 1;
       if (!only) {
         issues = [];
         syncHandlers();
@@ -357,24 +366,27 @@
     let parseFailures = 0;
     let rawCount = 0;
     try {
-      for (let index = 0; index < chunks.length; index += 1) {
-        if (controller.signal.aborted) return;
-        status = {
-          kind: 'checking',
-          message: `Checking paragraph ${index + 1} of ${chunks.length}…`,
-        };
-        try {
-          const parsed = await fetchIssues(chunkText(chunks[index]), controller.signal);
-          rawCount += parsed.length;
-          found.push(...matchIssues(chunks[index].paragraphs, parsed));
-        } catch (error) {
-          if (error instanceof IssueParseError) {
-            parseFailures += 1;
-            continue;
+      await runSequentially(
+        chunks,
+        async (chunk, index) => {
+          status = {
+            kind: 'checking',
+            message: `Checking paragraph ${index + 1} of ${chunks.length}…`,
+          };
+          try {
+            const parsed = await fetchIssues(chunkText(chunk), controller.signal);
+            rawCount += parsed.length;
+            found.push(...matchIssues(chunk.paragraphs, parsed));
+          } catch (error) {
+            if (error instanceof IssueParseError) {
+              parseFailures += 1;
+              return;
+            }
+            throw error;
           }
-          throw error;
-        }
-      }
+        },
+        () => controller.signal.aborted
+      );
 
       const kept = only ? issues.filter((issue) => !only.includes(issue.paragraphId)) : [];
       issues = kept.concat(found);
@@ -395,6 +407,11 @@
         return;
       }
 
+      if (found.length === 0) {
+        status = { kind: 'ok', message: 'Looks good' };
+        return;
+      }
+
       const unmatched = rawCount > found.length;
       const parts = [`${found.length} suggestion${found.length === 1 ? '' : 's'}.`];
       if (unmatched) {
@@ -405,7 +422,7 @@
       }
       status = { kind: 'ok', message: parts.join(' ') };
     } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
+      if (isAbortError(error)) return;
       if (error instanceof ChatError && error.ollamaBlocked) {
         status = { kind: 'ollama', message: error.message };
         return;
@@ -413,9 +430,18 @@
       const message = error instanceof Error ? error.message : 'The check failed.';
       status = { kind: 'error', message };
     } finally {
+      if (loadToken === token) loadToken += 1;
       checking = false;
       if (autoRecheck && dirtyIds().length > 0) scheduleDirty();
     }
+  }
+
+  function armLoadHint(token: number): void {
+    window.setTimeout(() => {
+      if (token !== loadToken || !checking || providerId !== 'ollama') return;
+      if (status.kind !== 'checking') return;
+      status = { kind: 'checking', message: 'Loading model…' };
+    }, OLLAMA_LOADING_HINT_MS);
   }
 
   function writeReplacement(from: number, to: number, replacement: string): void {
@@ -646,7 +672,19 @@
 
       {#if status.kind !== 'idle'}
         <div class="banner {status.kind}" role="status">
-          <div>{status.message}</div>
+          <div class="banner-row">
+            <div>{status.message}</div>
+            {#if status.kind === 'error' || status.kind === 'bad-json' || status.kind === 'ollama'}
+              <button
+                class="secondary-btn"
+                type="button"
+                onclick={() => runCheck()}
+                disabled={checking}
+              >
+                Retry
+              </button>
+            {/if}
+          </div>
           {#if status.kind === 'ollama'}
             <pre>OLLAMA_ORIGINS="{OLLAMA_ORIGINS_VALUE}"</pre>
           {/if}

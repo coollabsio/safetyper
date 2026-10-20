@@ -20,6 +20,19 @@ export function describeTranslateError(
   const lower = message.toLowerCase();
   const providerName = PROVIDER_CONFIG[provider].name;
 
+  if (
+    lower.includes('timed out') ||
+    lower.includes('timeout') ||
+    lower.includes('message port closed')
+  ) {
+    return {
+      message: message.includes('timed out')
+        ? message
+        : 'The request timed out before the model responded. Try again.',
+      opensSettings: false,
+    };
+  }
+
   if (lower.includes('rate limit')) {
     return {
       message: 'Too many requests. Wait a moment, then try again.',
