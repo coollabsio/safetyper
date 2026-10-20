@@ -4,11 +4,13 @@
 
 ## Overview
 
-SafeTyper is a browser extension that checks grammar and spelling with an AI provider you choose. coolLabs, the maker of SafeTyper, does not receive the text you check. We do not run a server that your checks are sent to.
+SafeTyper is a browser extension that checks grammar and spelling, and translates text, with an AI provider you choose. coolLabs, the maker of SafeTyper, does not receive that text. We do not run a server that your checks or translations are sent to.
 
 ## When text leaves your browser
 
-Text is sent only to the provider selected in SafeTyper, and only when you run a check. Typing in a page does not send that text anywhere. Text you do not submit is not sent.
+Text is sent only to the provider selected in SafeTyper, and only when you run a grammar check or click Translate. Typing in a page, or typing in the Translate box, does not send that text anywhere. Text you do not submit is not sent.
+
+Translate uses the same provider as grammar checks. It does not use a separate translation service. A local Ollama address keeps the translated text on your machine, the same way a grammar check does.
 
 The providers in this version are:
 
@@ -30,6 +32,9 @@ SafeTyper stores settings in the browser's extension storage (`browser.storage.l
 - an optional custom system prompt
 - light or dark theme
 - whether you finished onboarding
+- which popup tab you last opened
+- your Translate source and target languages
+- the last text you typed into Translate, the last translation, the detected source language, and any alternative wordings the model returned
 
 API keys are sent only to the matching provider, as the `Authorization` header. They are not sent to coolLabs. Extension storage is removed when you uninstall SafeTyper.
 
@@ -44,10 +49,6 @@ SafeTyper does not store the text of the pages you visit. It does not use analyt
 ## Planned features
 
 The items in this section are not in the current release. None of this behavior happens until a version that includes the feature ships. They are described here so the intended data flow is public before that.
-
-### Translate
-
-When Translate is available, it will use the same provider you selected for grammar checks. The text you submit for translation is sent to that provider when you run the translation, and not to a separate translation service. A local Ollama provider keeps that text on the machine, the same way a grammar check does.
 
 ### Optional SafeTyper subscription
 

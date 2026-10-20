@@ -36,8 +36,8 @@
       <div class="feature-text">
         <h3>Private by Design</h3>
         <p>
-          Your text is sent only to the provider you choose, and only when you run a check. It is
-          not sent to coolLabs.
+          Your text is sent only to the provider you choose, and only when you run a check or a
+          translation. It is not sent to coolLabs.
         </p>
       </div>
     </div>
