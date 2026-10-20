@@ -94,7 +94,10 @@ export default defineBackground(() => {
     // Reset Groq models that Groq has shut down, so the current default is used
     if (details.reason === 'update') {
       const { groqSelectedModel } = await browser.storage.local.get(['groqSelectedModel']);
-      if (REMOVED_GROQ_MODELS.includes(groqSelectedModel)) {
+      if (
+        typeof groqSelectedModel === 'string' &&
+        REMOVED_GROQ_MODELS.includes(groqSelectedModel)
+      ) {
         await browser.storage.local.remove(['groqSelectedModel', 'groqCachedModels']);
       }
     }
@@ -199,17 +202,29 @@ export default defineBackground(() => {
       (async () => {
         try {
           // Resolve provider
+          const storedProvider = (await browser.storage.local.get(['selectedProvider']))
+            .selectedProvider;
           const provider: ApiProvider =
-            message.provider ||
-            (await browser.storage.local.get(['selectedProvider'])).selectedProvider ||
+            (typeof message.provider === 'string' &&
+              message.provider in PROVIDER_CONFIG &&
+              (message.provider as ApiProvider)) ||
+            (typeof storedProvider === 'string' &&
+              storedProvider in PROVIDER_CONFIG &&
+              (storedProvider as ApiProvider)) ||
             DEFAULT_PROVIDER;
           const providerConfig = PROVIDER_CONFIG[provider];
 
           // Check cache first (unless force refresh)
           if (!message.force) {
             const stored = await browser.storage.local.get([providerConfig.cachedModelsStorageKey]);
-            const cached = stored[providerConfig.cachedModelsStorageKey];
-            if (cached && Date.now() - cached.fetchedAt < CACHE_TTL) {
+            const cached = stored[providerConfig.cachedModelsStorageKey] as
+              | { models?: unknown; fetchedAt?: number }
+              | undefined;
+            if (
+              cached &&
+              typeof cached.fetchedAt === 'number' &&
+              Date.now() - cached.fetchedAt < CACHE_TTL
+            ) {
               sendResponse({ success: true, data: cached.models });
               return;
             }
@@ -220,7 +235,10 @@ export default defineBackground(() => {
           let ollamaBaseUrl = '';
           if (provider === 'ollama') {
             const endpointStored = await browser.storage.local.get(['ollamaEndpoint']);
-            ollamaBaseUrl = endpointStored.ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+            ollamaBaseUrl =
+              (typeof endpointStored.ollamaEndpoint === 'string' &&
+                endpointStored.ollamaEndpoint) ||
+              DEFAULT_OLLAMA_ENDPOINT;
             modelsUrl = `${ollamaBaseUrl}/api/tags`;
           }
 
@@ -312,7 +330,11 @@ export default defineBackground(() => {
       browser.storage.local
         .get(['selectedProvider', 'openRouterKey', 'groqKey', 'ollamaEndpoint'])
         .then((result) => {
-          const provider: ApiProvider = result.selectedProvider || DEFAULT_PROVIDER;
+          const provider: ApiProvider =
+            (typeof result.selectedProvider === 'string' &&
+              result.selectedProvider in PROVIDER_CONFIG &&
+              (result.selectedProvider as ApiProvider)) ||
+            DEFAULT_PROVIDER;
           const providerConfig = PROVIDER_CONFIG[provider];
 
           if (providerConfig.requiresApiKey) {
@@ -324,7 +346,7 @@ export default defineBackground(() => {
             }
 
             // Validate API key format
-            if (!providerConfig.keyRegex.test(apiKey)) {
+            if (typeof apiKey !== 'string' || !providerConfig.keyRegex.test(apiKey)) {
               sendResponse({
                 success: false,
                 error: `Invalid ${providerConfig.name} API key format`,
@@ -350,7 +372,9 @@ export default defineBackground(() => {
               .catch((error) => sendResponse({ success: false, error: error.message }));
           } else {
             // Ollama: no API key, dynamic endpoint, set Origin to bypass CORS check
-            const baseUrl = result.ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+            const baseUrl =
+              (typeof result.ollamaEndpoint === 'string' && result.ollamaEndpoint) ||
+              DEFAULT_OLLAMA_ENDPOINT;
             const chatUrl = `${baseUrl}/v1/chat/completions`;
 
             fetch(chatUrl, {
@@ -376,7 +400,9 @@ export default defineBackground(() => {
       (async () => {
         try {
           const stored = await browser.storage.local.get(['ollamaEndpoint']);
-          const baseUrl = stored.ollamaEndpoint || DEFAULT_OLLAMA_ENDPOINT;
+          const baseUrl =
+            (typeof stored.ollamaEndpoint === 'string' && stored.ollamaEndpoint) ||
+            DEFAULT_OLLAMA_ENDPOINT;
           const response = await fetch(`${baseUrl}/api/tags`, {
             method: 'GET',
             headers: { Origin: baseUrl },
