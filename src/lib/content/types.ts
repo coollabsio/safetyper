@@ -88,6 +88,13 @@ export interface StorageSchema {
   darkMode?: boolean;
   hasCompletedOnboarding?: boolean;
   customSystemPrompt?: string;
+  popupTab?: 'translate' | 'settings';
+  translateSourceLanguage?: string;
+  translateTargetLanguage?: string;
+  translateDraft?: string;
+  translateResult?: string;
+  translateDetectedLanguage?: string;
+  translateAlternatives?: Array<{ text: string; meaning: string }>;
 }
 
 /**
