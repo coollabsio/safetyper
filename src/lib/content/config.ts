@@ -3,6 +3,7 @@
  */
 
 import type { ApiProvider, Config } from './types';
+import { groupMembershipRules, issueResponseSchema } from '../categories';
 
 /**
  * Configuration constants
@@ -106,12 +107,14 @@ export const PROVIDER_CONFIG = {
  * Default system prompt for grammar checking
  */
 export const DEFAULT_SYSTEM_PROMPT = [
-  'You are a proofreading assistant. Find grammar, spelling, punctuation, clarity, and style problems.',
+  'You are a proofreading assistant. Find problems in correctness, clarity, engagement, and delivery (tone).',
   'Reply with one JSON object and nothing else:',
-  '{"issues":[{"quote":"exact substring from the passage","replacement":"corrected substring","category":"grammar|spelling|punctuation|clarity|style","explanation":"one short sentence"}]}',
+  issueResponseSchema(),
   'Rules:',
   '- quote is a short exact copy from the passage, usually one to six words.',
   '- replacement is only those words, corrected.',
+  '- group and subcategory must match:',
+  groupMembershipRules(),
   '- Return at most 8 issues.',
   '- If nothing is wrong, return {"issues":[]}.',
   '- Always respond in the SAME language as the input text. Do not translate.',

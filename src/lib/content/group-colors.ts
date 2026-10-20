@@ -1,71 +1,42 @@
 /**
- * Group colors for the in-field icon.
+ * Group colors for the in-field icon badge.
  *
- * Ids match src/lib/categories.ts on the groups branch (correctness, clarity,
- * engagement, delivery) so the two maps can be joined later. This file does not
- * import that module.
+ * Ids, membership, and palette come from src/lib/categories.ts. The badge fill
+ * is the group's darker text token so white type stays readable on the disc.
+ * The dark value is that group's dark-theme accent, for a dark surface.
  */
 
-export const SUGGESTION_GROUP_IDS = ['correctness', 'clarity', 'engagement', 'delivery'] as const;
+import {
+  recognizedGroup,
+  SUGGESTION_GROUPS,
+  SUGGESTION_GROUP_IDS,
+  type SuggestionGroupId,
+} from '../categories';
 
-export type SuggestionGroupId = (typeof SUGGESTION_GROUP_IDS)[number];
+export { SUGGESTION_GROUP_IDS };
+export type { SuggestionGroupId };
 
 /** Highest priority first. The icon uses the first group that is present. */
-export const GROUP_PRIORITY: readonly SuggestionGroupId[] = [
-  'correctness',
-  'clarity',
-  'engagement',
-  'delivery',
-];
+export const GROUP_PRIORITY: readonly SuggestionGroupId[] = SUGGESTION_GROUP_IDS;
 
-/**
- * Fills for a count circle with white type. Light values are the darker text
- * tokens from the groups palette so the number stays AA on the fill.
- */
-export const GROUP_COLORS: Record<SuggestionGroupId, { light: string; dark: string }> = {
-  correctness: { light: 'oklch(46% 0.17 25)', dark: 'oklch(72% 0.16 25)' },
-  clarity: { light: 'oklch(42% 0.14 255)', dark: 'oklch(75% 0.12 250)' },
-  engagement: { light: 'oklch(40% 0.12 155)', dark: 'oklch(78% 0.15 155)' },
-  delivery: { light: 'oklch(44% 0.16 310)', dark: 'oklch(74% 0.14 310)' },
-};
-
-const CATEGORY_GROUP: Record<string, SuggestionGroupId> = {
-  spelling: 'correctness',
-  grammar: 'correctness',
-  punctuation: 'correctness',
-  correctness: 'correctness',
-  clarity: 'clarity',
-  conciseness: 'clarity',
-  wordiness: 'clarity',
-  readability: 'clarity',
-  style: 'engagement',
-  engagement: 'engagement',
-  'word-choice': 'engagement',
-  vividness: 'engagement',
-  monotonous: 'engagement',
-  delivery: 'delivery',
-  formality: 'delivery',
-  confidence: 'delivery',
-  politeness: 'delivery',
-  tone: 'delivery',
-};
+export const GROUP_COLORS: Record<SuggestionGroupId, { light: string; dark: string }> =
+  Object.fromEntries(
+    SUGGESTION_GROUPS.map((group) => [
+      group.id,
+      { light: group.colors.light.text, dark: group.colors.dark.accent },
+    ])
+  ) as Record<SuggestionGroupId, { light: string; dark: string }>;
 
 export function groupForIssue(issue: {
   group?: unknown;
+  subcategory?: unknown;
   category?: unknown;
 }): SuggestionGroupId | null {
-  if (
-    typeof issue.group === 'string' &&
-    (SUGGESTION_GROUP_IDS as readonly string[]).includes(issue.group)
-  ) {
-    return issue.group as SuggestionGroupId;
-  }
-  if (typeof issue.category === 'string') return CATEGORY_GROUP[issue.category] ?? null;
-  return null;
+  return recognizedGroup(issue);
 }
 
 export function highestPriorityGroup(
-  issues: Array<{ group?: unknown; category?: unknown }>
+  issues: Array<{ group?: unknown; subcategory?: unknown; category?: unknown }>
 ): SuggestionGroupId | null {
   let best: SuggestionGroupId | null = null;
   let rank = GROUP_PRIORITY.length;

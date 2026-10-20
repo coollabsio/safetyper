@@ -8,6 +8,19 @@
     DEFAULT_PROVIDER,
     DEFAULT_SYSTEM_PROMPT,
   } from '../../lib/content/config';
+  import {
+    AUDIENCE_OPTIONS,
+    DEFAULT_WRITING_GOALS,
+    DOMAIN_OPTIONS,
+    FORMALITY_OPTIONS,
+    INTENT_OPTIONS,
+    parseWritingGoals,
+    WRITING_GOALS_STORAGE_KEY,
+    type Audience,
+    type Domain,
+    type Formality,
+    type Intent,
+  } from '../../lib/goals';
   import TranslatePanel from './TranslatePanel.svelte';
 
   const version = browser.runtime.getManifest().version;
@@ -43,6 +56,11 @@
   const customSystemPromptStorage = storage.defineItem<string>('local:customSystemPrompt', {
     fallback: '',
   });
+
+  const writingGoalsStorage = storage.defineItem<typeof DEFAULT_WRITING_GOALS>(
+    `local:${WRITING_GOALS_STORAGE_KEY}`,
+    { fallback: DEFAULT_WRITING_GOALS }
+  );
 
   const popupTabStorage = storage.defineItem<'translate' | 'settings'>('local:popupTab', {
     fallback: 'translate',
@@ -127,6 +145,10 @@
   let connectionError = $state('');
   let connectionModelCount = $state(0);
   let customSystemPrompt = $state('');
+  let goalAudience = $state<Audience>(DEFAULT_WRITING_GOALS.audience);
+  let goalFormality = $state<Formality>(DEFAULT_WRITING_GOALS.formality);
+  let goalDomain = $state<Domain>(DEFAULT_WRITING_GOALS.domain);
+  let goalIntent = $state<Intent>(DEFAULT_WRITING_GOALS.intent);
   let showAdvanced = $state(false);
   let activeTab = $state<'translate' | 'settings'>('translate');
   let autoCheckEnabled = $state(false);
@@ -314,6 +336,12 @@
       }
 
       await customSystemPromptStorage.setValue(customSystemPrompt);
+      await writingGoalsStorage.setValue({
+        audience: goalAudience,
+        formality: goalFormality,
+        domain: goalDomain,
+        intent: goalIntent,
+      });
 
       showSavedPopup = true;
       setTimeout(() => {
@@ -542,6 +570,11 @@
 
       allModels = getFallbackModels(selectedProvider);
       customSystemPrompt = (await customSystemPromptStorage.getValue()) || '';
+      const storedGoals = parseWritingGoals(await writingGoalsStorage.getValue());
+      goalAudience = storedGoals.audience;
+      goalFormality = storedGoals.formality;
+      goalDomain = storedGoals.domain;
+      goalIntent = storedGoals.intent;
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -896,6 +929,45 @@
               </div>
             {/if}
 
+            <fieldset class="goals">
+              <legend>Writing goals</legend>
+              <div class="field">
+                <label for="goal-audience">Audience</label>
+                <select id="goal-audience" class="select" bind:value={goalAudience}>
+                  {#each AUDIENCE_OPTIONS as option (option.id)}
+                    <option value={option.id}>{option.label}</option>
+                  {/each}
+                </select>
+              </div>
+              <div class="field">
+                <label for="goal-formality">Formality</label>
+                <select id="goal-formality" class="select" bind:value={goalFormality}>
+                  {#each FORMALITY_OPTIONS as option (option.id)}
+                    <option value={option.id}>{option.label}</option>
+                  {/each}
+                </select>
+              </div>
+              <div class="field">
+                <label for="goal-domain">Domain</label>
+                <select id="goal-domain" class="select" bind:value={goalDomain}>
+                  {#each DOMAIN_OPTIONS as option (option.id)}
+                    <option value={option.id}>{option.label}</option>
+                  {/each}
+                </select>
+              </div>
+              <div class="field">
+                <label for="goal-intent">Intent</label>
+                <select id="goal-intent" class="select" bind:value={goalIntent}>
+                  {#each INTENT_OPTIONS as option (option.id)}
+                    <option value={option.id}>{option.label}</option>
+                  {/each}
+                </select>
+              </div>
+              <p class="help-text goals-help">
+                Saved on this device and included in each check and rewrite.
+              </p>
+            </fieldset>
+
             <div class="field">
               <button class="advanced-toggle" onclick={() => (showAdvanced = !showAdvanced)}>
                 {showAdvanced ? '▾' : '▸'} Advanced Settings
@@ -988,6 +1060,28 @@
     font-size: 13px;
     font-weight: 500;
     color: var(--st-text-secondary);
+  }
+
+  .goals {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
+  }
+
+  .goals legend {
+    grid-column: 1 / -1;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--st-text);
+  }
+
+  .goals-help {
+    grid-column: 1 / -1;
   }
 
   .label-row {

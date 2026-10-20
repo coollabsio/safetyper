@@ -61,7 +61,58 @@ function passageOf(user) {
   return index === -1 ? user : user.slice(index + marker.length);
 }
 
+let lastSystem = '';
+
+const GROUP_DEMO = [
+  {
+    quote: 'Teh',
+    replacement: 'The',
+    group: 'correctness',
+    subcategory: 'spelling',
+    explanation: 'Correct the spelling of the first word.',
+  },
+  {
+    quote: 'very very',
+    replacement: 'very',
+    group: 'clarity',
+    subcategory: 'wordiness',
+    explanation: 'Drop the repeated word.',
+  },
+  {
+    quote: 'good',
+    replacement: 'strong',
+    group: 'engagement',
+    subcategory: 'word-choice',
+    explanation: 'Use a more specific word.',
+  },
+  {
+    quote: 'I think maybe',
+    replacement: 'Please',
+    group: 'delivery',
+    subcategory: 'politeness',
+    explanation: 'Ask the team directly.',
+  },
+];
+
+function rewriteFor(system) {
+  if (system.includes('Shorten')) return 'Review the short quarterly update.';
+  if (system.includes('more formal')) return 'The team is requested to review the quarterly update.';
+  if (system.includes('more friendly')) return 'Could the team take a look at the quarterly update?';
+  if (system.includes('more confident')) return 'The team will review the quarterly update.';
+  return 'The quarterly update is long and repetitive. The team should review it.';
+}
+
 const stub = http.createServer((req, res) => {
+  if (req.method === 'GET' && req.url?.startsWith('/api/tags')) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ models: [{ name: 'stub' }] }));
+    return;
+  }
+  if (req.method === 'GET' && req.url?.startsWith('/last')) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ system: lastSystem }));
+    return;
+  }
   const chunks = [];
   req.on('data', (chunk) => chunks.push(chunk));
   req.on('end', () => {
@@ -69,23 +120,30 @@ const stub = http.createServer((req, res) => {
     try {
       const payload = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
       const system = payload.messages?.find((message) => message.role === 'system')?.content || '';
+      lastSystem = system;
       const user = (payload.messages || [])
         .filter((message) => message.role === 'user')
         .map((message) => message.content || '')
         .join('\n');
       const passage = passageOf(user);
-      const wantsJson = system.includes('"issues"');
-      const plain = passage.includes('aream');
-      if (wantsJson && !plain) {
-        const issues = [];
-        for (const [quote, replacement, category, explanation] of REPLACEMENTS) {
-          if (!hasTerm(passage, quote)) continue;
-          issues.push({ quote, replacement, category, explanation });
-          if (issues.length === 8) break;
-        }
-        content = JSON.stringify({ issues });
+      if (system.includes('"rewrite"')) {
+        content = JSON.stringify({ rewrite: rewriteFor(system) });
+      } else if (passage.includes('quarterly update')) {
+        content = JSON.stringify({ issues: GROUP_DEMO });
       } else {
-        content = correctPassage(passage);
+        const wantsJson = system.includes('"issues"');
+        const plain = passage.includes('aream');
+        if (wantsJson && !plain) {
+          const issues = [];
+          for (const [quote, replacement, category, explanation] of REPLACEMENTS) {
+            if (!hasTerm(passage, quote)) continue;
+            issues.push({ quote, replacement, category, explanation });
+            if (issues.length === 8) break;
+          }
+          content = JSON.stringify({ issues });
+        } else {
+          content = correctPassage(passage);
+        }
       }
     } catch (error) {
       content = String(error);
@@ -159,6 +217,21 @@ async function shot(locator, file) {
   await locator.screenshot({ path: path.join(shots, file) });
 }
 
+async function shotAround(page, locator, file) {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error(`no box for ${file}`);
+  const pad = 16;
+  await page.screenshot({
+    path: path.join(shots, file),
+    clip: {
+      x: Math.max(0, box.x - pad),
+      y: Math.max(0, box.y - pad),
+      width: box.width + pad * 2,
+      height: box.height + pad * 2,
+    },
+  });
+}
+
 const failures = [];
 
 try {
@@ -200,8 +273,8 @@ try {
       value.trim().toLowerCase()
     );
     assert(
-      categories.includes('spelling') && categories.includes('grammar'),
-      `categories render, got ${categories.join(', ')}`
+      categories.length === 3 && categories.every((value) => value === 'correctness'),
+      `legacy categories render as correctness, got ${categories.join(', ')}`
     );
 
     const fieldBox = await page.locator('#suggestion-sample').boundingBox();
@@ -321,6 +394,130 @@ try {
       `selection accept was ${selected}`
     );
     assert(selected.startsWith('This is a sentence'), 'text outside the selection stays');
+
+    await worker.evaluate(() =>
+      chrome.storage.local.set({
+        darkMode: false,
+        writingGoals: {
+          audience: 'expert',
+          formality: 'formal',
+          domain: 'academic',
+          intent: 'convince',
+        },
+      })
+    );
+    const groupPassage =
+      'Teh quarterly update is very very long, the word good shows up too often, and I think maybe the team should review it.';
+    await page.locator('#suggestion-sample').evaluate((element, value) => {
+      element.value = value;
+    }, groupPassage);
+    await openCheck(page, '#suggestion-sample');
+    await host.locator('.st-card').nth(3).waitFor({ timeout: 8000 });
+    const groups = await host.locator('.st-card').evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute('data-group'))
+    );
+    assert(
+      groups.join(',') === 'correctness,clarity,engagement,delivery',
+      `expected four groups, got ${groups.join(',')}`
+    );
+    const borders = await host.locator('.st-card').evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).borderLeftColor)
+    );
+    assert(new Set(borders).size === 4, `accents should differ, got ${borders.join(' | ')}`);
+    const chipText = (await host.locator('.st-chip').allInnerTexts()).join(' ');
+    assert(chipText.includes('Correctness'), 'correctness chip');
+    assert(chipText.includes('Clarity'), 'clarity chip');
+    assert(chipText.includes('Engagement'), 'engagement chip');
+    assert(chipText.includes('Delivery'), 'delivery chip');
+    const prompted = await fetch(`http://127.0.0.1:${stubPort}/last`).then((response) =>
+      response.json()
+    );
+    assert(prompted.system.includes('expert readers'), 'goals audience reaches the prompt');
+    assert(prompted.system.includes('Formality: formal'), 'goals formality reaches the prompt');
+    assert(prompted.system.includes('academic writing'), 'goals domain reaches the prompt');
+    assert(prompted.system.includes('convince the reader'), 'goals intent reaches the prompt');
+    assert(prompted.system.includes('"subcategory"'), 'check prompt asks for a subcategory');
+    await shot(host, 'cards-groups-light.png');
+
+    await host.locator('.st-chip', { hasText: 'Clarity' }).click();
+    assert((await host.locator('.st-card').count()) === 1, 'clarity filter shows one card');
+    assert(
+      (await host.locator('.st-card').getAttribute('data-group')) === 'clarity',
+      'filtered card is clarity'
+    );
+    await shot(host, 'filter-chips.png');
+
+    await host.locator('.st-chip', { hasText: 'All' }).click();
+    await host.locator('.st-rewrite').click();
+    await host.locator('.st-menu-item', { hasText: 'Shorten' }).waitFor({ timeout: 4000 });
+    await shot(host, 'rewrite-menu.png');
+    await host.locator('.st-menu-item', { hasText: 'Improve clarity' }).click();
+    await host.locator('.st-rewrite-card').waitFor({ timeout: 8000 });
+    const rewriteText = (await host.locator('.st-rewrite-text').innerText()).trim();
+    assert(
+      rewriteText === 'The quarterly update is long and repetitive. The team should review it.',
+      `rewrite card text was ${rewriteText}`
+    );
+    await shot(host, 'rewrite-card.png');
+    await host.locator('.st-rewrite-card').locator('button', { hasText: 'Accept' }).click();
+    await page.waitForTimeout(200);
+    const rewritten = await page.locator('#suggestion-sample').inputValue();
+    assert(rewritten === rewriteText, `accept rewrite wrote ${rewritten}`);
+    await page.waitForSelector('.safetyper-popup-host', { state: 'detached', timeout: 4000 });
+
+    await worker.evaluate(() => chrome.storage.local.set({ darkMode: true }));
+    await page.locator('#suggestion-sample').evaluate((element, value) => {
+      element.value = value;
+    }, groupPassage);
+    await openCheck(page, '#suggestion-sample');
+    await host.locator('.st-card').nth(3).waitFor({ timeout: 8000 });
+    const darkTheme = await host.locator('.st-root').getAttribute('data-theme');
+    assert(darkTheme === 'dark', 'dark theme reaches the grouped cards');
+    const darkBorders = await host.locator('.st-card').evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).borderLeftColor)
+    );
+    assert(new Set(darkBorders).size === 4, `dark accents should differ, got ${darkBorders.join(' | ')}`);
+    await shot(host, 'cards-groups-dark.png');
+    await page.keyboard.press('Escape');
+
+    const extensionId = new URL(worker.url()).host;
+    const settings = await session.context.newPage();
+    await settings.setViewportSize({ width: 460, height: 980 });
+    await worker.evaluate(() =>
+      chrome.storage.local.set({ popupTab: 'settings', darkMode: false })
+    );
+    await settings.goto(`chrome-extension://${extensionId}/popup.html`, {
+      waitUntil: 'domcontentloaded',
+    });
+    await settings.locator('#goal-audience').waitFor({ timeout: 8000 });
+    assert(
+      (await settings.locator('#goal-audience').inputValue()) === 'expert',
+      'settings shows the saved audience'
+    );
+    await settings.locator('#goal-audience').selectOption('knowledgeable');
+    await settings.locator('#goal-formality').selectOption('informal');
+    await settings.locator('#goal-domain').selectOption('email');
+    await settings.locator('#goal-intent').selectOption('tell-a-story');
+    await settings.getByRole('button', { name: 'Save Settings' }).click();
+    await settings.locator('.save-feedback').waitFor({ timeout: 4000 });
+    await settings.reload({ waitUntil: 'domcontentloaded' });
+    await settings.locator('#goal-intent').waitFor({ timeout: 8000 });
+    assert(
+      (await settings.locator('#goal-intent').inputValue()) === 'tell-a-story',
+      'intent persists after reload'
+    );
+    assert(
+      (await settings.locator('#goal-domain').inputValue()) === 'email',
+      'domain persists after reload'
+    );
+    await settings.locator('.goals').scrollIntoViewIfNeeded();
+    await shotAround(settings, settings.locator('.goals'), 'goals-settings-light.png');
+    await settings.getByRole('button', { name: 'Switch to dark mode' }).click();
+    await settings.waitForFunction(
+      () => document.documentElement.getAttribute('data-theme') === 'dark'
+    );
+    await settings.locator('.goals').scrollIntoViewIfNeeded();
+    await shotAround(settings, settings.locator('.goals'), 'goals-settings-dark.png');
   } finally {
     await session.context.close();
   }

@@ -4,12 +4,13 @@
  * Contenteditable uses the CSS Custom Highlight API, with positioned lines as a fallback.
  */
 
-import { categoryColorVariable } from './category-colors';
-import type { Suggestion, SuggestionCategory } from './suggestions';
+import type { SuggestionGroupId } from '../categories';
+import { categoryColorVariable, ensureGroupColorVariables } from './category-colors';
+import type { Suggestion } from './suggestions';
 
 interface MarkedRange {
   id: string;
-  category: SuggestionCategory;
+  group: SuggestionGroupId;
   range: Range;
 }
 
@@ -38,6 +39,7 @@ export function supportsHighlightApi(): boolean {
 }
 
 export function renderUnderlines(field: HTMLElement, text: string, issues: Suggestion[]): void {
+  ensureGroupColorVariables();
   if (!field.isConnected || issues.length === 0) {
     clearUnderlines();
     return;
@@ -194,7 +196,7 @@ function fillMirror(mirror: HTMLElement, text: string, issues: Suggestion[]): vo
     const mark = document.createElement('span');
     mark.className = 'safetyper-measure-mark';
     mark.dataset.issueId = issue.id;
-    mark.dataset.category = issue.category;
+    mark.dataset.group = issue.group;
     mark.append(document.createTextNode(issue.quote));
     mirror.append(mark);
     cursor = issue.end;
@@ -223,14 +225,14 @@ function positionBars(field: HTMLElement): void {
   const marks = measure.querySelectorAll<HTMLElement>('.safetyper-measure-mark');
   marks.forEach((mark) => {
     const id = mark.dataset.issueId || '';
-    const category = (mark.dataset.category || 'grammar') as SuggestionCategory;
+    const group = (mark.dataset.group || 'correctness') as SuggestionGroupId;
     for (const rect of mark.getClientRects()) {
       addBar(
         host,
         rect.left + dx,
         rect.bottom + dy,
         rect.width,
-        category,
+        group,
         id,
         viewLeft,
         viewTop,
@@ -251,7 +253,7 @@ function paintRangeBars(field: HTMLElement, marks: MarkedRange[]): void {
         rect.left,
         rect.bottom,
         rect.width,
-        mark.category,
+        mark.group,
         mark.id,
         fieldRect.left,
         fieldRect.top,
@@ -278,7 +280,7 @@ function addBar(
   left: number,
   bottom: number,
   width: number,
-  category: SuggestionCategory,
+  group: SuggestionGroupId,
   id: string,
   viewLeft: number,
   viewTop: number,
@@ -293,7 +295,8 @@ function addBar(
   const bar = document.createElement('div');
   bar.className = 'safetyper-underline-bar';
   bar.dataset.issueId = id;
-  bar.style.setProperty('--st-mark', categoryColorVariable(category));
+  bar.style.setProperty('--st-mark', categoryColorVariable(group));
+  bar.dataset.group = group;
   bar.style.left = `${clippedLeft - viewLeft}px`;
   bar.style.width = `${clippedRight - clippedLeft}px`;
   bar.style.top = `${bottom - viewTop - 12}px`;
@@ -313,7 +316,7 @@ function paintHighlights(marks: MarkedRange[]): void {
   clearHighlights();
   if (!CSS.highlights || typeof Highlight === 'undefined') return;
   for (const mark of marks) {
-    const name = `safetyper-${mark.category}`;
+    const name = `safetyper-${mark.group}`;
     let group = highlightGroups.get(name);
     if (!group) {
       group = new Highlight();
@@ -384,7 +387,7 @@ function rangesForIssues(field: HTMLElement, text: string, issues: Suggestion[])
     if (index === -1) continue;
     const range = rangeFromOffsets(collected.spans, index, index + issue.quote.length);
     if (!range) continue;
-    marks.push({ id: issue.id, category: issue.category, range });
+    marks.push({ id: issue.id, group: issue.group, range });
   }
   return marks;
 }

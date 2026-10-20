@@ -3,7 +3,8 @@
  * Segments, the paragraph cache, and position updates stay free of the DOM.
  */
 
-import type { Suggestion, SuggestionCategory } from './suggestions';
+import { classifyIssue } from '../categories';
+import type { Suggestion } from './suggestions';
 
 export const AUTO_CHECK_BACKOFF_START_MS = 4_000;
 export const AUTO_CHECK_BACKOFF_MAX_MS = 60_000;
@@ -315,13 +316,13 @@ export function suggestionStub(
   quote: string,
   replacement: string,
   start: number,
-  category: SuggestionCategory = 'grammar'
+  category = 'grammar'
 ): Suggestion {
   return {
     id: `test-${start}`,
     quote,
     replacement,
-    category,
+    ...classifyIssue({ category }),
     explanation: `Changed '${quote}' to '${replacement}'.`,
     start,
     end: start + quote.length,

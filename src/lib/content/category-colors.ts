@@ -1,21 +1,33 @@
 /**
- * Underline colors for suggestion categories.
+ * Underline colors for suggestion groups.
  *
- * Every category points at its own CSS variable. Those variables currently all
- * resolve to one neutral underline so the page does not imply a category color
- * yet. Recolor a category by changing its variable in content.css.
+ * The palette lives in src/lib/categories.ts. These helpers publish that
+ * palette as CSS variables and point each group's underline at its accent,
+ * the same tokens the suggestion cards use.
  */
 
-import type { SuggestionCategory } from './suggestions';
+import { groupColorStyle, SUGGESTION_GROUP_IDS, type SuggestionGroupId } from '../categories';
 
-export const CATEGORY_COLOR_VARS: Record<SuggestionCategory, string> = {
-  grammar: '--st-cat-grammar',
-  spelling: '--st-cat-spelling',
-  punctuation: '--st-cat-punctuation',
-  clarity: '--st-cat-clarity',
-  style: '--st-cat-style',
-};
+export const GROUP_UNDERLINE_VARS: Record<SuggestionGroupId, string> = Object.fromEntries(
+  SUGGESTION_GROUP_IDS.map((id) => [id, `--st-${id}-accent`])
+) as Record<SuggestionGroupId, string>;
 
-export function categoryColorVariable(category: SuggestionCategory): string {
-  return `var(${CATEGORY_COLOR_VARS[category]})`;
+let appliedTheme: 'light' | 'dark' = 'light';
+
+export function categoryColorVariable(group: SuggestionGroupId): string {
+  return `var(${GROUP_UNDERLINE_VARS[group]})`;
+}
+
+/** Publish the shared palette on the page so highlight rules and bars can read it. */
+export function applyGroupColorVariables(theme: 'light' | 'dark'): void {
+  appliedTheme = theme;
+  if (typeof document === 'undefined') return;
+  const style = groupColorStyle(theme);
+  for (const [name, value] of Object.entries(style)) {
+    document.documentElement.style.setProperty(name, value);
+  }
+}
+
+export function ensureGroupColorVariables(): void {
+  applyGroupColorVariables(appliedTheme);
 }

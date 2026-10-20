@@ -6,6 +6,7 @@
 import {
   applySuggestion,
   applySuggestions,
+  hydrateSuggestion,
   locateSuggestions,
   parseModelIssues,
   removeSuggestion,
@@ -24,9 +25,11 @@ function assertEqual(actual: unknown, expected: unknown, message: string): void 
 }
 
 function run(): void {
+  assert(SUGGESTION_SYSTEM_PROMPT.includes('"group"'), 'prompt asks for a group');
+  assert(SUGGESTION_SYSTEM_PROMPT.includes('"subcategory"'), 'prompt asks for a subcategory');
   assert(
-    SUGGESTION_SYSTEM_PROMPT.includes('grammar|spelling|punctuation|clarity|style'),
-    'prompt categories'
+    SUGGESTION_SYSTEM_PROMPT.includes('correctness|clarity|engagement|delivery'),
+    'prompt groups'
   );
   assert(SUGGESTION_SYSTEM_PROMPT.includes('{"issues"'), 'prompt json');
 
@@ -37,12 +40,29 @@ function run(): void {
   );
   assert(parsed, 'fenced json parses');
   assertEqual(parsed?.length, 2, 'two issues');
-  assertEqual(parsed?.[0]?.category, 'spelling', 'spelling category');
+  assertEqual(parsed?.[0]?.category, 'spelling', 'legacy spelling category');
+  assertEqual(parsed?.[0]?.group, 'correctness', 'legacy spelling group');
+  assertEqual(parsed?.[0]?.subcategory, 'spelling', 'legacy spelling subcategory');
+
+  const modern = parseModelIssues(
+    '{"issues":[{"quote":"good","replacement":"excellent","group":"engagement","subcategory":"word-choice","explanation":"A more specific word."},{"quote":"maybe","replacement":"please","group":"correctness","subcategory":"politeness","explanation":"Ask directly."}]}'
+  );
+  assertEqual(modern?.[0]?.group, 'engagement', 'modern group');
+  assertEqual(modern?.[0]?.subcategory, 'word-choice', 'modern subcategory');
+  assertEqual(modern?.[1]?.group, 'delivery', 'subcategory wins when the group mismatches');
+  assertEqual(modern?.[1]?.category, 'politeness', 'category mirrors the subcategory');
 
   const coerced = parseModelIssues(
     '{"issues":[{"quote":"we","replacement":"we\'ve","category":"other","explanation":"Added an apostrophe."}]}'
   );
-  assertEqual(coerced?.[0]?.category, 'style', 'other maps to style');
+  assertEqual(coerced?.[0]?.category, 'word-choice', 'other maps to word choice');
+  assertEqual(coerced?.[0]?.group, 'engagement', 'other maps to engagement');
+
+  const legacyClarity = parseModelIssues(
+    '{"issues":[{"quote":"in order to","replacement":"to","category":"clarity","explanation":"Shorter."}]}'
+  );
+  assertEqual(legacyClarity?.[0]?.group, 'clarity', 'old clarity stays in clarity');
+  assertEqual(legacyClarity?.[0]?.subcategory, 'readability', 'old clarity maps to readability');
 
   const text = 'Teh meeting has several problem.';
   const located = locateSuggestions(text, parsed ?? []);
@@ -67,6 +87,7 @@ function run(): void {
   const spelling = suggestionsFromDiff('Teh cat', 'The cat');
   assertEqual(spelling.length, 1, 'one spelling card');
   assertEqual(spelling[0]?.category, 'spelling', 'single word is spelling');
+  assertEqual(spelling[0]?.group, 'correctness', 'diff spelling is correctness');
   assertEqual(spelling[0]?.explanation, "Changed 'Teh' to 'The'.", 'generic explanation');
 
   const separated = suggestionsFromDiff('Teh cat sat badly', 'The cat sat poorly');
@@ -94,6 +115,19 @@ function run(): void {
     1
   );
   assertEqual(grown[0]?.start, 21, 'later card shifts by the length change');
+
+  const cached = hydrateSuggestion({
+    id: 'old-1',
+    quote: 'good',
+    replacement: 'strong',
+    category: 'style',
+    explanation: 'Use a sharper word.',
+    start: 4,
+    end: 8,
+  });
+  assertEqual(cached?.group, 'engagement', 'cached style cards gain a group');
+  assertEqual(cached?.subcategory, 'word-choice', 'cached style cards gain a subcategory');
+  assertEqual(hydrateSuggestion({ quote: 'x' }), null, 'incomplete cache entries are dropped');
 
   console.log('suggestions tests passed');
 }
