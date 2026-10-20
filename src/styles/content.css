@@ -160,7 +160,7 @@
   background: #000000;
   border: 1px solid var(--st-border);
   border-radius: 50% !important;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: none;
   transition:
     transform 0.15s ease,
@@ -600,4 +600,113 @@
   outline: none;
   border-color: var(--st-focus-ring);
   box-shadow: none;
+}
+
+/* One neutral underline. Each category has its own variable so colors can diverge later. */
+:root {
+  --st-underline: #52525b;
+  --st-cat-grammar: var(--st-underline);
+  --st-cat-spelling: var(--st-underline);
+  --st-cat-punctuation: var(--st-underline);
+  --st-cat-clarity: var(--st-underline);
+  --st-cat-style: var(--st-underline);
+}
+
+.safetyper-badge {
+  display: none;
+  position: absolute;
+  top: -6px;
+  right: -7px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #15803d;
+  color: #fff;
+  font-family: Inter, 'Geist Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 0 0 1px #fff;
+  pointer-events: none;
+}
+
+.safetyper-badge.is-visible {
+  display: inline-block;
+}
+
+.safetyper-measure {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-sizing: content-box;
+  white-space: pre-wrap;
+  overflow: visible;
+  pointer-events: none;
+  color: transparent;
+  z-index: -1;
+}
+
+.safetyper-underline-layer {
+  position: fixed;
+  z-index: 999998;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.safetyper-underline-bar {
+  position: absolute;
+  height: 12px;
+  box-sizing: border-box;
+  background: linear-gradient(
+    transparent 0 10px,
+    var(--st-mark, var(--st-underline, #52525b)) 10px 12px
+  );
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+::highlight(safetyper-grammar) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-grammar);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-spelling) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-spelling);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-punctuation) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-punctuation);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-clarity) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-clarity);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-style) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-style);
+  text-decoration-skip-ink: none;
 }

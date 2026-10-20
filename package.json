@@ -34,7 +34,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,svelte,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,svelte,css,json}\"",
-    "test": "bun src/lib/translate/prompt.test.ts && bun src/lib/content/suggestions.test.ts",
+    "test": "bun src/lib/translate/prompt.test.ts && bun src/lib/content/suggestions.test.ts && bun src/lib/content/auto-check.test.ts",
     "postinstall": "wxt prepare",
     "prepare": "husky"
   },

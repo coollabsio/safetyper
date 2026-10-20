@@ -1,5 +1,11 @@
 import type { ApiProvider } from '@/lib/content/types';
 import { DEFAULT_OLLAMA_ENDPOINT, DEFAULT_PROVIDER, PROVIDER_CONFIG } from '@/lib/content/config';
+import {
+  consumeTokenBudget,
+  estimateTokens,
+  refundTokenSpend,
+  type TokenSpend,
+} from '@/lib/content/budget';
 
 // Groq models shut down by Groq (https://console.groq.com/docs/deprecations)
 const REMOVED_GROQ_MODELS = [
@@ -124,25 +130,58 @@ export default defineBackground(() => {
   // Rate limiting: Track API requests per minute
   const RATE_LIMIT = 10; // Maximum requests per minute
   const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute in milliseconds
-  const requestTimestamps: number[] = [];
+  interface RateStamp {
+    at: number;
+  }
+  const requestTimestamps: RateStamp[] = [];
+  let tokenLog: TokenSpend[] = [];
+  const inflightChecks = new Map<
+    string,
+    { controller: AbortController; rateStamp: RateStamp | null; spend: TokenSpend | null }
+  >();
 
-  function checkRateLimit(): { allowed: boolean; remaining: number } {
+  function checkRateLimit(): { allowed: boolean; remaining: number; stamp: RateStamp | null } {
     const now = Date.now();
     const windowStart = now - RATE_LIMIT_WINDOW;
 
     // Remove timestamps older than the rate limit window
-    while (requestTimestamps.length > 0 && requestTimestamps[0] < windowStart) {
+    while (requestTimestamps.length > 0 && requestTimestamps[0].at < windowStart) {
       requestTimestamps.shift();
     }
 
     // Check if we've exceeded the limit
     if (requestTimestamps.length >= RATE_LIMIT) {
-      return { allowed: false, remaining: 0 };
+      return { allowed: false, remaining: 0, stamp: null };
     }
 
     // Add current timestamp and return remaining quota
-    requestTimestamps.push(now);
-    return { allowed: true, remaining: RATE_LIMIT - requestTimestamps.length };
+    const stamp = { at: now };
+    requestTimestamps.push(stamp);
+    return { allowed: true, remaining: RATE_LIMIT - requestTimestamps.length, stamp };
+  }
+
+  function refundRate(stamp: RateStamp | null): void {
+    if (!stamp) return;
+    const index = requestTimestamps.indexOf(stamp);
+    if (index !== -1) requestTimestamps.splice(index, 1);
+  }
+
+  function payloadTokens(payload: { messages?: Array<{ content?: unknown }> } | undefined): number {
+    const text = (payload?.messages ?? [])
+      .map((message) => (typeof message?.content === 'string' ? message.content : ''))
+      .join('\n');
+    return estimateTokens(text);
+  }
+
+  function respond(
+    sendResponse: (response: unknown) => void,
+    body: { success: boolean; data?: unknown; error?: string; cancelled?: boolean }
+  ): void {
+    try {
+      sendResponse(body);
+    } catch (error) {
+      console.error('[Background] Failed to send check response:', error);
+    }
   }
 
   // Parse a chat completions response, keeping the provider's error message on failure
@@ -315,16 +354,82 @@ export default defineBackground(() => {
       })();
 
       return true; // async response
+    } else if (message.action === 'cancelGrammarCheck') {
+      const requestId = typeof message.requestId === 'string' ? message.requestId : '';
+      inflightChecks.get(requestId)?.controller.abort();
+      sendResponse({ success: true });
+      return false;
     } else if (message.action === 'checkGrammar' || message.action === 'translate') {
       // Translate uses the same provider, key, and chat-completions request as grammar checks.
+      const tokens = payloadTokens(message.payload);
+      const decision = consumeTokenBudget(tokenLog, Date.now(), tokens);
+      tokenLog = decision.entries;
+      if (!decision.allowed) {
+        sendResponse({
+          success: false,
+          error: 'Token budget exceeded. Please wait a moment before trying again.',
+        });
+        return false;
+      }
+      const spend = tokens > 0 ? (tokenLog[tokenLog.length - 1] ?? null) : null;
+
       const rateLimitStatus = checkRateLimit();
       if (!rateLimitStatus.allowed) {
+        if (spend) tokenLog = refundTokenSpend(tokenLog, spend);
         sendResponse({
           success: false,
           error: 'Rate limit exceeded. Please wait a moment before trying again.',
         });
         return false;
       }
+
+      const requestId = typeof message.requestId === 'string' ? message.requestId : '';
+      const controller = new AbortController();
+      if (requestId) {
+        inflightChecks.set(requestId, {
+          controller,
+          rateStamp: rateLimitStatus.stamp,
+          spend,
+        });
+      }
+
+      const releaseCancelled = () => {
+        if (!requestId) return;
+        const tracked = inflightChecks.get(requestId);
+        if (!tracked) return;
+        inflightChecks.delete(requestId);
+        refundRate(tracked.rateStamp);
+        if (tracked.spend) tokenLog = refundTokenSpend(tokenLog, tracked.spend);
+      };
+
+      const sendChat = (url: string, headers: Record<string, string>) => {
+        fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(message.payload),
+          signal: controller.signal,
+        })
+          .then(parseApiResponse)
+          .then((data) => {
+            if (requestId) inflightChecks.delete(requestId);
+            respond(sendResponse, { success: true, data });
+          })
+          .catch((error: unknown) => {
+            const aborted = error instanceof Error && error.name === 'AbortError';
+            if (aborted) {
+              releaseCancelled();
+              respond(sendResponse, {
+                success: false,
+                error: 'Request cancelled',
+                cancelled: true,
+              });
+              return;
+            }
+            if (requestId) inflightChecks.delete(requestId);
+            const detail = error instanceof Error ? error.message : 'Request failed';
+            respond(sendResponse, { success: false, error: detail });
+          });
+      };
 
       // Retrieve the API key from storage and forward the caller's payload.
       browser.storage.local
@@ -341,13 +446,15 @@ export default defineBackground(() => {
             const apiKey = result[providerConfig.keyStorageKey];
 
             if (!apiKey) {
-              sendResponse({ success: false, error: 'API key not configured' });
+              releaseCancelled();
+              respond(sendResponse, { success: false, error: 'API key not configured' });
               return;
             }
 
             // Validate API key format
             if (typeof apiKey !== 'string' || !providerConfig.keyRegex.test(apiKey)) {
-              sendResponse({
+              releaseCancelled();
+              respond(sendResponse, {
                 success: false,
                 error: `Invalid ${providerConfig.name} API key format`,
               });
@@ -362,14 +469,7 @@ export default defineBackground(() => {
               headers['HTTP-Referer'] = message.referer;
             }
 
-            fetch(providerConfig.chatEndpoint, {
-              method: 'POST',
-              headers,
-              body: JSON.stringify(message.payload),
-            })
-              .then(parseApiResponse)
-              .then((data) => sendResponse({ success: true, data }))
-              .catch((error) => sendResponse({ success: false, error: error.message }));
+            sendChat(providerConfig.chatEndpoint, headers);
           } else {
             // Ollama: no API key, dynamic endpoint, set Origin to bypass CORS check
             const baseUrl =
@@ -377,21 +477,15 @@ export default defineBackground(() => {
               DEFAULT_OLLAMA_ENDPOINT;
             const chatUrl = `${baseUrl}/v1/chat/completions`;
 
-            fetch(chatUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Origin: baseUrl,
-              },
-              body: JSON.stringify(message.payload),
-            })
-              .then(parseApiResponse)
-              .then((data) => sendResponse({ success: true, data }))
-              .catch((error) => sendResponse({ success: false, error: error.message }));
+            sendChat(chatUrl, {
+              'Content-Type': 'application/json',
+              Origin: baseUrl,
+            });
           }
         })
-        .catch((error) => {
-          sendResponse({ success: false, error: 'Failed to retrieve API configuration' });
+        .catch(() => {
+          releaseCancelled();
+          respond(sendResponse, { success: false, error: 'Failed to retrieve API configuration' });
         });
 
       // Return true to indicate we'll respond asynchronously

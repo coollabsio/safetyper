@@ -7,6 +7,7 @@ import { browser } from 'wxt/browser';
 import { stateManager } from './state-manager';
 import { checkGrammar } from './api-client';
 import popupCss from '../../styles/popup-widget.css?inline';
+import { cancelAutoCheck, getAutoCheckSnapshot } from './auto-check-state';
 import {
   applySuggestion,
   applySuggestions,
@@ -89,6 +90,10 @@ export function createIcon(): HTMLDivElement {
   iconImg.height = 20;
   iconImg.style.imageRendering = 'pixelated';
   iconContainer.appendChild(iconImg);
+  const badge = document.createElement('span');
+  badge.className = 'safetyper-badge';
+  badge.setAttribute('aria-hidden', 'true');
+  iconContainer.appendChild(badge);
 
   // Preserve native selection: prevent focus shift when clicking the icon
   iconContainer.addEventListener('mousedown', (e) => e.preventDefault());
@@ -120,6 +125,28 @@ export function createIcon(): HTMLDivElement {
   }
 
   return iconContainer;
+}
+
+/**
+ * Show how many current suggestions the focused field has.
+ */
+export function setIssueCount(count: number): void {
+  const iconContainer = stateManager.getIconContainer();
+  if (!iconContainer) return;
+  const badge = iconContainer.querySelector('.safetyper-badge');
+  if (!(badge instanceof HTMLElement)) return;
+  if (count <= 0) {
+    badge.classList.remove('is-visible');
+    badge.textContent = '';
+    iconContainer.setAttribute('aria-label', 'Check grammar');
+    return;
+  }
+  badge.textContent = count > 9 ? '9+' : String(count);
+  badge.classList.add('is-visible');
+  iconContainer.setAttribute(
+    'aria-label',
+    `Check grammar, ${count} suggestion${count === 1 ? '' : 's'}`
+  );
 }
 
 /**
@@ -257,17 +284,27 @@ export function positionIconAtSelection(range: Range): void {
   iconContainer.style.display = 'flex';
 }
 
-/**
- * Show grammar check popup
- */
-export function showPopup(e: Event): void {
-  e.stopPropagation();
+function sessionForField(
+  anchor: HTMLElement,
+  text: string,
+  suggestions: Suggestion[]
+): SuggestionSession {
+  const complex = isComplexEditor(anchor);
+  return {
+    workingText: text,
+    suggestions,
+    canApply: !complex,
+    isComplex: complex,
+    anchor,
+    prefix: '',
+    suffix: '',
+    range: null,
+    insertedNode: null,
+    initialEmpty: suggestions.length === 0,
+  };
+}
 
-  if (stateManager.getPopup()) {
-    closePopup();
-    return;
-  }
-
+function mountPopupShell(): HTMLDivElement {
   popupDragged = false;
   const popup = document.createElement('div');
   popup.className = 'safetyper-popup-host';
@@ -301,20 +338,68 @@ export function showPopup(e: Event): void {
   };
   document.addEventListener('keydown', activeKeyDown);
 
-  // Position popup
   const iconContainer = stateManager.getIconContainer();
   if (iconContainer) {
     const iconRect = iconContainer.getBoundingClientRect();
-    const field = stateManager.getActiveInput();
-    const position = placeBesideField(iconRect, field?.getBoundingClientRect() ?? null);
+    const activeField = stateManager.getActiveInput();
+    const position = placeBesideField(iconRect, activeField?.getBoundingClientRect() ?? null);
     popup.style.left = `${position.left}px`;
     popup.style.top = `${position.top}px`;
   }
 
   document.body.appendChild(popup);
   stateManager.setPopup(popup);
-
   makePopupDraggable(popup);
+  setTimeout(() => {
+    document.addEventListener('click', handleOutsideClick);
+  }, 0);
+  return popup;
+}
+
+/**
+ * Open the suggestion cards for issues already found in the focused field.
+ */
+export function showFieldIssues(issues: Suggestion[], focusId?: string): void {
+  const anchor = stateManager.getActiveInput();
+  if (!anchor || issues.length === 0) return;
+  const text = getTextContent(anchor);
+  const focused = focusId ? issues.filter((issue) => issue.id === focusId) : [];
+  const shown = focused.length > 0 ? focused : issues;
+  const popup = stateManager.getPopup() ?? mountPopupShell();
+  const content = popupContent(popup);
+  if (!content) return;
+  renderSuggestionCards(content, sessionForField(anchor, text, shown));
+  setTimeout(() => repositionPopup(popup), 0);
+}
+
+/**
+ * Show grammar check popup
+ */
+export function showPopup(e: Event): void {
+  e.stopPropagation();
+
+  if (stateManager.getPopup()) {
+    closePopup();
+    return;
+  }
+
+  const popup = mountPopupShell();
+  const field = stateManager.getActiveInput();
+  const snap = getAutoCheckSnapshot();
+  if (
+    stateManager.getInteractionMode() !== 'selection' &&
+    field &&
+    snap.field === field &&
+    snap.issues.length > 0 &&
+    snap.text === getTextContent(field)
+  ) {
+    const content = popupContent(popup);
+    if (content) {
+      renderSuggestionCards(content, sessionForField(field, snap.text, snap.issues));
+      setTimeout(() => repositionPopup(popup), 0);
+    }
+    return;
+  }
 
   // Check if API key exists for the active provider
   browser.storage.local
@@ -373,11 +458,6 @@ export function showPopup(e: Event): void {
         }
       }
     });
-
-  // Close popup when clicking outside
-  setTimeout(() => {
-    document.addEventListener('click', handleOutsideClick);
-  }, 0);
 }
 
 /**
@@ -802,6 +882,7 @@ function renderSuggestionCards(content: HTMLElement, session: SuggestionSession)
  * Handle grammar check button click
  */
 async function handleGrammarCheck(): Promise<void> {
+  cancelAutoCheck();
   let mode = stateManager.getInteractionMode();
   let text: string;
   let activeInput: HTMLElement | null = null;

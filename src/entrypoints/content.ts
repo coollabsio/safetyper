@@ -22,6 +22,7 @@ import {
   findEditableAncestor,
 } from '~/lib/content/dom-utils';
 import { CONFIG } from '~/lib/content/config';
+import { startAutoCheck } from '~/lib/content/auto-check-runner';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
@@ -333,7 +334,10 @@ export default defineContentScript({
     /**
      * Cleanup function
      */
+    let stopAutoCheck = (): void => {};
+
     function cleanup(): void {
+      stopAutoCheck();
       document.removeEventListener('focusin', handleFocus);
       document.removeEventListener('focusout', handleBlur);
       document.removeEventListener('keydown', handleKeyDown);
@@ -389,6 +393,8 @@ export default defineContentScript({
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] MutationObserver initialized');
     }
+
+    stopAutoCheck = startAutoCheck();
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', cleanup);

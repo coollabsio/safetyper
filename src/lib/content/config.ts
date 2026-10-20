@@ -33,6 +33,10 @@ export const CONFIG: Config = {
   // Selection
   SELECTION_DEBOUNCE: 250,
   MIN_SELECTION_LENGTH: 3,
+
+  // Pause after typing, then check. Long enough to avoid a request per keystroke.
+  AUTO_CHECK_DEBOUNCE: 1750,
+  AUTO_CHECK_MIN_CHARS: 12,
 };
 
 /**
