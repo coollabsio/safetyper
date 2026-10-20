@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nested field</title>
+    <style>
+      body { margin: 12px; font-family: sans-serif; }
+      .wrap { position: relative; }
+      input { width: 100%; box-sizing: border-box; padding: 8px 40px 8px 8px; }
+      button {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 22px;
+        height: 22px;
+        border: 0;
+        border-radius: 4px;
+        box-shadow: 0 0 0 1px #ccc;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" data-case="iframe-field">
+      <input id="iframe-input" type="text" data-field value="inside iframe" />
+      <button type="button" data-obstacle aria-label="iframe clear">x</button>
+    </div>
+  </body>
+</html>

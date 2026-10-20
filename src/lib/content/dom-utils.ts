@@ -4,6 +4,7 @@
 
 import type { Position } from './types';
 import { CONFIG } from './config';
+import { avoidObstacles, calculateSmartIconPosition } from './icon-placement';
 
 /**
  * Check if an element is editable
@@ -280,7 +281,10 @@ export function calculateSelectionIconPosition(range: Range): Position {
     top = window.innerHeight - iconSize - 4;
   }
 
-  return { left, top };
+  const node = range.startContainer;
+  const owner = node instanceof HTMLElement ? node : node.parentElement;
+  const field = owner?.closest('input, textarea, [contenteditable="true"]');
+  return avoidObstacles({ left, top }, field instanceof HTMLElement ? field : null);
 }
 
 /**
@@ -371,34 +375,7 @@ export function hasPositionChanged(
  * Calculate position for icon based on element
  */
 export function calculateIconPosition(element: HTMLElement): Position {
-  const rect = element.getBoundingClientRect();
-  const iconSize = CONFIG.ICON_SIZE;
-  const iconFits = rect.height >= iconSize + 4;
-  const isSingleLineInput = element.tagName === 'INPUT';
-
-  let top: number;
-  if (!iconFits) {
-    // Icon doesn't fit inside — place above or below the field
-    const spaceBelow = window.innerHeight - rect.bottom;
-    if (spaceBelow >= iconSize + 4) {
-      // Below the field
-      top = rect.bottom + 2;
-    } else {
-      // Above the field
-      top = rect.top - iconSize - 2;
-    }
-  } else if (isSingleLineInput) {
-    // Vertically centered inside single-line inputs
-    top = rect.top + (rect.height - iconSize) / 2;
-  } else {
-    // Bottom-right corner for textareas and other elements
-    top = rect.bottom - CONFIG.ICON_OFFSET;
-  }
-
-  return {
-    left: rect.right - CONFIG.ICON_OFFSET,
-    top,
-  };
+  return calculateSmartIconPosition(element);
 }
 
 /**
