@@ -40,6 +40,7 @@
     sans-serif;
   font-size: 14px;
   line-height: 1.4;
+  text-transform: none;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -313,6 +314,12 @@
   --st-group-text: var(--st-delivery-text);
 }
 
+.st-card:focus-within {
+  box-shadow:
+    0 0 0 1px var(--st-line),
+    0 0 0 2px var(--st-brand);
+}
+
 .st-category {
   display: flex;
   align-items: center;
@@ -416,12 +423,39 @@
   box-shadow: 0 3px 0 var(--st-primary-depth);
 }
 
+.st-text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--st-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.st-text-btn:hover {
+  color: var(--st-brand-text);
+  text-decoration: underline;
+}
+
+.st-dictionary {
+  flex-basis: 100%;
+}
+
 .st-btn:focus-visible,
+.st-text-btn:focus-visible,
 .st-accept-all:focus-visible,
 .st-rewrite:focus-visible,
 .st-chip:focus-visible,
 .st-menu-item:focus-visible,
-.st-close:focus-visible {
+.st-close:focus-visible,
+.st-done:focus-visible {
   outline: 1px solid var(--st-brand);
   outline-offset: 2px;
 }

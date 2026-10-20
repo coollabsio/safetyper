@@ -24,6 +24,8 @@ This version does not have a separate provider for other local OpenAI-compatible
 
 A check result may be kept in memory for a few minutes so the same passage is not sent again. That cache is not written to disk and disappears when the page or the extension's background script is discarded.
 
+A grammar check also sends a short list of words from your personal dictionary, with an instruction not to flag them. The list is capped so the hint stays brief. Words past that cap are still ignored in the browser, but they are not all included in the prompt. Suggestion group choices are applied in the browser and are not sent to the provider. Dismissing a suggestion is remembered only for that page until you leave it, and it is not stored.
+
 ## What is stored on your device
 
 SafeTyper stores settings in the browser's extension storage (`browser.storage.local`):
@@ -38,6 +40,8 @@ SafeTyper stores settings in the browser's extension storage (`browser.storage.l
 - your Translate source and target languages
 - the last text you typed into Translate, the last translation, the detected source language, and any alternative wordings the model returned
 - whether automatic checking is on, and the sites where you paused it
+- words in your personal dictionary
+- suggestion groups you turned off
 
 API keys are sent only to the matching provider, as the `Authorization` header. They are not sent to coolLabs. Extension storage is removed when you uninstall SafeTyper.
 

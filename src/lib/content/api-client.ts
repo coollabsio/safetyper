@@ -19,6 +19,14 @@ import {
   PROVIDER_CONFIG,
 } from './config';
 import { composeSystemPrompt, parseWritingGoals, WRITING_GOALS_STORAGE_KEY } from '../goals';
+import {
+  DISABLED_GROUPS_KEY,
+  filterSuggestions,
+  PERSONAL_DICTIONARY_KEY,
+  readDictionary,
+  readDisabledGroups,
+  systemPromptWithDictionary,
+} from './preferences';
 import { parseRewrite, rewriteOption, rewriteSystemPrompt, type RewriteOptionId } from '../rewrite';
 import {
   applySuggestions,
@@ -88,6 +96,8 @@ function getCacheKey(kind: string, text: string, model: string, prompt: string):
 export interface GrammarCheckResult {
   correctedText: string;
   suggestions: Suggestion[];
+  /** Suggestions removed by the dictionary or a turned-off group. */
+  hiddenCount: number;
 }
 
 export class GrammarCheckCancelled extends Error {
@@ -183,10 +193,30 @@ async function requestCompletion(
  * Check grammar using the selected provider.
  * `requestId` lets check-as-you-type cancel this call.
  */
+function presentSuggestions(
+  text: string,
+  suggestions: Suggestion[],
+  dictionary: readonly string[],
+  disabledGroups: readonly string[]
+): GrammarCheckResult {
+  const filtered = filterSuggestions(suggestions, { dictionary, disabledGroups });
+  return {
+    suggestions: filtered,
+    correctedText: applySuggestions(text, filtered),
+    hiddenCount: suggestions.length - filtered.length,
+  };
+}
+
 export async function checkGrammar(text: string, requestId?: string): Promise<GrammarCheckResult> {
   assertWithinLimit(text);
   const context = await loadModelContext();
-  const systemPrompt = composeSystemPrompt(context.basePrompt, context.goals);
+  const stored = await browser.storage.local.get([PERSONAL_DICTIONARY_KEY, DISABLED_GROUPS_KEY]);
+  const dictionary = readDictionary(stored[PERSONAL_DICTIONARY_KEY]);
+  const disabledGroups = readDisabledGroups(stored[DISABLED_GROUPS_KEY]);
+  const systemPrompt = systemPromptWithDictionary(
+    composeSystemPrompt(context.basePrompt, context.goals),
+    dictionary
+  );
 
   const cacheKey = getCacheKey('check', text, context.model, systemPrompt);
   const cachedResult = cache.get(cacheKey);
@@ -194,10 +224,12 @@ export async function checkGrammar(text: string, requestId?: string): Promise<Gr
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Using cached grammar check result');
     }
-    return {
-      correctedText: cachedResult.correctedText,
-      suggestions: readCachedSuggestions(text, cachedResult),
-    };
+    return presentSuggestions(
+      text,
+      readCachedSuggestions(text, cachedResult),
+      dictionary,
+      disabledGroups
+    );
   }
 
   const user = context.usingCustomPrompt
@@ -224,7 +256,7 @@ export async function checkGrammar(text: string, requestId?: string): Promise<Gr
 
   cache.set(cacheKey, correctedText, JSON.stringify(suggestions));
 
-  return { correctedText, suggestions };
+  return presentSuggestions(text, suggestions, dictionary, disabledGroups);
 }
 
 /**
