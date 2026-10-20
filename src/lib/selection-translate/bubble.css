@@ -155,12 +155,14 @@
   font-size: 13px;
   font-weight: 500;
   appearance: none;
+  outline: none;
   cursor: pointer;
 }
 
 .tr-select:focus-visible {
-  outline: 1px solid var(--st-brand);
-  outline-offset: 2px;
+  outline: none;
+  border-color: var(--st-brand);
+  box-shadow: 0 0 0 1px var(--st-brand);
 }
 
 .tr-body {
@@ -205,6 +207,7 @@
 
 .tr-btn,
 .tr-settings {
+  --st-depth-color: var(--st-btn-depth);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -215,7 +218,9 @@
   border: 1px solid var(--st-btn-border);
   background: var(--st-btn-bg);
   color: var(--st-btn-text);
-  box-shadow: 0 2px 0 var(--st-btn-depth);
+  box-shadow: 0 2px 0 var(--st-depth-color);
+  appearance: none;
+  outline: none;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -229,7 +234,7 @@
 .tr-btn:hover,
 .tr-settings:hover {
   transform: translateY(-1px);
-  box-shadow: 0 3px 0 var(--st-btn-depth);
+  box-shadow: 0 3px 0 var(--st-depth-color);
   background: var(--st-btn-hover);
 }
 
@@ -240,16 +245,39 @@
 }
 
 .tr-btn-primary {
+  --st-depth-color: var(--st-primary-depth);
   color: #ffffff;
   background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
   border-color: var(--st-primary-border);
-  box-shadow: 0 2px 0 var(--st-primary-depth);
 }
 
 .tr-btn-primary:hover {
   color: #ffffff;
   background: linear-gradient(to bottom, var(--st-primary-from), #16a34a);
-  box-shadow: 0 3px 0 var(--st-primary-depth);
+}
+
+.tr-btn:focus-visible,
+.tr-settings:focus-visible {
+  outline: none;
+  box-shadow:
+    0 2px 0 var(--st-depth-color),
+    0 0 0 2px var(--st-bg),
+    0 0 0 3px var(--st-brand);
+}
+
+.tr-btn:hover:focus-visible,
+.tr-settings:hover:focus-visible {
+  box-shadow:
+    0 3px 0 var(--st-depth-color),
+    0 0 0 2px var(--st-bg),
+    0 0 0 3px var(--st-brand);
+}
+
+.tr-btn:active:focus-visible,
+.tr-settings:active:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--st-bg),
+    0 0 0 3px var(--st-brand);
 }
 
 .tr-open {
@@ -262,11 +290,14 @@
   color: var(--st-brand-text);
 }
 
-.tr-btn:focus-visible,
-.tr-settings:focus-visible,
+.tr-close {
+  appearance: none;
+  outline: none;
+}
+
 .tr-close:focus-visible {
   outline: 1px solid var(--st-brand);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
 
 .tr-btn:disabled {
