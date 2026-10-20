@@ -48,6 +48,20 @@
     fallback: 'translate',
   });
 
+  const autoCheckEnabledStorage = storage.defineItem<boolean>('local:autoCheckEnabled', {
+    fallback: false,
+  });
+
+  const iconSizeStorage = storage.defineItem<'small' | 'medium' | 'hidden'>('local:iconSize', {
+    fallback: 'small',
+  });
+  const autoCheckDisabledHostsStorage = storage.defineItem<string[]>(
+    'local:autoCheckDisabledHosts',
+    {
+      fallback: [],
+    }
+  );
+
   // Fallback models per provider
   const OPENROUTER_FALLBACK_MODELS: OpenRouterModel[] = [
     {
@@ -115,6 +129,11 @@
   let customSystemPrompt = $state('');
   let showAdvanced = $state(false);
   let activeTab = $state<'translate' | 'settings'>('translate');
+  let autoCheckEnabled = $state(false);
+  let iconSize = $state<'small' | 'medium' | 'hidden'>('small');
+  const iconSizes = ['small', 'medium', 'hidden'] as const;
+  let disabledHosts = $state<string[]>([]);
+  let currentHost = $state('');
 
   let providerConfig = $derived(PROVIDER_CONFIG[selectedProvider]);
   let showPricing = $derived(selectedProvider === 'openrouter');
@@ -396,6 +415,46 @@
     browser.tabs.create({ url: testUrl });
   }
 
+  async function setIconSize(next: 'small' | 'medium' | 'hidden'): Promise<void> {
+    iconSize = next;
+    try {
+      await iconSizeStorage.setValue(next);
+    } catch (error) {
+      console.error('Failed to save icon size:', error);
+    }
+  }
+
+  async function setAutoCheck(enabled: boolean): Promise<void> {
+    autoCheckEnabled = enabled;
+    try {
+      await autoCheckEnabledStorage.setValue(enabled);
+    } catch (error) {
+      console.error('Failed to save automatic checking:', error);
+    }
+  }
+
+  async function persistDisabledHosts(hosts: string[]): Promise<void> {
+    disabledHosts = hosts;
+    try {
+      await autoCheckDisabledHostsStorage.setValue(hosts);
+    } catch (error) {
+      console.error('Failed to save paused sites:', error);
+    }
+  }
+
+  async function toggleCurrentHost(): Promise<void> {
+    if (!currentHost) return;
+    if (disabledHosts.includes(currentHost)) {
+      await persistDisabledHosts(disabledHosts.filter((host) => host !== currentHost));
+      return;
+    }
+    await persistDisabledHosts([...disabledHosts, currentHost]);
+  }
+
+  async function removeHost(host: string): Promise<void> {
+    await persistDisabledHosts(disabledHosts.filter((entry) => entry !== host));
+  }
+
   async function selectTab(tab: 'translate' | 'settings'): Promise<void> {
     activeTab = tab;
     try {
@@ -429,6 +488,22 @@
     const storedTab = await popupTabStorage.getValue();
     if (storedTab === 'settings' || storedTab === 'translate') {
       activeTab = storedTab;
+    }
+
+    autoCheckEnabled = (await autoCheckEnabledStorage.getValue()) ?? false;
+    iconSize = (await iconSizeStorage.getValue()) ?? 'small';
+    disabledHosts = (await autoCheckDisabledHostsStorage.getValue()) ?? [];
+    try {
+      const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+      const url = tabs[0]?.url;
+      if (url) {
+        const parsed = new URL(url);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+          currentHost = parsed.hostname;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to read the current site:', error);
     }
 
     try {
@@ -599,6 +674,77 @@
           </div>
         {:else}
           <div id="panel-settings" class="form" role="tabpanel" aria-labelledby="tab-settings">
+            <div class="field auto-check-field">
+              <div class="auto-check-row">
+                <div class="auto-check-copy">
+                  <span id="auto-check-label">Check as you type</span>
+                  <p class="help-text">
+                    While this is on, text in the field you are typing is sent to the selected
+                    provider after a short pause.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  id="auto-check"
+                  class="switch"
+                  role="switch"
+                  aria-labelledby="auto-check-label"
+                  aria-checked={autoCheckEnabled}
+                  onclick={() => void setAutoCheck(!autoCheckEnabled)}
+                >
+                  <span class="switch-knob"></span>
+                </button>
+              </div>
+              {#if autoCheckEnabled}
+                {#if currentHost}
+                  <label class="site-pause">
+                    <input
+                      type="checkbox"
+                      checked={disabledHosts.includes(currentHost)}
+                      onchange={() => void toggleCurrentHost()}
+                    />
+                    <span>Pause on {currentHost}</span>
+                  </label>
+                {/if}
+                {#if disabledHosts.length > 0}
+                  <ul class="host-list">
+                    {#each disabledHosts as host (host)}
+                      <li>
+                        <span>{host}</span>
+                        <button
+                          type="button"
+                          class="refresh-btn"
+                          onclick={() => void removeHost(host)}
+                        >
+                          Resume
+                        </button>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              {/if}
+            </div>
+
+            <div class="field">
+              <span id="icon-size-label">Icon size</span>
+              <div class="icon-size" role="radiogroup" aria-labelledby="icon-size-label">
+                {#each iconSizes as size (size)}
+                  <button
+                    type="button"
+                    class="icon-size-option"
+                    role="radio"
+                    aria-checked={iconSize === size}
+                    onclick={() => void setIconSize(size)}
+                  >
+                    {size}
+                  </button>
+                {/each}
+              </div>
+              <p class="help-text">
+                Hidden keeps underlines. Alt+Shift+S opens suggestions for the field you are in.
+              </p>
+            </div>
+
             <div class="field">
               <label for="provider-select">API Provider</label>
               <select
@@ -1073,5 +1219,123 @@
     outline: 1px solid var(--st-focus-ring);
     outline-offset: -2px;
     border-radius: 6px;
+  }
+
+  .icon-size {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .icon-size-option {
+    flex: 1;
+    height: 32px;
+    border: 1px solid var(--st-btn-border);
+    border-radius: 8px;
+    background: var(--st-btn-bg);
+    color: var(--st-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: capitalize;
+    cursor: pointer;
+  }
+
+  .icon-size-option[aria-checked='true'] {
+    color: #fff;
+    background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
+    border-color: var(--st-primary-border);
+  }
+
+  .icon-size-option:focus-visible {
+    outline: 1px solid var(--st-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .auto-check-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .auto-check-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .auto-check-copy span {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--st-text);
+  }
+
+  .switch {
+    position: relative;
+    flex-shrink: 0;
+    width: 36px;
+    height: 22px;
+    margin-top: 2px;
+    padding: 0;
+    border: 1px solid var(--st-btn-border);
+    border-radius: 999px;
+    background: var(--st-fill, #e4e4e7);
+    box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.12);
+    cursor: pointer;
+  }
+
+  .switch[aria-checked='true'] {
+    background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
+    border-color: var(--st-primary-border);
+    box-shadow: 0 2px 0 var(--st-primary-depth);
+  }
+
+  .switch:focus-visible {
+    outline: 1px solid var(--st-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .switch-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.28);
+    transition: transform 120ms var(--st-ease-out, ease);
+  }
+
+  .switch[aria-checked='true'] .switch-knob {
+    transform: translateX(14px);
+  }
+
+  .site-pause {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--st-text-secondary);
+  }
+
+  .host-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .host-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--st-text-secondary);
   }
 </style>

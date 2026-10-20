@@ -4,10 +4,12 @@
  */
 
 import type { Position } from './types';
-import { CONFIG } from './config';
+import { iconPixelSize } from './icon-metrics';
 
 const GAP = 3;
 const INSET = 4;
+/** The 12px badge hangs 8px off the disc. Inside placements leave that much room. */
+const BADGE_HANG = 11;
 
 interface Box {
   left: number;
@@ -38,8 +40,8 @@ function iconBox(position: Position): Box {
   return {
     left: position.left,
     top: position.top,
-    right: position.left + CONFIG.ICON_SIZE,
-    bottom: position.top + CONFIG.ICON_SIZE,
+    right: position.left + iconPixelSize(),
+    bottom: position.top + iconPixelSize(),
   };
 }
 
@@ -125,10 +127,10 @@ function collectObstacles(field: HTMLElement, fieldRect: DOMRect): Box[] {
       if (!looksLikeControl(element, field)) return;
       const rect = element.getBoundingClientRect();
       const near =
-        rect.left < fieldRect.right + CONFIG.ICON_SIZE + 12 &&
-        rect.right > fieldRect.left - CONFIG.ICON_SIZE - 12 &&
-        rect.top < fieldRect.bottom + CONFIG.ICON_SIZE + 12 &&
-        rect.bottom > fieldRect.top - CONFIG.ICON_SIZE - 12;
+        rect.left < fieldRect.right + iconPixelSize() + 12 &&
+        rect.right > fieldRect.left - iconPixelSize() - 12 &&
+        rect.top < fieldRect.bottom + iconPixelSize() + 12 &&
+        rect.bottom > fieldRect.top - iconPixelSize() - 12;
       if (near) pushRect(obstacles, rect);
     });
   }
@@ -196,7 +198,7 @@ function collectObstacles(field: HTMLElement, fieldRect: DOMRect): Box[] {
 
 function isMultiline(field: HTMLElement, rect: DOMRect): boolean {
   if (field.tagName === 'TEXTAREA' || field.isContentEditable) return true;
-  return rect.height > CONFIG.ICON_SIZE + 20;
+  return rect.height > iconPixelSize() + 20;
 }
 
 function isRtl(field: HTMLElement): boolean {
@@ -204,29 +206,29 @@ function isRtl(field: HTMLElement): boolean {
 }
 
 function vertical(rect: DOMRect, align: 'center' | 'top' | 'bottom'): number {
-  if (align === 'center') return rect.top + (rect.height - CONFIG.ICON_SIZE) / 2;
-  if (align === 'top') return rect.top + INSET;
-  return rect.bottom - CONFIG.ICON_SIZE - INSET;
+  if (align === 'center') return rect.top + (rect.height - iconPixelSize()) / 2;
+  if (align === 'top') return rect.top + INSET + BADGE_HANG;
+  return rect.bottom - iconPixelSize() - INSET;
 }
 
 function buildCandidates(field: HTMLElement, rect: DOMRect): Position[] {
   const rtl = isRtl(field);
   const multiline = isMultiline(field, rect);
-  const tooShort = rect.height < CONFIG.ICON_SIZE + 6;
+  const tooShort = rect.height < iconPixelSize() + 6;
   const end = rtl ? 'left' : 'right';
   const start = rtl ? 'right' : 'left';
 
   const inside = (side: 'left' | 'right', align: 'center' | 'top' | 'bottom'): Position => ({
-    left: side === 'right' ? rect.right - CONFIG.ICON_SIZE - INSET : rect.left + INSET,
+    left: side === 'right' ? rect.right - iconPixelSize() - INSET - BADGE_HANG : rect.left + INSET,
     top: vertical(rect, align),
   });
   const outside = (side: 'left' | 'right', align: 'center' | 'top' | 'bottom'): Position => ({
-    left: side === 'right' ? rect.right + INSET : rect.left - CONFIG.ICON_SIZE - INSET,
+    left: side === 'right' ? rect.right + INSET : rect.left - iconPixelSize() - INSET,
     top: vertical(rect, align),
   });
   const edge = (side: 'left' | 'right', place: 'below' | 'above'): Position => ({
-    left: side === 'right' ? rect.right - CONFIG.ICON_SIZE : rect.left,
-    top: place === 'below' ? rect.bottom + INSET : rect.top - CONFIG.ICON_SIZE - INSET,
+    left: side === 'right' ? rect.right - iconPixelSize() : rect.left,
+    top: place === 'below' ? rect.bottom + INSET : rect.top - iconPixelSize() - INSET,
   });
 
   const align = multiline ? 'bottom' : 'center';
@@ -251,9 +253,10 @@ function buildCandidates(field: HTMLElement, rect: DOMRect): Position[] {
   return candidates;
 }
 
-function backdropIsUsable(position: Position): boolean {
-  const x = position.left + CONFIG.ICON_SIZE / 2;
-  const y = position.top + CONFIG.ICON_SIZE / 2;
+/** Opaque backdrop luminance at the icon center, or null when the backdrop is clear. */
+export function backdropLuminance(position: Position): number | null {
+  const x = position.left + iconPixelSize() / 2;
+  const y = position.top + iconPixelSize() / 2;
   const hit = document
     .elementsFromPoint(x, y)
     .find((element) => element instanceof HTMLElement && !isOurUi(element));
@@ -264,14 +267,19 @@ function backdropIsUsable(position: Position): boolean {
     if (match) {
       const alpha = match[4] === undefined ? 1 : Number(match[4]);
       if (alpha > 0.4) {
-        const luminance =
-          (0.2126 * Number(match[1]) + 0.7152 * Number(match[2]) + 0.0722 * Number(match[3])) / 255;
-        return luminance > 0.25;
+        return (
+          (0.2126 * Number(match[1]) + 0.7152 * Number(match[2]) + 0.0722 * Number(match[3])) / 255
+        );
       }
     }
     node = node.parentElement;
   }
-  return true;
+  return null;
+}
+
+function backdropIsUsable(position: Position): boolean {
+  const luminance = backdropLuminance(position);
+  return luminance === null || luminance > 0.25;
 }
 
 function inViewport(box: Box): boolean {
@@ -285,9 +293,9 @@ function inViewport(box: Box): boolean {
 
 function pointHitsObstacle(position: Position, field: HTMLElement): boolean {
   const points: Array<[number, number]> = [
-    [position.left + CONFIG.ICON_SIZE / 2, position.top + CONFIG.ICON_SIZE / 2],
+    [position.left + iconPixelSize() / 2, position.top + iconPixelSize() / 2],
     [position.left + 4, position.top + 4],
-    [position.left + CONFIG.ICON_SIZE - 4, position.top + CONFIG.ICON_SIZE - 4],
+    [position.left + iconPixelSize() - 4, position.top + iconPixelSize() - 4],
   ];
   for (const [x, y] of points) {
     for (const hit of document.elementsFromPoint(x, y)) {
@@ -301,8 +309,8 @@ function pointHitsObstacle(position: Position, field: HTMLElement): boolean {
 
 function clampToViewport(position: Position): Position {
   return {
-    left: Math.min(Math.max(2, position.left), window.innerWidth - CONFIG.ICON_SIZE - 2),
-    top: Math.min(Math.max(2, position.top), window.innerHeight - CONFIG.ICON_SIZE - 2),
+    left: Math.min(Math.max(2, position.left), window.innerWidth - iconPixelSize() - 2),
+    top: Math.min(Math.max(2, position.top), window.innerHeight - iconPixelSize() - 2),
   };
 }
 
@@ -339,7 +347,7 @@ export function calculateSmartIconPosition(field: HTMLElement): Position {
 export function avoidObstacles(position: Position, field: HTMLElement | null): Position {
   if (!field) return clampToViewport(position);
   const obstacles = collectObstacles(field, field.getBoundingClientRect());
-  const shifts = [0, -CONFIG.ICON_SIZE - GAP, CONFIG.ICON_SIZE + GAP];
+  const shifts = [0, -iconPixelSize() - GAP, iconPixelSize() + GAP];
   for (const dx of shifts) {
     for (const dy of shifts) {
       const next = { left: position.left + dx, top: position.top + dy };

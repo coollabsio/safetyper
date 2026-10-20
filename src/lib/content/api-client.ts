@@ -89,7 +89,14 @@ export interface GrammarCheckResult {
   suggestions: Suggestion[];
 }
 
-export async function checkGrammar(text: string): Promise<GrammarCheckResult> {
+export class GrammarCheckCancelled extends Error {
+  constructor() {
+    super('Request cancelled');
+    this.name = 'GrammarCheckCancelled';
+  }
+}
+
+export async function checkGrammar(text: string, requestId?: string): Promise<GrammarCheckResult> {
   // Validate text length
   if (text.length > CONFIG.MAX_TEXT_LENGTH) {
     throw new Error(
@@ -162,12 +169,14 @@ export async function checkGrammar(text: string): Promise<GrammarCheckResult> {
     action: 'checkGrammar',
     referer: window.location.href,
     payload,
+    requestId,
   };
 
   const response = (await browser.runtime.sendMessage(message)) as CheckGrammarResponse;
 
-  if (!response.success) {
-    throw new Error(response.error || 'Unknown error occurred');
+  if (!response?.success) {
+    if (response?.cancelled) throw new GrammarCheckCancelled();
+    throw new Error(response?.error || 'Unknown error occurred');
   }
 
   let correctedText = text;

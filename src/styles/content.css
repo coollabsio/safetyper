@@ -1,6 +1,7 @@
 /* Light theme (default) — mirrors src/styles/theme.css, scoped to our elements */
 .safetyper-popup,
-.safetyper-icon {
+.safetyper-icon,
+.safetyper-icon-preview {
   --st-bg: oklch(100% 0 0);
   --st-bg-secondary: oklch(96% 0 0);
   --st-text: oklch(14.5% 0 0);
@@ -51,7 +52,8 @@
 
 /* Dark theme — Coolify dark ladder, bright green accent */
 .safetyper-popup[data-theme='dark'],
-.safetyper-icon[data-theme='dark'] {
+.safetyper-icon[data-theme='dark'],
+.safetyper-icon-preview[data-theme='dark'] {
   --st-bg: oklch(22.64% 0 0);
   --st-bg-secondary: oklch(25.2% 0 0);
   --st-text: oklch(96.12% 0 0);
@@ -148,36 +150,96 @@
   flex-shrink: 0;
 }
 
-.safetyper-icon {
-  position: fixed;
+.safetyper-icon,
+.safetyper-icon-preview {
   width: 24px;
   height: 24px;
-  z-index: 999999;
   cursor: pointer;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
-  background: #000000;
-  border: 1px solid var(--st-border);
+  background: #0b2e1a;
+  border: 1px solid #0b2e1a;
   border-radius: 50% !important;
-  overflow: hidden;
-  box-shadow: none;
+  overflow: visible;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
+  opacity: 1;
   transition:
     transform 0.15s ease,
-    background 0.15s ease;
+    background 0.15s ease,
+    opacity 140ms ease;
 }
 
-.safetyper-icon[data-theme='dark'] {
-  border-color: var(--st-border);
+.safetyper-icon {
+  position: fixed;
+  z-index: 999999;
+  display: none;
 }
 
-.safetyper-icon:hover {
+.safetyper-icon-preview {
+  position: relative;
+}
+
+.safetyper-icon[data-size='small'],
+.safetyper-icon-preview[data-size='small'] {
+  width: 18px;
+  height: 18px;
+}
+
+.safetyper-icon[data-size='small'] img,
+.safetyper-icon-preview[data-size='small'] img {
+  width: 15px;
+  height: 15px;
+  image-rendering: pixelated;
+}
+
+.safetyper-icon[data-theme='dark'],
+.safetyper-icon-preview[data-theme='dark'] {
+  border-color: #1f5a36;
+  box-shadow: none;
+}
+
+.safetyper-icon:hover,
+.safetyper-icon-preview:hover,
+.safetyper-icon[data-theme='dark']:hover,
+.safetyper-icon-preview[data-theme='dark']:hover {
   transform: scale(1.05);
-  background: #000000;
+  background: #0b2e1a;
 }
 
-.safetyper-icon[data-theme='dark']:hover {
-  background: #262626;
+.safetyper-icon[data-typing='true']:not(:hover):not(:focus):not([data-results='true']),
+.safetyper-icon-preview[data-typing='true']:not([data-results='true']) {
+  opacity: 0.6;
+}
+
+.safetyper-icon[data-size='hidden'] {
+  display: none !important;
+}
+
+.safetyper-badge {
+  display: none;
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  width: 12px;
+  min-width: 12px;
+  height: 12px;
+  padding: 0;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #15803d;
+  color: #fff;
+  font-family: Inter, 'Geist Sans', sans-serif;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+  box-shadow: 0 0 0 1px #fff;
+  pointer-events: none;
+}
+
+.safetyper-badge.is-visible {
+  display: block;
 }
 
 .safetyper-popup-host {
@@ -600,4 +662,88 @@
   outline: none;
   border-color: var(--st-focus-ring);
   box-shadow: none;
+}
+
+/* One neutral underline. Each category has its own variable so colors can diverge later. */
+:root {
+  --st-underline: #52525b;
+  --st-cat-grammar: var(--st-underline);
+  --st-cat-spelling: var(--st-underline);
+  --st-cat-punctuation: var(--st-underline);
+  --st-cat-clarity: var(--st-underline);
+  --st-cat-style: var(--st-underline);
+}
+
+.safetyper-measure {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-sizing: content-box;
+  white-space: pre-wrap;
+  overflow: visible;
+  pointer-events: none;
+  color: transparent;
+  z-index: -1;
+}
+
+.safetyper-underline-layer {
+  position: fixed;
+  z-index: 999998;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.safetyper-underline-bar {
+  position: absolute;
+  height: 12px;
+  box-sizing: border-box;
+  background: linear-gradient(
+    transparent 0 10px,
+    var(--st-mark, var(--st-underline, #52525b)) 10px 12px
+  );
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+::highlight(safetyper-grammar) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-grammar);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-spelling) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-spelling);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-punctuation) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-punctuation);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-clarity) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-clarity);
+  text-decoration-skip-ink: none;
+}
+
+::highlight(safetyper-style) {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--st-cat-style);
+  text-decoration-skip-ink: none;
 }

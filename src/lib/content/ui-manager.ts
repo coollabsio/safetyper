@@ -6,6 +6,9 @@
 import { browser } from 'wxt/browser';
 import { stateManager } from './state-manager';
 import { checkGrammar } from './api-client';
+import { cancelAutoCheck, getAutoCheckSnapshot } from './auto-check-state';
+import { groupFill, highestPriorityGroup } from './group-colors';
+import { getIconSizeSetting, iconIsHidden, setIconSizeSetting } from './icon-metrics';
 import popupCss from '../../styles/popup-widget.css?inline';
 import {
   applySuggestion,
@@ -69,6 +72,135 @@ export function updateTheme(isDark: boolean): void {
   }
 }
 
+let typingTimer = 0;
+
+function applyIconChrome(host: HTMLElement): void {
+  const size = getIconSizeSetting();
+  host.setAttribute('data-size', size);
+}
+
+export function noteIconTyping(): void {
+  const icon = stateManager.getIconContainer();
+  if (!icon || iconIsHidden()) return;
+  icon.setAttribute('data-typing', 'true');
+  window.clearTimeout(typingTimer);
+  typingTimer = window.setTimeout(() => icon.removeAttribute('data-typing'), 700);
+}
+
+/**
+ * Open suggestion cards for the focused field. Used when the icon is hidden.
+ */
+export function openSuggestionsShortcut(): void {
+  const field = stateManager.getActiveInput();
+  const snap = getAutoCheckSnapshot();
+  if (
+    field &&
+    snap.field === field &&
+    snap.issues.length > 0 &&
+    snap.text === getTextContent(field)
+  ) {
+    showFieldIssues(snap.issues);
+    return;
+  }
+  const opener = stateManager.getIconContainer();
+  if (!opener) createIcon();
+  showPopup(new Event('shortcut'));
+}
+
+export function applyIconSize(value: unknown): void {
+  setIconSizeSetting(value);
+  const icon = stateManager.getIconContainer();
+  if (!icon) return;
+  applyIconChrome(icon);
+  if (iconIsHidden()) {
+    hideIcon();
+    return;
+  }
+  const field = stateManager.getActiveInput();
+  if (!field) return;
+  icon.style.display = 'flex';
+  positionIcon(field);
+}
+
+const GALLERY_STATES: Array<{
+  label: string;
+  count: number;
+  group: 'correctness' | 'clarity' | 'engagement' | 'delivery' | null;
+  typing?: boolean;
+  small?: boolean;
+}> = [
+  { label: 'Idle', count: 0, group: null },
+  { label: 'Typing', count: 0, group: null, typing: true },
+  { label: 'Correctness', count: 2, group: 'correctness' },
+  { label: 'Clarity', count: 2, group: 'clarity' },
+  { label: 'Engagement', count: 1, group: 'engagement' },
+  { label: 'Delivery', count: 1, group: 'delivery' },
+  { label: 'Small', count: 0, group: null, small: true },
+  { label: 'Medium', count: 0, group: null },
+];
+
+function paintPreview(
+  host: HTMLElement,
+  item: (typeof GALLERY_STATES)[number],
+  theme: 'light' | 'dark'
+): void {
+  host.className = 'safetyper-icon-preview';
+  host.setAttribute('data-theme', theme);
+  host.setAttribute('data-size', item.small ? 'small' : 'medium');
+  if (item.typing) host.setAttribute('data-typing', 'true');
+  if (item.count > 0) host.setAttribute('data-results', 'true');
+  const img = document.createElement('img');
+  img.src = browser.runtime.getURL('/icon/32.png');
+  img.alt = '';
+  img.width = 20;
+  img.height = 20;
+  img.style.imageRendering = 'pixelated';
+  host.append(img);
+  if (item.count > 0) {
+    const badge = document.createElement('span');
+    badge.className = 'safetyper-badge is-visible';
+    badge.textContent = String(item.count);
+    if (item.group) badge.style.background = groupFill(item.group, 'light');
+    host.append(badge);
+  }
+}
+
+function paintGallery(root: HTMLElement, theme: 'light' | 'dark'): void {
+  root.replaceChildren();
+  for (const item of GALLERY_STATES) {
+    const figure = document.createElement('figure');
+    figure.className = 'icon-state';
+    const host = document.createElement('div');
+    paintPreview(host, item, theme);
+    const caption = document.createElement('figcaption');
+    caption.textContent = item.label;
+    figure.append(host, caption);
+    root.append(figure);
+  }
+}
+
+/** Static states on the extension test page. No effect on other sites. */
+export function mountIconStateGallery(): void {
+  const light = document.getElementById('icon-state-gallery');
+  const dark = document.getElementById('icon-state-gallery-dark');
+  if (light) paintGallery(light, 'light');
+  if (dark) paintGallery(dark, 'dark');
+}
+
+export async function loadIconPreferences(): Promise<void> {
+  try {
+    const stored = await browser.storage.local.get(['iconSize']);
+    setIconSizeSetting(stored.iconSize);
+  } catch {
+    setIconSizeSetting('medium');
+  }
+  const icon = stateManager.getIconContainer();
+  if (icon) {
+    applyIconChrome(icon);
+    if (iconIsHidden()) hideIcon();
+  }
+}
+
 /**
  * Create floating icon element
  */
@@ -83,20 +215,25 @@ export function createIcon(): HTMLDivElement {
   iconContainer.setAttribute('aria-label', 'Check grammar');
   iconContainer.setAttribute('tabindex', '0');
   iconContainer.setAttribute('data-theme', currentTheme);
+  applyIconChrome(iconContainer);
   const iconImg = document.createElement('img');
   iconImg.src = browser.runtime.getURL('/icon/32.png');
+  iconImg.alt = '';
   iconImg.width = 20;
   iconImg.height = 20;
   iconImg.style.imageRendering = 'pixelated';
   iconContainer.appendChild(iconImg);
+  const badge = document.createElement('span');
+  badge.className = 'safetyper-badge';
+  badge.setAttribute('aria-hidden', 'true');
+  iconContainer.appendChild(badge);
 
-  // Preserve native selection: prevent focus shift when clicking the icon
-  iconContainer.addEventListener('mousedown', (e) => e.preventDefault());
+  iconContainer.addEventListener('mousedown', (event) => event.preventDefault());
   iconContainer.addEventListener('click', showPopup);
-  iconContainer.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      showPopup(e);
+  iconContainer.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      showPopup(event);
     }
   });
 
@@ -120,6 +257,37 @@ export function createIcon(): HTMLDivElement {
   }
 
   return iconContainer;
+}
+
+/**
+ * Show how many current suggestions the focused field has.
+ * A zero count hides the badge. Pass the issues when the group color matters.
+ */
+export function setIssueCount(
+  count: number,
+  issues: Array<{ group?: unknown; category?: unknown }> = []
+): void {
+  const iconContainer = stateManager.getIconContainer();
+  if (!iconContainer) return;
+  const badge = iconContainer.querySelector('.safetyper-badge');
+  if (!(badge instanceof HTMLElement)) return;
+  if (count <= 0) {
+    badge.classList.remove('is-visible');
+    badge.textContent = '';
+    badge.style.background = '';
+    iconContainer.removeAttribute('data-results');
+    iconContainer.setAttribute('aria-label', 'Check grammar');
+    return;
+  }
+  badge.textContent = count > 9 ? '9+' : String(count);
+  badge.classList.add('is-visible');
+  const group = highestPriorityGroup(issues);
+  badge.style.background = group ? groupFill(group, 'light') : '';
+  iconContainer.setAttribute('data-results', 'true');
+  iconContainer.setAttribute(
+    'aria-label',
+    `Check grammar, ${count} suggestion${count === 1 ? '' : 's'}`
+  );
 }
 
 /**
@@ -177,6 +345,10 @@ function watchField(element: HTMLElement): void {
 }
 
 export function positionIcon(element: HTMLElement): void {
+  if (iconIsHidden()) {
+    hideIcon();
+    return;
+  }
   watchField(element);
   const iconContainer = stateManager.getIconContainer();
   if (!iconContainer) {
@@ -208,7 +380,7 @@ export function positionIcon(element: HTMLElement): void {
     }
   }
 
-  iconContainer.style.display = 'flex';
+  iconContainer.style.display = iconIsHidden() ? 'none' : 'flex';
 
   if (import.meta.env.DEV) {
     console.log('[SafeTyper UI] Icon display set to flex');
@@ -238,6 +410,10 @@ export function hideIcon(): void {
  * Position icon near a text selection Range
  */
 export function positionIconAtSelection(range: Range): void {
+  if (iconIsHidden()) {
+    hideIcon();
+    return;
+  }
   const iconContainer = stateManager.getIconContainer();
   if (!iconContainer) return;
 
@@ -254,20 +430,30 @@ export function positionIconAtSelection(range: Range): void {
     stateManager.setCachedPosition(position);
   }
 
-  iconContainer.style.display = 'flex';
+  iconContainer.style.display = iconIsHidden() ? 'none' : 'flex';
 }
 
-/**
- * Show grammar check popup
- */
-export function showPopup(e: Event): void {
-  e.stopPropagation();
+function sessionForField(
+  anchor: HTMLElement,
+  text: string,
+  suggestions: Suggestion[]
+): SuggestionSession {
+  const complex = isComplexEditor(anchor);
+  return {
+    workingText: text,
+    suggestions,
+    canApply: !complex,
+    isComplex: complex,
+    anchor,
+    prefix: '',
+    suffix: '',
+    range: null,
+    insertedNode: null,
+    initialEmpty: suggestions.length === 0,
+  };
+}
 
-  if (stateManager.getPopup()) {
-    closePopup();
-    return;
-  }
-
+function mountPopupShell(): HTMLDivElement {
   popupDragged = false;
   const popup = document.createElement('div');
   popup.className = 'safetyper-popup-host';
@@ -301,20 +487,68 @@ export function showPopup(e: Event): void {
   };
   document.addEventListener('keydown', activeKeyDown);
 
-  // Position popup
   const iconContainer = stateManager.getIconContainer();
   if (iconContainer) {
     const iconRect = iconContainer.getBoundingClientRect();
-    const field = stateManager.getActiveInput();
-    const position = placeBesideField(iconRect, field?.getBoundingClientRect() ?? null);
+    const activeField = stateManager.getActiveInput();
+    const position = placeBesideField(iconRect, activeField?.getBoundingClientRect() ?? null);
     popup.style.left = `${position.left}px`;
     popup.style.top = `${position.top}px`;
   }
 
   document.body.appendChild(popup);
   stateManager.setPopup(popup);
-
   makePopupDraggable(popup);
+  setTimeout(() => {
+    document.addEventListener('click', handleOutsideClick);
+  }, 0);
+  return popup;
+}
+
+/**
+ * Open the suggestion cards for issues already found in the focused field.
+ */
+export function showFieldIssues(issues: Suggestion[], focusId?: string): void {
+  const anchor = stateManager.getActiveInput();
+  if (!anchor || issues.length === 0) return;
+  const text = getTextContent(anchor);
+  const focused = focusId ? issues.filter((issue) => issue.id === focusId) : [];
+  const shown = focused.length > 0 ? focused : issues;
+  const popup = stateManager.getPopup() ?? mountPopupShell();
+  const content = popupContent(popup);
+  if (!content) return;
+  renderSuggestionCards(content, sessionForField(anchor, text, shown));
+  setTimeout(() => repositionPopup(popup), 0);
+}
+
+/**
+ * Show grammar check popup
+ */
+export function showPopup(e: Event): void {
+  e.stopPropagation();
+
+  if (stateManager.getPopup()) {
+    closePopup();
+    return;
+  }
+
+  const popup = mountPopupShell();
+  const field = stateManager.getActiveInput();
+  const snap = getAutoCheckSnapshot();
+  if (
+    stateManager.getInteractionMode() !== 'selection' &&
+    field &&
+    snap.field === field &&
+    snap.issues.length > 0 &&
+    snap.text === getTextContent(field)
+  ) {
+    const content = popupContent(popup);
+    if (content) {
+      renderSuggestionCards(content, sessionForField(field, snap.text, snap.issues));
+      setTimeout(() => repositionPopup(popup), 0);
+    }
+    return;
+  }
 
   // Check if API key exists for the active provider
   browser.storage.local
@@ -373,11 +607,6 @@ export function showPopup(e: Event): void {
         }
       }
     });
-
-  // Close popup when clicking outside
-  setTimeout(() => {
-    document.addEventListener('click', handleOutsideClick);
-  }, 0);
 }
 
 /**
@@ -802,6 +1031,7 @@ function renderSuggestionCards(content: HTMLElement, session: SuggestionSession)
  * Handle grammar check button click
  */
 async function handleGrammarCheck(): Promise<void> {
+  cancelAutoCheck();
   let mode = stateManager.getInteractionMode();
   let text: string;
   let activeInput: HTMLElement | null = null;
@@ -889,6 +1119,7 @@ async function handleGrammarCheck(): Promise<void> {
       }
     }
 
+    setIssueCount(result.suggestions.length, result.suggestions);
     renderSuggestionCards(content, {
       workingText: text,
       suggestions: result.suggestions,

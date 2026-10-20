@@ -43,6 +43,7 @@ export interface CheckGrammarMessage {
   action: 'checkGrammar';
   referer: string;
   payload: OpenRouterRequestPayload;
+  requestId?: string;
 }
 
 /**
@@ -52,6 +53,7 @@ export interface CheckGrammarResponse {
   success: boolean;
   data?: OpenRouterResponse;
   error?: string;
+  cancelled?: boolean;
 }
 
 /**
@@ -95,6 +97,9 @@ export interface StorageSchema {
   translateResult?: string;
   translateDetectedLanguage?: string;
   translateAlternatives?: Array<{ text: string; meaning: string }>;
+  autoCheckEnabled?: boolean;
+  autoCheckDisabledHosts?: string[];
+  iconSize?: 'small' | 'medium' | 'hidden';
 }
 
 /**
@@ -170,6 +175,8 @@ export interface Config {
   MAX_TEXT_LENGTH: number;
   SELECTION_DEBOUNCE: number;
   MIN_SELECTION_LENGTH: number;
+  AUTO_CHECK_DEBOUNCE: number;
+  AUTO_CHECK_MIN_CHARS: number;
 }
 
 /**
