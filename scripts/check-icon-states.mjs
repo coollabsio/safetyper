@@ -192,7 +192,7 @@ try {
     const rendering = await icon.locator('img').evaluate((element) => getComputedStyle(element).imageRendering);
     assert(rendering === 'pixelated', `image rendering was ${rendering}`);
     const disc = await icon.evaluate((element) => getComputedStyle(element).backgroundColor);
-    assert(disc === 'rgb(0, 0, 0)', `disc color was ${disc}`);
+    assert(disc === 'rgb(11, 46, 26)', `disc color was ${disc}`);
     const fieldBox = await page.locator('#icon-live').boundingBox();
     const iconBox = await icon.boundingBox();
     assert(fieldBox && iconBox, 'live field');

@@ -158,11 +158,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000000;
-  border: 1px solid var(--st-border);
+  background: #0b2e1a;
+  border: 1px solid #0b2e1a;
   border-radius: 50% !important;
   overflow: visible;
-  box-shadow: none;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
   opacity: 1;
   transition:
     transform 0.15s ease,
@@ -195,18 +195,16 @@
 
 .safetyper-icon[data-theme='dark'],
 .safetyper-icon-preview[data-theme='dark'] {
-  border-color: var(--st-border);
+  border-color: #1f5a36;
+  box-shadow: none;
 }
 
 .safetyper-icon:hover,
-.safetyper-icon-preview:hover {
-  transform: scale(1.05);
-  background: #000000;
-}
-
+.safetyper-icon-preview:hover,
 .safetyper-icon[data-theme='dark']:hover,
 .safetyper-icon-preview[data-theme='dark']:hover {
-  background: #262626;
+  transform: scale(1.05);
+  background: #0b2e1a;
 }
 
 .safetyper-icon[data-typing='true']:not(:hover):not(:focus):not([data-results='true']),
