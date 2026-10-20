@@ -17,6 +17,7 @@
     "svelte-check": "^4.3.1",
     "tslib": "^2.8.1",
     "typescript": "^5.9.2",
+    "vitest": "^5.0.5",
     "wxt": "^0.20.6"
   },
   "description": "AI-powered grammar and spelling checker for web browsers",
@@ -34,9 +35,14 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,svelte,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,svelte,css,json}\"",
-    "test": "bun src/lib/categories.test.ts && bun src/lib/goals.test.ts && bun src/lib/rewrite.test.ts && bun src/lib/translate/prompt.test.ts && bun src/lib/content/suggestions.test.ts && bun src/lib/content/auto-check.test.ts && bun src/lib/content/icon-state.test.ts && bun src/lib/content/preferences.test.ts && bun src/lib/selection-translate/selection-translate.test.ts",
+    "test": "vitest run && bun src/lib/categories.test.ts && bun src/lib/goals.test.ts && bun src/lib/rewrite.test.ts && bun src/lib/translate/prompt.test.ts && bun src/lib/content/suggestions.test.ts && bun src/lib/content/auto-check.test.ts && bun src/lib/content/icon-state.test.ts && bun src/lib/content/preferences.test.ts && bun src/lib/selection-translate/selection-translate.test.ts",
     "postinstall": "wxt prepare",
     "prepare": "husky"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@tiptap/core": "^3.32.0",
+    "@tiptap/pm": "^3.32.0",
+    "@tiptap/starter-kit": "^3.32.0"
+  }
 }
