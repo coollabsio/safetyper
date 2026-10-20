@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SafeTyper Editor</title>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        background: oklch(97% 0 0);
+      }
+
+      html[data-theme='dark'],
+      html[data-theme='dark'] body {
+        background: oklch(14.48% 0 0);
+      }
+    </style>
+    <script>
+      var api = (typeof browser !== 'undefined' && browser.storage) || chrome.storage;
+      api.local.get(['darkMode'], function (result) {
+        if (result.darkMode) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

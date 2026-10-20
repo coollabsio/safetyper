@@ -510,6 +510,10 @@
     });
   }
 
+  function openEditor() {
+    browser.tabs.create({ url: browser.runtime.getURL('/editor.html') });
+  }
+
   onMount(async () => {
     darkMode = (await darkModeStorage.getValue()) ?? false;
     applyTheme(darkMode);
@@ -700,6 +704,7 @@
         >
           Settings
         </button>
+        <button type="button" class="editor-link" onclick={openEditor}>Open editor</button>
       </header>
       <div class="layer-card-body">
         {#if activeTab === 'translate'}
@@ -1276,6 +1281,29 @@
     justify-content: flex-start;
     gap: 0.25rem;
     padding: 0 0.5rem;
+  }
+
+  .editor-link {
+    margin-left: auto;
+    padding: 0 0.5rem;
+    height: 2rem;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--st-brand);
+    background: none;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .editor-link:hover {
+    text-decoration: underline;
+  }
+
+  .editor-link:focus-visible {
+    outline: 1px solid var(--st-focus-ring);
+    outline-offset: 2px;
   }
 
   .tab {
