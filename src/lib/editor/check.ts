@@ -24,6 +24,7 @@ export async function fetchIssues(text: string, signal: AbortSignal): Promise<Gr
   });
   const parsed = resolveIssueReply(first, text);
   if (parsed !== null) return parsed;
+  if (signal.aborted) throw new DOMException('The check was aborted.', 'AbortError');
   const second = await completeChat({
     messages: [
       ...messages,

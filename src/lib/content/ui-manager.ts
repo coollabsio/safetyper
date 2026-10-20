@@ -1727,7 +1727,17 @@ async function handleGrammarCheck(): Promise<void> {
     );
     setTimeout(() => repositionPopup(currentPopup), 0);
   } catch (error: unknown) {
-    if (generation !== checkGeneration || error instanceof GrammarCheckCancelled) return;
+    if (generation !== checkGeneration) return;
+    if (error instanceof GrammarCheckCancelled) {
+      // A superseded check must not leave the card on "Checking…".
+      // A newer check in this page has already replaced the loading state.
+      const popup = stateManager.getPopup();
+      const loading = popup ? popupContent(popup)?.querySelector('.st-loading') : null;
+      const stillThisCheck =
+        popup?.dataset.busy === '1' && /check|loading model/i.test(loading?.textContent ?? '');
+      if (stillThisCheck) showCheckError('The check was interrupted. Try again.');
+      return;
+    }
     if (import.meta.env.DEV) {
       console.error('Grammar check error:', error);
     }

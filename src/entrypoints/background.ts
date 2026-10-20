@@ -45,7 +45,10 @@ export default defineBackground(() => {
       // So we need to register them programmatically
       const scripts = await browser.scripting.getRegisteredContentScripts();
       const scriptId = 'wxt:content-scripts/content.js';
-      const existingScript = scripts.find((s) => s.id === scriptId);
+      const existingScript = scripts.find(
+        (script) =>
+          script.id === scriptId || (script.js ?? []).some((file) => file.includes('content.js'))
+      );
 
       if (!existingScript) {
         console.log('[Background] Registering content script...');
@@ -408,7 +411,7 @@ export default defineBackground(() => {
       }
 
       const requestId = typeof message.requestId === 'string' ? message.requestId : '';
-      const scope = String(sender.tab?.id ?? 'extension');
+      const scope = `${sender.tab?.id ?? 'extension'}:${sender.frameId ?? 0}`;
       const feature = featureForRequest(message.action, requestId);
       // A manual check replaces check-as-you-type so both cannot generate at once.
       if (feature === 'card') flights.abort(scope, 'auto-check');

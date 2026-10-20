@@ -45,6 +45,9 @@ let activeRequestId: string | null = null;
 const cache = new Map<string, Suggestion[]>();
 
 export function startAutoCheck(): () => void {
+  const marker = window as Window & { __safetyperAutoCheck?: boolean };
+  if (marker.__safetyperAutoCheck) return () => {};
+  marker.__safetyperAutoCheck = true;
   disposed = false;
   setUnderlineClickHandler((issueId) => {
     const current = field;
@@ -251,7 +254,11 @@ async function run(token: number): Promise<void> {
       if (token === generation) schedule();
       return;
     } finally {
-      if (activeRequestId === requestId) activeRequestId = null;
+      if (token !== generation && activeRequestId === requestId) {
+        void cancelInFlight();
+      } else if (activeRequestId === requestId) {
+        activeRequestId = null;
+      }
     }
   }
 }
@@ -287,7 +294,17 @@ function trackingAllowed(target: HTMLElement): boolean {
 }
 
 function eligible(): boolean {
-  return passesFieldGuards() && !!field && focused(field) && !composing && !document.hidden;
+  // Each iframe has its own document and its own active element. Without
+  // hasFocus(), background frames on x.com or GitHub schedule checks too,
+  // and those requests abort the one the visible page is waiting on.
+  return (
+    passesFieldGuards() &&
+    !!field &&
+    focused(field) &&
+    !composing &&
+    !document.hidden &&
+    document.hasFocus()
+  );
 }
 
 function passesFieldGuards(): boolean {

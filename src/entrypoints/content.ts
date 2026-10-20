@@ -34,6 +34,13 @@ export default defineContentScript({
   matches: ['<all_urls>'],
   allFrames: true,
   async main() {
+    // Manifest registration plus the dev-mode programmatic registration can
+    // inject this file twice. A second copy would subscribe another auto-check
+    // and fire a duplicate Ollama request for every pause in typing.
+    const marker = window as Window & { __safetyperContent?: boolean };
+    if (marker.__safetyperContent) return;
+    marker.__safetyperContent = true;
+
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Content script starting...');
       console.log('[SafeTyper] Location:', window.location.href);

@@ -6,6 +6,7 @@ import {
   buildOllamaChatBody,
   OLLAMA_CHECK_MAX_TOKENS,
   OLLAMA_KEEP_ALIVE,
+  OLLAMA_NUM_CTX,
   OLLAMA_TRANSLATE_MAX_TOKENS,
 } from './ollama';
 import { featureForRequest, OllamaFlight } from './ollama-flight';
@@ -148,7 +149,11 @@ describe('Ollama JSON mode', () => {
         stream: false,
         format: 'json',
         keep_alive: OLLAMA_KEEP_ALIVE,
-        options: { temperature: 0.2, num_predict: OLLAMA_CHECK_MAX_TOKENS },
+        options: {
+          temperature: 0.2,
+          num_predict: OLLAMA_CHECK_MAX_TOKENS,
+          num_ctx: OLLAMA_NUM_CTX,
+        },
       });
       expect(body).not.toHaveProperty('response_format');
     } finally {
@@ -168,6 +173,7 @@ describe('Ollama JSON mode', () => {
     expect(body.format).toBeUndefined();
     expect(body.stream).toBe(false);
     expect(body.options.num_predict).toBe(OLLAMA_TRANSLATE_MAX_TOKENS);
+    expect(body.options.num_ctx).toBe(OLLAMA_NUM_CTX);
   });
 
   it('does not raise a smaller requested budget', () => {
@@ -236,9 +242,10 @@ describe('one Ollama request per feature', () => {
 });
 
 describe('Ollama timeout copy', () => {
-  it('points at CPU inference and a smaller model', () => {
+  it('says the request was stopped, without blaming the GPU', () => {
     expect(timeoutMessage('ollama')).toBe(OLLAMA_TIMEOUT_MESSAGE);
-    expect(timeoutMessage('ollama')).toContain('qwen2.5:3b');
+    expect(timeoutMessage('ollama')).toContain('taking too long');
+    expect(timeoutMessage('ollama')).not.toMatch(/CPU/);
     expect(timeoutMessage('groq')).toContain('timed out');
   });
 });

@@ -35,7 +35,7 @@ export function timeoutForProvider(provider: ApiProvider): number {
 }
 
 export const OLLAMA_TIMEOUT_MESSAGE =
-  'Ollama is taking too long. It may be running on CPU — try a smaller model (e.g. qwen2.5:3b) or a hosted provider.';
+  'Ollama is taking too long. The request was stopped so it does not keep running. Try again.';
 
 export function timeoutMessage(provider: ApiProvider): string {
   if (provider === 'ollama') return OLLAMA_TIMEOUT_MESSAGE;

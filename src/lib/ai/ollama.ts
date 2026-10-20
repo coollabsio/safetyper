@@ -5,7 +5,13 @@
  */
 
 export const OLLAMA_KEEP_ALIVE = '30m';
-/** Grammar JSON is short. Capping generation keeps a CPU model from running on. */
+/**
+ * llama3.2 otherwise loads a 32768 context. Prompt eval for that window is
+ * expensive even when the passage is a sentence, and it shows up as high CPU
+ * while the GPU is already busy.
+ */
+export const OLLAMA_NUM_CTX = 4096;
+/** Grammar JSON is short. A hard cap keeps a slow generation from running on. */
 export const OLLAMA_CHECK_MAX_TOKENS = 512;
 /** A translation can be as long as the source, but not an open-ended completion. */
 export const OLLAMA_TRANSLATE_MAX_TOKENS = 1024;
@@ -23,7 +29,8 @@ export interface OllamaChatBody {
   format?: 'json';
   options: {
     temperature: number;
-    num_predict?: number;
+    num_ctx: number;
+    num_predict: number;
   };
 }
 
@@ -52,6 +59,7 @@ export function buildOllamaChatBody(input: {
 }): OllamaChatBody {
   const options: OllamaChatBody['options'] = {
     temperature: input.temperature ?? 0.2,
+    num_ctx: OLLAMA_NUM_CTX,
     num_predict: ollamaPredictTokens(input.kind ?? 'check', input.maxTokens),
   };
   return {
