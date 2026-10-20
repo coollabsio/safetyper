@@ -449,21 +449,27 @@
     <div class="header-brand">
       <img src="/icon/32.png" alt="SafeTyper" class="header-logo" />
       <span class="header-title">SafeTyper</span>
+      <a
+        href={`https://github.com/coollabsio/safetyper/releases/tag/v${version}`}
+        target="_blank"
+        class="version">v{version}</a
+      >
     </div>
     <div class="header-controls">
       <a
         href="https://safetyper.com/sponsorships"
         target="_blank"
         class="sponsor-link"
-        aria-label="Sponsor SafeTyper"
+        aria-label="Donate"
+        title="Donate"
       >
-        <span>Donate</span>
         <svg
           width="14"
           height="14"
           viewBox="0 0 24 24"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
         >
           <path
             d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
@@ -474,11 +480,6 @@
           />
         </svg>
       </a>
-      <a
-        href={`https://github.com/coollabsio/safetyper/releases/tag/v${version}`}
-        target="_blank"
-        class="version">v{version}</a
-      >
       <button
         class="theme-toggle"
         onclick={toggleDarkMode}
@@ -872,14 +873,16 @@
 
   .header-brand {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
   }
 
   .header-logo {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
+    align-self: center;
   }
 
   .header-title {
@@ -898,16 +901,23 @@
   .sponsor-link {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
     color: #ff2d8a;
-    font-size: 0.6875rem;
-    font-weight: 500;
     text-decoration: none;
+    border-radius: 0.25rem;
+  }
+
+  .sponsor-link:hover {
+    background: var(--st-option-hover-bg);
   }
 
   .version {
     font-size: 0.6875rem;
-    color: var(--st-text-secondary);
+    font-weight: 500;
+    line-height: 1;
+    color: var(--st-text-muted);
     text-decoration: none;
     transition: color 0.15s ease;
   }
