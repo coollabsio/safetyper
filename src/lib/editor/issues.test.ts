@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { classifyIssue } from '../categories';
 import {
   applyReplacements,
   chunkParagraphs,
@@ -7,6 +8,10 @@ import {
   orderForAcceptAll,
   parseIssues,
 } from './issues';
+
+function issue(quote: string, replacement: string, category: string, explanation: string) {
+  return { quote, replacement, ...classifyIssue({ category }), explanation };
+}
 
 describe('chunkParagraphs', () => {
   it('sends each paragraph on its own, even when they would fit together', () => {
@@ -66,7 +71,7 @@ describe('parseIssues', () => {
       {
         quote: 'teh',
         replacement: 'the',
-        category: 'spelling',
+        ...classifyIssue({ category: 'spelling' }),
         explanation: 'Spelling.',
       },
     ]);
@@ -101,13 +106,46 @@ describe('parseIssues', () => {
     expect(() => parseIssues(raw)).toThrow(/explanation/);
   });
 
-  it('rejects an unknown category', () => {
+  it('maps a legacy style category onto engagement', () => {
     const raw = JSON.stringify({
       issues: [
         {
           quote: 'teh',
           replacement: 'the',
           category: 'style',
+          explanation: 'Wording.',
+        },
+      ],
+    });
+    expect(parseIssues(raw)[0]).toMatchObject({
+      group: 'engagement',
+      subcategory: 'word-choice',
+      category: 'word-choice',
+    });
+  });
+
+  it('keeps a modern group and subcategory', () => {
+    const raw = JSON.stringify({
+      issues: [
+        {
+          quote: 'teh',
+          replacement: 'the',
+          group: 'delivery',
+          subcategory: 'tone',
+          explanation: 'Tone.',
+        },
+      ],
+    });
+    expect(parseIssues(raw)[0]).toMatchObject({ group: 'delivery', subcategory: 'tone' });
+  });
+
+  it('rejects an unknown category', () => {
+    const raw = JSON.stringify({
+      issues: [
+        {
+          quote: 'teh',
+          replacement: 'the',
+          category: 'nope',
           explanation: 'Spelling.',
         },
       ],
@@ -124,18 +162,8 @@ describe('matchIssues', () => {
 
   it('matches an exact quote and drops one that is not in the text', () => {
     const matched = matchIssues(paragraphs, [
-      {
-        quote: 'teh',
-        replacement: 'the',
-        category: 'spelling',
-        explanation: 'Spelling.',
-      },
-      {
-        quote: 'not in the passage',
-        replacement: 'missing',
-        category: 'grammar',
-        explanation: 'Invented.',
-      },
+      issue('teh', 'the', 'spelling', 'Spelling.'),
+      issue('not in the passage', 'missing', 'grammar', 'Invented.'),
     ]);
 
     expect(matched).toHaveLength(1);
@@ -146,18 +174,8 @@ describe('matchIssues', () => {
     const matched = matchIssues(
       [{ id: 'p1', text: 'teh cat' }],
       [
-        {
-          quote: 'teh cat',
-          replacement: 'the cat',
-          category: 'spelling',
-          explanation: 'Spelling.',
-        },
-        {
-          quote: 'teh',
-          replacement: 'the',
-          category: 'spelling',
-          explanation: 'Spelling.',
-        },
+        issue('teh cat', 'the cat', 'spelling', 'Spelling.'),
+        issue('teh', 'the', 'spelling', 'Spelling.'),
       ]
     );
 
@@ -167,20 +185,7 @@ describe('matchIssues', () => {
   it('matches a repeated quote at the next unused offset', () => {
     const matched = matchIssues(
       [{ id: 'p1', text: 'teh and teh' }],
-      [
-        {
-          quote: 'teh',
-          replacement: 'the',
-          category: 'spelling',
-          explanation: 'First.',
-        },
-        {
-          quote: 'teh',
-          replacement: 'the',
-          category: 'spelling',
-          explanation: 'Second.',
-        },
-      ]
+      [issue('teh', 'the', 'spelling', 'First.'), issue('teh', 'the', 'spelling', 'Second.')]
     );
 
     expect(matched.map((issue) => issue.start)).toEqual([0, 8]);

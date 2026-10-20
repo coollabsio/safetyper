@@ -4,6 +4,8 @@
   import StarterKit from '@tiptap/starter-kit';
   import { storage } from '#imports';
   import { browser } from 'wxt/browser';
+  import { groupLabel } from '~/lib/categories';
+  import { applyGroupColorVariables } from '~/lib/content/category-colors';
   import { ChatError, OLLAMA_ORIGINS_VALUE, resolveProvider } from '~/lib/ai/chat';
   import { fetchIssues } from '~/lib/editor/check';
   import {
@@ -81,6 +83,7 @@
 
   function applyTheme(isDark: boolean): void {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    applyGroupColorVariables(isDark ? 'dark' : 'light');
   }
 
   async function toggleDarkMode(): Promise<void> {
@@ -666,8 +669,13 @@
   {/if}
 
   {#if card}
-    <aside class="suggestion-card" style:top="{card.top}px" style:left="{card.left}px">
-      <p class="category">{card.issue.category}</p>
+    <aside
+      class="suggestion-card"
+      data-group={card.issue.group}
+      style:top="{card.top}px"
+      style:left="{card.left}px"
+    >
+      <p class="category">{groupLabel(card.issue.group)}</p>
       <p class="quote-line">
         <del>{card.issue.quote}</del>
         <strong>{card.issue.replacement}</strong>

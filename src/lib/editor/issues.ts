@@ -1,16 +1,20 @@
 /**
  * Paragraph chunking, suggestion JSON, and quote matching for the editor.
  * These functions stay free of the DOM and of provider calls so they can be tested on their own.
+ * Groups and colors come from src/lib/categories.ts.
  */
 
-export const ISSUE_CATEGORIES = ['grammar', 'spelling', 'punctuation', 'clarity', 'other'] as const;
+import {
+  classifyIssue,
+  groupMembershipRules,
+  issueResponseSchema,
+  recognizedGroup,
+  type IssueClassification,
+} from '../categories';
 
-export type IssueCategory = (typeof ISSUE_CATEGORIES)[number];
-
-export interface GrammarIssue {
+export interface GrammarIssue extends IssueClassification {
   quote: string;
   replacement: string;
-  category: IssueCategory;
   explanation: string;
 }
 
@@ -45,12 +49,14 @@ export class IssueParseError extends Error {
 }
 
 export const ISSUE_SYSTEM_PROMPT = [
-  'You are a proofreading assistant. Find grammar, spelling, and punctuation problems in the passage.',
+  'You are a proofreading assistant. Find problems in correctness, clarity, engagement, and delivery (tone).',
   'Reply with one JSON object and nothing else:',
-  '{"issues":[{"quote":"exact substring from the passage","replacement":"corrected substring","category":"grammar|spelling|punctuation|clarity|other","explanation":"one short sentence"}]}',
+  issueResponseSchema(),
   'Rules:',
   '- quote is a short exact copy from the passage, usually two to six words. Do not quote a whole sentence.',
   '- replacement is only those words, corrected.',
+  '- group and subcategory must match:',
+  groupMembershipRules(),
   '- Return at most 6 issues.',
   '- If nothing is wrong, return {"issues":[]}.',
   '- Do not translate. Keep the language of the passage.',
@@ -98,15 +104,6 @@ function requireString(value: unknown, field: string, index: number): string {
   return value;
 }
 
-function requireCategory(value: unknown, index: number): IssueCategory {
-  if (typeof value !== 'string' || !ISSUE_CATEGORIES.includes(value as IssueCategory)) {
-    throw new IssueParseError(
-      `Issue ${index + 1} has a category other than ${ISSUE_CATEGORIES.join(', ')}.`
-    );
-  }
-  return value as IssueCategory;
-}
-
 export function parseIssues(raw: string): GrammarIssue[] {
   let parsed: unknown;
   try {
@@ -134,12 +131,29 @@ export function parseIssues(raw: string): GrammarIssue[] {
     const quote = requireString(record.quote, 'quote', index);
     const replacement = requireString(record.replacement, 'replacement', index);
     const explanation = requireString(record.explanation, 'explanation', index);
-    const category = requireCategory(record.category, index);
+    if (
+      !recognizedGroup({
+        group: record.group,
+        subcategory: record.subcategory,
+        category: record.category,
+      })
+    ) {
+      throw new IssueParseError(`Issue ${index + 1} does not name a known suggestion group.`);
+    }
     if (quote.trim().length === 0) {
       throw new IssueParseError(`Issue ${index + 1} has an empty quote.`);
     }
     if (quote === replacement) return;
-    result.push({ quote, replacement, category, explanation });
+    result.push({
+      quote,
+      replacement,
+      ...classifyIssue({
+        group: record.group,
+        subcategory: record.subcategory,
+        category: record.category,
+      }),
+      explanation,
+    });
   });
   return result;
 }

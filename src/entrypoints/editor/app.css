@@ -258,9 +258,25 @@ body,
 .safetyper-issue {
   text-decoration-line: underline;
   text-decoration-style: wavy;
-  text-decoration-color: var(--st-green);
+  text-decoration-color: var(--st-correctness-accent, var(--st-green));
   text-underline-offset: 3px;
   cursor: pointer;
+}
+
+.safetyper-issue-correctness {
+  text-decoration-color: var(--st-correctness-accent);
+}
+
+.safetyper-issue-clarity {
+  text-decoration-color: var(--st-clarity-accent);
+}
+
+.safetyper-issue-engagement {
+  text-decoration-color: var(--st-engagement-accent);
+}
+
+.safetyper-issue-delivery {
+  text-decoration-color: var(--st-delivery-accent);
 }
 
 .safetyper-issue.is-active {
@@ -283,18 +299,41 @@ body,
 }
 
 .suggestion-card {
+  --st-group-accent: var(--st-brand);
+  --st-group-text: var(--st-brand-text);
   position: fixed;
   z-index: 20;
   width: min(320px, calc(100vw - 24px));
-  padding: 0.85rem;
+  padding: 0.85rem 0.85rem 0.85rem 0.7rem;
   border-radius: 8px;
+  border-left: 3px solid var(--st-group-accent);
   background: var(--st-elevated);
   box-shadow: var(--st-card-shadow);
 }
 
+.suggestion-card[data-group='correctness'] {
+  --st-group-accent: var(--st-correctness-accent);
+  --st-group-text: var(--st-correctness-text);
+}
+
+.suggestion-card[data-group='clarity'] {
+  --st-group-accent: var(--st-clarity-accent);
+  --st-group-text: var(--st-clarity-text);
+}
+
+.suggestion-card[data-group='engagement'] {
+  --st-group-accent: var(--st-engagement-accent);
+  --st-group-text: var(--st-engagement-text);
+}
+
+.suggestion-card[data-group='delivery'] {
+  --st-group-accent: var(--st-delivery-accent);
+  --st-group-text: var(--st-delivery-text);
+}
+
 .suggestion-card .category {
   margin: 0 0 0.4rem;
-  color: var(--st-brand-text);
+  color: var(--st-group-text);
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.04em;

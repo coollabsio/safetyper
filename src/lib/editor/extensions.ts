@@ -119,8 +119,13 @@ export function createSuggestionExtension(handlers: SuggestionHandlers) {
                 const key = issueKey(issue);
                 decorations.push(
                   Decoration.inline(range.from, range.to, {
-                    class:
-                      key === handlers.activeKey ? 'safetyper-issue is-active' : 'safetyper-issue',
+                    class: [
+                      'safetyper-issue',
+                      `safetyper-issue-${issue.group}`,
+                      key === handlers.activeKey ? 'is-active' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' '),
                   })
                 );
               }
