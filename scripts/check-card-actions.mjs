@@ -262,6 +262,11 @@ try {
   await settings.locator('.word-row', { hasText: 'colour' }).locator('button', { hasText: 'Remove' }).click();
   await settings.locator('.word-row', { hasText: 'widget' }).waitFor();
   assert((await settings.locator('.word-row', { hasText: 'colour' }).count()) === 0, 'remove drops the word');
+  const importLabel = await settings.locator('#dictionary-section button', { hasText: 'Import' }).innerText();
+  const exportLabel = await settings.locator('#dictionary-section button', { hasText: 'Export' }).innerText();
+  assert(importLabel === 'Import .txt', `import label was ${importLabel}`);
+  assert(exportLabel === 'Export .txt', `export label was ${exportLabel}`);
+  await shot(settings.locator('#dictionary-section .button-row'), 'dictionary-buttons-fixed.png');
   await shot(dictionary, 'settings-dictionary.png');
 
   const categories = settings.locator('#category-section');

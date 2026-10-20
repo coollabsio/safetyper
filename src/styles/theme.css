@@ -202,7 +202,6 @@
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
-  text-transform: capitalize;
   white-space: nowrap;
   color: var(--st-btn-text);
   background: var(--st-btn-bg);
