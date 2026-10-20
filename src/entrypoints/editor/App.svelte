@@ -143,22 +143,21 @@
       card = null;
       return;
     }
-    const coords = editor.view.coordsAtPos(range.from);
+    const start = editor.view.coordsAtPos(range.from);
+    const end = editor.view.coordsAtPos(Math.max(range.from, range.to - 1));
     const width = 300;
-    const height = 176;
+    const height = 168;
     const paper = editorHost?.getBoundingClientRect();
-    const paperLeft = paper?.left ?? 16;
-    let left = coords.left;
-    // A quote that starts at the left edge would hide its own line if the card sits there.
-    if (coords.left - paperLeft < 48) {
-      const beside = coords.right + 12;
-      left = beside + width < window.innerWidth - 12 ? beside : paperLeft + 36;
-    }
-    if (left + width > window.innerWidth - 12) left = window.innerWidth - width - 12;
+    const paperRight = paper?.right ?? window.innerWidth - 16;
+    const lineBottom = Math.max(start.bottom, end.bottom);
+    const lineTop = Math.min(start.top, end.top);
+    // Sit under the quote, on the right side of the page, so a left-edge underline stays readable.
+    let left = paperRight - width - 16;
+    let top = lineBottom + 12;
     if (left < 12) left = 12;
-    let top = coords.bottom + 10;
+    if (left + width > window.innerWidth - 12) left = window.innerWidth - width - 12;
     if (top + height > window.innerHeight - 8) {
-      const above = coords.top - height - 10;
+      const above = lineTop - height - 12;
       if (above >= 8) top = above;
     }
     card = { top, left, issue };
@@ -399,7 +398,7 @@
         parts.push('Quotes that were not in the text were dropped.');
       }
       if (parseFailures > 0) {
-        parts.push('One section was skipped because the reply was not JSON.');
+        parts.push('One paragraph was skipped because the reply was not JSON.');
       }
       status = { kind: 'ok', message: parts.join(' ') };
     } catch (error) {
