@@ -241,6 +241,7 @@ async function run(token: number): Promise<void> {
       backoffMs = nextBackoffMs(backoffMs);
       backoffUntil = Date.now() + backoffMs;
       console.error('[SafeTyper] Auto-check failed:', error);
+      setIssueCount(issues.length, issues);
       if (token === generation) schedule();
       return;
     } finally {
@@ -307,7 +308,7 @@ function focused(element: HTMLElement): boolean {
 
 function publish(): void {
   setAutoCheckSnapshot({ field, text, issues });
-  setIssueCount(issues.length);
+  setIssueCount(issues.length, issues);
   if (!field || issues.length === 0) {
     clearUnderlines();
     return;

@@ -52,6 +52,9 @@
     fallback: false,
   });
 
+  const iconSizeStorage = storage.defineItem<'small' | 'medium' | 'hidden'>('local:iconSize', {
+    fallback: 'small',
+  });
   const autoCheckDisabledHostsStorage = storage.defineItem<string[]>(
     'local:autoCheckDisabledHosts',
     {
@@ -127,6 +130,8 @@
   let showAdvanced = $state(false);
   let activeTab = $state<'translate' | 'settings'>('translate');
   let autoCheckEnabled = $state(false);
+  let iconSize = $state<'small' | 'medium' | 'hidden'>('small');
+  const iconSizes = ['small', 'medium', 'hidden'] as const;
   let disabledHosts = $state<string[]>([]);
   let currentHost = $state('');
 
@@ -410,6 +415,15 @@
     browser.tabs.create({ url: testUrl });
   }
 
+  async function setIconSize(next: 'small' | 'medium' | 'hidden'): Promise<void> {
+    iconSize = next;
+    try {
+      await iconSizeStorage.setValue(next);
+    } catch (error) {
+      console.error('Failed to save icon size:', error);
+    }
+  }
+
   async function setAutoCheck(enabled: boolean): Promise<void> {
     autoCheckEnabled = enabled;
     try {
@@ -477,6 +491,7 @@
     }
 
     autoCheckEnabled = (await autoCheckEnabledStorage.getValue()) ?? false;
+    iconSize = (await iconSizeStorage.getValue()) ?? 'small';
     disabledHosts = (await autoCheckDisabledHostsStorage.getValue()) ?? [];
     try {
       const tabs = await browser.tabs.query({ active: true, currentWindow: true });
@@ -708,6 +723,26 @@
                   </ul>
                 {/if}
               {/if}
+            </div>
+
+            <div class="field">
+              <span id="icon-size-label">Icon size</span>
+              <div class="icon-size" role="radiogroup" aria-labelledby="icon-size-label">
+                {#each iconSizes as size (size)}
+                  <button
+                    type="button"
+                    class="icon-size-option"
+                    role="radio"
+                    aria-checked={iconSize === size}
+                    onclick={() => void setIconSize(size)}
+                  >
+                    {size}
+                  </button>
+                {/each}
+              </div>
+              <p class="help-text">
+                Hidden keeps underlines. Alt+Shift+S opens suggestions for the field you are in.
+              </p>
             </div>
 
             <div class="field">
@@ -1184,6 +1219,37 @@
     outline: 1px solid var(--st-focus-ring);
     outline-offset: -2px;
     border-radius: 6px;
+  }
+
+  .icon-size {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .icon-size-option {
+    flex: 1;
+    height: 32px;
+    border: 1px solid var(--st-btn-border);
+    border-radius: 8px;
+    background: var(--st-btn-bg);
+    color: var(--st-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: capitalize;
+    cursor: pointer;
+  }
+
+  .icon-size-option[aria-checked='true'] {
+    color: #fff;
+    background: linear-gradient(to bottom, var(--st-primary-from), var(--st-primary-to));
+    border-color: var(--st-primary-border);
+  }
+
+  .icon-size-option:focus-visible {
+    outline: 1px solid var(--st-focus-ring);
+    outline-offset: 2px;
   }
 
   .auto-check-row {

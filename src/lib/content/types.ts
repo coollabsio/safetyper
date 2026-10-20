@@ -99,6 +99,7 @@ export interface StorageSchema {
   translateAlternatives?: Array<{ text: string; meaning: string }>;
   autoCheckEnabled?: boolean;
   autoCheckDisabledHosts?: string[];
+  iconSize?: 'small' | 'medium' | 'hidden';
 }
 
 /**

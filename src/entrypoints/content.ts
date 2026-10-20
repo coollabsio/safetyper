@@ -14,7 +14,13 @@ import {
   hideIcon,
   loadTheme,
   updateTheme,
+  loadIconPreferences,
+  noteIconTyping,
+  openSuggestionsShortcut,
+  mountIconStateGallery,
+  applyIconSize,
 } from '~/lib/content/ui-manager';
+import { iconIsHidden } from '~/lib/content/icon-metrics';
 import {
   isEditableElement,
   isSignificantKeyEvent,
@@ -35,12 +41,14 @@ export default defineContentScript({
 
     // Load theme before setting up UI
     await loadTheme();
+    await loadIconPreferences();
+    mountIconStateGallery();
 
     // Listen for theme changes from settings
     browser.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName === 'local' && changes.darkMode) {
-        updateTheme(changes.darkMode.newValue === true);
-      }
+      if (areaName !== 'local') return;
+      if (changes.darkMode) updateTheme(changes.darkMode.newValue === true);
+      if (changes.iconSize) applyIconSize(changes.iconSize.newValue);
     });
 
     if (import.meta.env.DEV) {
@@ -81,7 +89,7 @@ export default defineContentScript({
           console.log('[SafeTyper] Icon container:', iconContainer);
         }
 
-        iconContainer.style.display = 'flex';
+        if (!iconIsHidden()) iconContainer.style.display = 'flex';
         positionIcon(target);
       }
     }
@@ -110,6 +118,12 @@ export default defineContentScript({
      * Handle keydown events for global typing detection
      */
     function handleKeyDown(e: KeyboardEvent): void {
+      if (e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        openSuggestionsShortcut();
+        return;
+      }
+
       // Skip if in IME composition
       if (stateManager.isComposingActive()) {
         return;
@@ -123,6 +137,7 @@ export default defineContentScript({
       const activeElement = document.activeElement as HTMLElement;
 
       if (activeElement && isEditableElement(activeElement)) {
+        noteIconTyping();
         // Track typing speed
         const now = Date.now();
         const lastTypingTime = stateManager.getLastTypingTime();
@@ -141,7 +156,7 @@ export default defineContentScript({
         // Show and position icon with adaptive debouncing
         const iconContainer = stateManager.getIconContainer();
         if (iconContainer) {
-          iconContainer.style.display = 'flex';
+          if (!iconIsHidden()) iconContainer.style.display = 'flex';
 
           // Clear existing timer
           const existingTimer = stateManager.getTypingTimer();
@@ -255,7 +270,7 @@ export default defineContentScript({
             // Keep icon at its current focus-mode position (we can't get pixel
             // coords of the selection inside a form control)
             const iconContainer = stateManager.getIconContainer() || createIcon();
-            iconContainer.style.display = 'flex';
+            if (!iconIsHidden()) iconContainer.style.display = 'flex';
             positionIcon(activeEl);
             return;
           }
@@ -268,7 +283,7 @@ export default defineContentScript({
             if (isEditableElement(activeEl)) {
               stateManager.setActiveInput(activeEl);
               const iconContainer = stateManager.getIconContainer() || createIcon();
-              iconContainer.style.display = 'flex';
+              if (!iconIsHidden()) iconContainer.style.display = 'flex';
               positionIcon(activeEl);
             }
           }
@@ -326,7 +341,7 @@ export default defineContentScript({
 
         // Show and position icon at selection
         const iconContainer = stateManager.getIconContainer() || createIcon();
-        iconContainer.style.display = 'flex';
+        if (!iconIsHidden()) iconContainer.style.display = 'flex';
         positionIconAtSelection(range);
       }, CONFIG.SELECTION_DEBOUNCE);
     }
