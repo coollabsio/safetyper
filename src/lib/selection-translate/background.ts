@@ -3,6 +3,7 @@
  */
 
 import { browser } from 'wxt/browser';
+import { CONTENT_SCRIPT_EXCLUDE_MATCHES, sameMatchList } from '../content/page-guard';
 import { defaultTargetFromUiLanguage, isLanguageCode, languageName } from '../translate/languages';
 import { isTranslateHandoff, type TranslateHandoff } from './handoff';
 import {
@@ -278,16 +279,26 @@ async function openExtensionPopup(): Promise<void> {
 }
 
 async function ensureContentScript(): Promise<void> {
+  const scriptId = 'safetyper-selection-translate';
   try {
     const scripts = await browser.scripting.getRegisteredContentScripts();
-    const already = scripts.some((script) =>
+    const existing = scripts.find((script) =>
       (script.js ?? []).some((file) => file.includes('selection-translate'))
     );
-    if (already) return;
+    const excludes = [...CONTENT_SCRIPT_EXCLUDE_MATCHES];
+    const current =
+      existing?.allFrames === true &&
+      (existing.css ?? []).length === 0 &&
+      sameMatchList(existing.excludeMatches, excludes);
+    if (current) return;
+    if (existing?.id) {
+      await browser.scripting.unregisterContentScripts({ ids: [existing.id] });
+    }
     await browser.scripting.registerContentScripts([
       {
-        id: 'safetyper-selection-translate',
+        id: existing?.id ?? scriptId,
         matches: ['<all_urls>'],
+        excludeMatches: excludes,
         js: ['content-scripts/selection-translate.js'],
         runAt: 'document_idle',
         allFrames: true,

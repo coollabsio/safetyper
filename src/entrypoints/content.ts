@@ -29,17 +29,30 @@ import {
 } from '~/lib/content/dom-utils';
 import { CONFIG } from '~/lib/content/config';
 import { startAutoCheck } from '~/lib/content/auto-check-runner';
+import { CONTENT_FRAME_STYLE, injectFrameStyles } from '~/lib/content/frame-styles';
+import { CONTENT_SCRIPT_EXCLUDE_MATCHES, contentScriptShouldStart } from '~/lib/content/page-guard';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
+  excludeMatches: [...CONTENT_SCRIPT_EXCLUDE_MATCHES],
   allFrames: true,
+  // about:blank frames inherit a parent URL and would land inside captcha widgets.
+  // match_origin_as_fallback stays at its default (false). It is Chrome-only, so setting
+  // it would put an unknown key in the Firefox manifest.
+  matchAboutBlank: false,
+  // CSS is inserted only after the guard below. Manifest CSS would enter every frame first.
+  cssInjectionMode: 'manual',
   async main() {
+    if (!contentScriptShouldStart(window, document)) return;
+
     // Manifest registration plus the dev-mode programmatic registration can
     // inject this file twice. A second copy would subscribe another auto-check
     // and fire a duplicate Ollama request for every pause in typing.
     const marker = window as Window & { __safetyperContent?: boolean };
     if (marker.__safetyperContent) return;
     marker.__safetyperContent = true;
+
+    await injectFrameStyles(CONTENT_FRAME_STYLE);
 
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Content script starting...');
@@ -407,10 +420,12 @@ export default defineContentScript({
       });
     });
 
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+    if (document.body) {
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+    }
 
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] MutationObserver initialized');
