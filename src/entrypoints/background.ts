@@ -15,6 +15,11 @@ import {
   MODELS_TIMEOUT_MS,
   timeoutMessage,
 } from '@/lib/ai/timeout';
+import {
+  CONTENT_SCRIPT_EXCLUDE_MATCHES,
+  isFrameStyleFile,
+  sameMatchList,
+} from '@/lib/content/page-guard';
 
 // Groq models shut down by Groq (https://console.groq.com/docs/deprecations)
 const REMOVED_GROQ_MODELS = [
@@ -50,21 +55,31 @@ export default defineBackground(() => {
           script.id === scriptId || (script.js ?? []).some((file) => file.includes('content.js'))
       );
 
-      if (!existingScript) {
+      const excludes = [...CONTENT_SCRIPT_EXCLUDE_MATCHES];
+      const current =
+        existingScript?.allFrames !== true &&
+        (existingScript?.css ?? []).length === 0 &&
+        sameMatchList(existingScript?.excludeMatches, excludes);
+      if (existingScript && current) {
+        console.log('[Background] Content script already registered, skipping');
+      } else {
+        if (existingScript?.id) {
+          await browser.scripting.unregisterContentScripts({ ids: [existingScript.id] });
+        }
         console.log('[Background] Registering content script...');
         await browser.scripting.registerContentScripts([
           {
-            id: scriptId,
+            id: existingScript?.id ?? scriptId,
             matches: ['<all_urls>'],
-            css: ['content-scripts/content.css'],
+            excludeMatches: excludes,
+            // Styles are injected after the frame guard. Listing CSS here would
+            // push the stylesheet into every matching document, including captcha frames.
             js: ['content-scripts/content.js'],
             runAt: 'document_idle',
             allFrames: false,
           },
         ]);
         console.log('[Background] ✅ Content script registered successfully');
-      } else {
-        console.log('[Background] Content script already registered, skipping');
       }
     } catch (error: any) {
       // If error is about duplicate, that's actually fine - means it's already registered
@@ -256,6 +271,34 @@ export default defineBackground(() => {
       return false;
     }
 
+    if (message.action === 'injectFrameStyles') {
+      const file = typeof message.file === 'string' ? message.file : '';
+      if (!isFrameStyleFile(file)) {
+        sendResponse({ success: false, error: 'Unknown stylesheet' });
+        return false;
+      }
+      const tabId = sender.tab?.id;
+      const frameId = sender.frameId;
+      if (tabId == null || typeof frameId !== 'number') {
+        sendResponse({ success: false, error: 'Missing frame' });
+        return false;
+      }
+      void browser.scripting
+        .insertCSS({
+          target: { tabId, frameIds: [frameId] },
+          files: [file],
+        })
+        .then(() => {
+          sendResponse({ success: true });
+        })
+        .catch((error: unknown) => {
+          const detail = error instanceof Error ? error.message : 'Could not insert CSS';
+          console.error('[SafeTyper] Failed to insert frame styles:', error);
+          sendResponse({ success: false, error: detail });
+        });
+      return true;
+    }
+
     if (message.action === 'openPopup') {
       // Since we can't directly open the popup, we'll open a new tab with the popup page
       browser.tabs.create({ url: browser.runtime.getURL('/popup.html') });
@@ -281,8 +324,7 @@ export default defineBackground(() => {
           if (!message.force) {
             const stored = await browser.storage.local.get([providerConfig.cachedModelsStorageKey]);
             const cached = stored[providerConfig.cachedModelsStorageKey] as
-              | { models?: unknown; fetchedAt?: number }
-              | undefined;
+              { models?: unknown; fetchedAt?: number } | undefined;
             if (
               cached &&
               typeof cached.fetchedAt === 'number' &&

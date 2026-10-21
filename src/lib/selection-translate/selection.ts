@@ -3,6 +3,7 @@
  * Input and textarea selections are not visible to window.getSelection().
  */
 
+import { elementIsProtected } from '../content/page-guard';
 import type { AnchorBox } from './position';
 
 const TEXT_INPUT_TYPES = new Set(['text', 'search', 'url', 'tel', '']);
@@ -120,7 +121,7 @@ export function normalizeSelectionText(value: string): string {
 }
 
 function readFieldSelection(element: HTMLInputElement | HTMLTextAreaElement): PageSelection | null {
-  if (element instanceof HTMLInputElement && element.type === 'password') return null;
+  if (elementIsProtected(element)) return null;
   const start = element.selectionStart;
   const end = element.selectionEnd;
   if (start === null || end === null || start === end) return null;
@@ -140,6 +141,7 @@ function readRichEditable(range: Range): RichEditable | null {
       : range.commonAncestorContainer.parentElement;
   while (element) {
     if (element instanceof HTMLElement && element.isContentEditable) {
+      if (elementIsProtected(element)) return null;
       return { kind: 'rich', range: range.cloneRange() };
     }
     element = element.parentElement;
@@ -153,7 +155,9 @@ function isTextField(element: Element | null): element is HTMLInputElement | HTM
 }
 
 function canReplaceField(element: HTMLInputElement | HTMLTextAreaElement): boolean {
-  return !element.readOnly && !element.disabled && isTextField(element);
+  return (
+    !element.readOnly && !element.disabled && isTextField(element) && !elementIsProtected(element)
+  );
 }
 
 function caretRect(element: HTMLInputElement | HTMLTextAreaElement, index: number): AnchorBox {

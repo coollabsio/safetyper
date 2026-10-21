@@ -7,6 +7,7 @@ import { browser } from 'wxt/browser';
 import { OLLAMA_LOADING_HINT_MS } from '../ai/timeout';
 import { TranslateError, translateText } from '../translate/client';
 import { AUTO_DETECT, defaultTargetFromUiLanguage, isLanguageCode } from '../translate/languages';
+import { contentScriptShouldStart } from '../content/page-guard';
 import { mountTranslationBubble, type TranslationBubble } from './bubble';
 import { OPEN_SETTINGS_ACTION, OPEN_TRANSLATE_TAB_ACTION, SELECTION_TRANSLATE_PORT } from './menu';
 import type { AnchorBox } from './position';
@@ -50,6 +51,7 @@ let activeTranslateId: string | null = null;
 let port: ReturnType<typeof browser.runtime.connect> | null = null;
 
 export function startSelectionTranslate(): void {
+  if (!contentScriptShouldStart(window, document)) return;
   if (window.__safetyperSelectionTranslate) return;
   window.__safetyperSelectionTranslate = true;
 

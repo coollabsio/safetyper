@@ -11,7 +11,11 @@ import { cancelAutoCheck, getAutoCheckSnapshot, refreshAutoCheckIssues } from '.
 import { dismissalsFor, rememberDismissal, withoutDismissed } from './dismissals';
 import { placePopupNearRect } from './popup-position';
 import { suggestionClientRect } from './underlines';
-import { applyGroupColorVariables } from './category-colors';
+import {
+  applyGroupColorVariables,
+  groupColorVariablesPublished,
+  rememberGroupColorTheme,
+} from './category-colors';
 import { groupFill, highestPriorityGroup } from './group-colors';
 import { getIconSizeSetting, iconIsHidden, setIconSizeSetting } from './icon-metrics';
 import popupCss from '../../styles/popup-widget.css?inline';
@@ -82,7 +86,9 @@ export async function loadTheme(): Promise<void> {
   } catch {
     currentTheme = 'light';
   }
-  applyGroupColorVariables(currentTheme);
+  // Underlines publish these variables the first time they are drawn.
+  // Writing them at startup changes <html style> on login pages and captcha frames.
+  rememberGroupColorTheme(currentTheme);
 }
 
 /**
@@ -101,7 +107,8 @@ function paintPopup(popup: HTMLElement | null): void {
 
 export function updateTheme(isDark: boolean): void {
   currentTheme = isDark ? 'dark' : 'light';
-  applyGroupColorVariables(currentTheme);
+  rememberGroupColorTheme(currentTheme);
+  if (groupColorVariablesPublished()) applyGroupColorVariables(currentTheme);
   const iconContainer = stateManager.getIconContainer();
   if (iconContainer) {
     iconContainer.setAttribute('data-theme', currentTheme);
