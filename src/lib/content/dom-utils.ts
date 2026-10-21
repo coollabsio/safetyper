@@ -5,11 +5,15 @@
 import type { Position } from './types';
 import { iconPixelSize } from './icon-metrics';
 import { anchorIconPosition } from './icon-placement';
+import { elementIsProtected } from './page-guard';
 
 /**
  * Check if an element is editable
  */
 export function isEditableElement(element: HTMLElement): boolean {
+  // Login, password, one-time-code, and captcha token fields are never annotated.
+  if (elementIsProtected(element)) return false;
+
   // Exclude form fields where spellcheck is explicitly disabled. Not applied to
   // contenteditable: rich editors (e.g. Gmail) disable native spellcheck in favor of their own.
   const isFormField = element.tagName === 'INPUT' || element.tagName === 'TEXTAREA';

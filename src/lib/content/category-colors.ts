@@ -13,15 +13,26 @@ export const GROUP_UNDERLINE_VARS: Record<SuggestionGroupId, string> = Object.fr
 ) as Record<SuggestionGroupId, string>;
 
 let appliedTheme: 'light' | 'dark' = 'light';
+let published = false;
 
 export function categoryColorVariable(group: SuggestionGroupId): string {
   return `var(${GROUP_UNDERLINE_VARS[group]})`;
 }
 
+/** Remember the theme without writing inline styles onto the host page. */
+export function rememberGroupColorTheme(theme: 'light' | 'dark'): void {
+  appliedTheme = theme;
+}
+
+export function groupColorVariablesPublished(): boolean {
+  return published;
+}
+
 /** Publish the shared palette on the page so highlight rules and bars can read it. */
 export function applyGroupColorVariables(theme: 'light' | 'dark'): void {
   appliedTheme = theme;
-  if (typeof document === 'undefined') return;
+  if (typeof document === 'undefined' || !document.documentElement) return;
+  published = true;
   const style = groupColorStyle(theme);
   for (const [name, value] of Object.entries(style)) {
     document.documentElement.style.setProperty(name, value);
