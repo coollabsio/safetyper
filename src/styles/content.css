@@ -152,6 +152,7 @@
 
 .safetyper-icon,
 .safetyper-icon-preview {
+  box-sizing: border-box;
   width: 24px;
   height: 24px;
   cursor: pointer;
@@ -165,15 +166,22 @@
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.22);
   opacity: 1;
   transition:
-    transform 0.15s ease,
     background 0.15s ease,
     opacity 140ms ease;
 }
 
 .safetyper-icon {
   position: fixed;
+  left: 0;
+  top: 0;
   z-index: 999999;
   display: none;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.safetyper-icon img {
+  transition: transform 0.15s ease;
 }
 
 .safetyper-icon-preview {
@@ -200,14 +208,20 @@
 }
 
 .safetyper-icon:hover,
+.safetyper-icon[data-theme='dark']:hover {
+  background: #0b2e1a;
+}
+
+.safetyper-icon:hover img {
+  transform: scale(1.05);
+}
+
 .safetyper-icon-preview:hover,
-.safetyper-icon[data-theme='dark']:hover,
 .safetyper-icon-preview[data-theme='dark']:hover {
   transform: scale(1.05);
   background: #0b2e1a;
 }
 
-.safetyper-icon[data-typing='true']:not(:hover):not(:focus):not([data-results='true']),
 .safetyper-icon-preview[data-typing='true']:not([data-results='true']) {
   opacity: 0.6;
 }

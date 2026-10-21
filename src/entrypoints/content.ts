@@ -10,13 +10,12 @@ import { stateManager } from '~/lib/content/state-manager';
 import {
   createIcon,
   positionIcon,
-  positionIconAtSelection,
   hideIcon,
   loadTheme,
   updateTheme,
   loadIconPreferences,
-  noteIconTyping,
   openSuggestionsShortcut,
+  scheduleIconPosition,
   mountIconStateGallery,
   applyIconSize,
 } from '~/lib/content/ui-manager';
@@ -144,8 +143,8 @@ export default defineContentScript({
       const activeElement = document.activeElement as HTMLElement;
 
       if (activeElement && isEditableElement(activeElement)) {
-        noteIconTyping();
-        // Track typing speed
+        // Track typing speed. The icon stays where it is; a resize observer
+        // follows the field if the box actually grows.
         const now = Date.now();
         const lastTypingTime = stateManager.getLastTypingTime();
         if (lastTypingTime > 0) {
@@ -154,33 +153,10 @@ export default defineContentScript({
         }
         stateManager.setLastTypingTime(now);
 
-        // Update active input if needed
         if (stateManager.getActiveInput() !== activeElement) {
           stateManager.setActiveInput(activeElement);
           if (!stateManager.getIconContainer()) createIcon();
-        }
-
-        // Show and position icon with adaptive debouncing
-        const iconContainer = stateManager.getIconContainer();
-        if (iconContainer) {
-          if (!iconIsHidden()) iconContainer.style.display = 'flex';
-
-          // Clear existing timer
-          const existingTimer = stateManager.getTypingTimer();
-          if (existingTimer !== null) {
-            clearTimeout(existingTimer);
-          }
-
-          // Use adaptive debounce time
-          const debounceTime = stateManager.getAdaptiveDebounceTime();
-          const timer = window.setTimeout(() => {
-            const activeInput = stateManager.getActiveInput();
-            if (activeInput) {
-              positionIcon(activeInput);
-            }
-          }, debounceTime);
-
-          stateManager.setTypingTimer(timer);
+          if (!iconIsHidden()) positionIcon(activeElement);
         }
       }
     }
@@ -208,37 +184,15 @@ export default defineContentScript({
      * Handle window resize
      */
     function handleResize(): void {
-      const iconContainer = stateManager.getIconContainer();
-      if (!iconContainer || iconContainer.style.display === 'none') return;
-
-      if (stateManager.getInteractionMode() === 'selection') {
-        const savedRange = stateManager.getSelectedRange();
-        if (savedRange) positionIconAtSelection(savedRange);
-      } else {
-        const activeInput = stateManager.getActiveInput();
-        if (activeInput) positionIcon(activeInput);
-      }
+      scheduleIconPosition();
     }
 
     /**
-     * Handle scroll — reposition icon to follow the input field
+     * Scroll events from nested containers bubble here in the capture phase.
+     * scheduleIconPosition already collapses a burst into one frame.
      */
-    let scrollRafId: number | null = null;
     function handleScroll(): void {
-      if (scrollRafId) return;
-      scrollRafId = requestAnimationFrame(() => {
-        scrollRafId = null;
-        const iconContainer = stateManager.getIconContainer();
-        if (!iconContainer || iconContainer.style.display === 'none') return;
-
-        if (stateManager.getInteractionMode() === 'selection') {
-          const savedRange = stateManager.getSelectedRange();
-          if (savedRange) positionIconAtSelection(savedRange);
-        } else {
-          const activeInput = stateManager.getActiveInput();
-          if (activeInput) positionIcon(activeInput);
-        }
-      });
+      scheduleIconPosition();
     }
 
     /**
@@ -273,26 +227,14 @@ export default defineContentScript({
             stateManager.setSelectionAnchorElement(activeEl);
             stateManager.setSelectionStartOffset(start);
             stateManager.setSelectionEndOffset(end);
-
-            // Keep icon at its current focus-mode position (we can't get pixel
-            // coords of the selection inside a form control)
-            const iconContainer = stateManager.getIconContainer() || createIcon();
-            if (!iconIsHidden()) iconContainer.style.display = 'flex';
-            positionIcon(activeEl);
             return;
           }
 
-          // Selection collapsed inside input/textarea — revert to focus mode
-          // But preserve selection state if popup is open (user clicked the icon)
+          // Selection collapsed inside input/textarea — revert to focus mode.
+          // The icon stays on the field; hiding it here flickers while selecting.
           if (stateManager.getInteractionMode() === 'selection' && !stateManager.getPopup()) {
             stateManager.clearSelectionState();
-            // Re-show focus-mode icon since the field is still focused
-            if (isEditableElement(activeEl)) {
-              stateManager.setActiveInput(activeEl);
-              const iconContainer = stateManager.getIconContainer() || createIcon();
-              if (!iconIsHidden()) iconContainer.style.display = 'flex';
-              positionIcon(activeEl);
-            }
+            if (isEditableElement(activeEl)) stateManager.setActiveInput(activeEl);
           }
           return;
         }
@@ -300,10 +242,8 @@ export default defineContentScript({
         // --- Contenteditable path ---
         const selection = window.getSelection();
         if (!selection || selection.isCollapsed || !selection.rangeCount) {
-          // Selection cleared — if in selection mode, hide icon and clear state
-          // But preserve state if popup is open (user clicked the icon)
+          // A collapsed caret is normal while typing. Leave the icon where it is.
           if (stateManager.getInteractionMode() === 'selection' && !stateManager.getPopup()) {
-            hideIcon();
             stateManager.clearSelectionState();
           }
           return;
@@ -345,11 +285,6 @@ export default defineContentScript({
         stateManager.setSelectionAnchorElement(editableAncestor);
         stateManager.setSelectionStartOffset(null);
         stateManager.setSelectionEndOffset(null);
-
-        // Show and position icon at selection
-        const iconContainer = stateManager.getIconContainer() || createIcon();
-        if (!iconIsHidden()) iconContainer.style.display = 'flex';
-        positionIconAtSelection(range);
       }, CONFIG.SELECTION_DEBOUNCE);
     }
 

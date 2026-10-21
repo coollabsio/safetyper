@@ -4,7 +4,7 @@
 
 import type { Position } from './types';
 import { iconPixelSize } from './icon-metrics';
-import { avoidObstacles, calculateSmartIconPosition } from './icon-placement';
+import { anchorIconPosition } from './icon-placement';
 
 /**
  * Check if an element is editable
@@ -261,33 +261,6 @@ export function escapeHtml(text: string): string {
 }
 
 /**
- * Calculate icon position relative to a text selection Range
- */
-export function calculateSelectionIconPosition(range: Range): Position {
-  const rect = range.getBoundingClientRect();
-  const iconSize = iconPixelSize();
-
-  let left = rect.right + 4;
-  let top = rect.bottom - iconSize;
-
-  // Keep within viewport
-  if (left + iconSize > window.innerWidth) {
-    left = rect.right - iconSize - 4;
-  }
-  if (top < 0) {
-    top = rect.top;
-  }
-  if (top + iconSize > window.innerHeight) {
-    top = window.innerHeight - iconSize - 4;
-  }
-
-  const node = range.startContainer;
-  const owner = node instanceof HTMLElement ? node : node.parentElement;
-  const field = owner?.closest('input, textarea, [contenteditable="true"]');
-  return avoidObstacles({ left, top }, field instanceof HTMLElement ? field : null);
-}
-
-/**
  * Check if a Selection is inside an editable element
  */
 export function isSelectionInEditableArea(selection: Selection): boolean {
@@ -372,10 +345,26 @@ export function hasPositionChanged(
 }
 
 /**
- * Calculate position for icon based on element
+ * Bottom-end corner of a field. Reads the box and padding only.
+ * Does not focus the field or read the selection.
  */
 export function calculateIconPosition(element: HTMLElement): Position {
-  return calculateSmartIconPosition(element);
+  const rect = element.getBoundingClientRect();
+  const style = window.getComputedStyle(element);
+  return anchorIconPosition(
+    {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      paddingLeft: Number.parseFloat(style.paddingLeft) || 0,
+      paddingRight: Number.parseFloat(style.paddingRight) || 0,
+      paddingTop: Number.parseFloat(style.paddingTop) || 0,
+      paddingBottom: Number.parseFloat(style.paddingBottom) || 0,
+      rtl: style.direction === 'rtl',
+    },
+    iconPixelSize()
+  );
 }
 
 /**
