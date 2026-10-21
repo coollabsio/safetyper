@@ -35,7 +35,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,svelte,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,svelte,css,json}\"",
-    "test": "vitest run && bun src/lib/categories.test.ts && bun src/lib/goals.test.ts && bun src/lib/rewrite.test.ts && bun src/lib/translate/prompt.test.ts && bun src/lib/content/suggestions.test.ts && bun src/lib/content/auto-check.test.ts && bun src/lib/content/icon-state.test.ts && bun src/lib/content/preferences.test.ts && bun src/lib/content/dismissals.test.ts && bun src/lib/content/popup-position.test.ts && bun src/lib/content/check-result.test.ts && bun src/lib/content/page-guard.test.ts && bun src/lib/selection-translate/selection-translate.test.ts",
+    "test": "vitest run && bun src/lib/categories.test.ts && bun src/lib/goals.test.ts && bun src/lib/rewrite.test.ts && bun src/lib/translate/prompt.test.ts && bun src/lib/content/suggestions.test.ts && bun src/lib/content/auto-check.test.ts && bun src/lib/content/icon-state.test.ts && bun src/lib/content/icon-placement.test.ts && bun src/lib/content/preferences.test.ts && bun src/lib/content/dismissals.test.ts && bun src/lib/content/popup-position.test.ts && bun src/lib/content/check-result.test.ts && bun src/lib/content/page-guard.test.ts && bun src/lib/selection-translate/selection-translate.test.ts",
     "postinstall": "wxt prepare",
     "prepare": "husky"
   },

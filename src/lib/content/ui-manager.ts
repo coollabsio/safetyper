@@ -42,10 +42,10 @@ import {
   removeSuggestion,
   type Suggestion,
 } from './suggestions';
+import { iconPositionMoved } from './icon-placement';
 import {
   calculateIconPosition,
   calculatePopupPosition,
-  calculateSelectionIconPosition,
   getTextContent,
   setTextContent,
   isComplexEditor,
@@ -116,19 +116,9 @@ export function updateTheme(isDark: boolean): void {
   paintPopup(stateManager.getPopup());
 }
 
-let typingTimer = 0;
-
 function applyIconChrome(host: HTMLElement): void {
   const size = getIconSizeSetting();
   host.setAttribute('data-size', size);
-}
-
-export function noteIconTyping(): void {
-  const icon = stateManager.getIconContainer();
-  if (!icon || iconIsHidden()) return;
-  icon.setAttribute('data-typing', 'true');
-  window.clearTimeout(typingTimer);
-  typingTimer = window.setTimeout(() => icon.removeAttribute('data-typing'), 700);
 }
 
 /**
@@ -272,6 +262,9 @@ export function createIcon(): HTMLDivElement {
   badge.setAttribute('aria-hidden', 'true');
   iconContainer.appendChild(badge);
 
+  iconContainer.style.left = '0';
+  iconContainer.style.top = '0';
+  // preventDefault keeps the click from moving the caret or blurring the field.
   iconContainer.addEventListener('mousedown', (event) => event.preventDefault());
   iconContainer.addEventListener('click', showPopup);
   iconContainer.addEventListener('keypress', (event) => {
@@ -335,57 +328,81 @@ export function setIssueCount(
 }
 
 /**
- * Position icon near the active input
+ * One animation frame for every scroll, resize, and observer notification.
+ * Painting reads the field box only. It does not read or restore the selection.
  */
 let watchedField: HTMLElement | null = null;
 let stopWatchingField: (() => void) | null = null;
+let iconFrame = 0;
+let viewportListening = false;
+let fieldVisible = true;
+
+function paintIconPosition(): void {
+  const field = watchedField;
+  const iconContainer = stateManager.getIconContainer();
+  if (!field || !field.isConnected || !iconContainer || iconIsHidden()) return;
+  if (iconContainer.style.display === 'none' || !fieldVisible) return;
+
+  const position = calculateIconPosition(field);
+  if (!iconPositionMoved(stateManager.getCachedPosition(), position)) return;
+  iconContainer.style.transform = `translate(${position.left}px, ${position.top}px)`;
+  stateManager.setCachedPosition(position);
+}
+
+export function scheduleIconPosition(): void {
+  if (!watchedField || iconIsHidden()) return;
+  if (iconFrame) return;
+  iconFrame = window.requestAnimationFrame(() => {
+    iconFrame = 0;
+    paintIconPosition();
+  });
+}
+
+function ensureViewportListeners(): void {
+  if (viewportListening) return;
+  viewportListening = true;
+  window.addEventListener('resize', scheduleIconPosition);
+  window.addEventListener('scroll', scheduleIconPosition, true);
+}
 
 function watchField(element: HTMLElement): void {
-  if (watchedField === element) return;
+  if (watchedField === element) {
+    scheduleIconPosition();
+    return;
+  }
   stopWatchingField?.();
   watchedField = element;
+  fieldVisible = true;
+  stateManager.setCachedPosition(null);
+  ensureViewportListeners();
 
-  let timer = 0;
-  const schedule = () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(() => {
-      if (stateManager.getActiveInput() === element) positionIcon(element);
-    }, 50);
-  };
-
-  const observer = new MutationObserver(schedule);
-  const options: MutationObserverInit = {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['class', 'style', 'hidden'],
-  };
-  const parent = element.parentElement;
-  if (parent && parent !== document.body && parent !== document.documentElement) {
-    observer.observe(parent, options);
-  }
-  const grand = parent?.parentElement;
-  if (
-    grand &&
-    grand !== document.body &&
-    grand !== document.documentElement &&
-    grand.childElementCount <= 40
-  ) {
-    observer.observe(grand, options);
-  }
-
-  const resizeObserver = new ResizeObserver(schedule);
+  const resizeObserver = new ResizeObserver(() => scheduleIconPosition());
   resizeObserver.observe(element);
+  const intersectionObserver =
+    typeof IntersectionObserver === 'undefined'
+      ? null
+      : new IntersectionObserver((entries) => {
+          const visible = entries.some((entry) => entry.isIntersecting);
+          const icon = stateManager.getIconContainer();
+          if (visible !== fieldVisible) {
+            fieldVisible = visible;
+            if (icon && !iconIsHidden()) icon.style.visibility = visible ? 'visible' : 'hidden';
+          }
+          scheduleIconPosition();
+        });
+  intersectionObserver?.observe(element);
 
-  const late = [300, 900].map((delay) => window.setTimeout(schedule, delay));
   stopWatchingField = () => {
-    observer.disconnect();
     resizeObserver.disconnect();
-    window.clearTimeout(timer);
-    late.forEach((id) => window.clearTimeout(id));
+    intersectionObserver?.disconnect();
+    if (iconFrame) {
+      window.cancelAnimationFrame(iconFrame);
+      iconFrame = 0;
+    }
     watchedField = null;
     stopWatchingField = null;
   };
+  scheduleIconPosition();
 }
 
 export function positionIcon(element: HTMLElement): void {
@@ -393,7 +410,6 @@ export function positionIcon(element: HTMLElement): void {
     hideIcon();
     return;
   }
-  watchField(element);
   const iconContainer = stateManager.getIconContainer();
   if (!iconContainer) {
     if (import.meta.env.DEV) {
@@ -402,41 +418,9 @@ export function positionIcon(element: HTMLElement): void {
     return;
   }
 
-  const position = calculateIconPosition(element);
-  const cachedPosition = stateManager.getCachedPosition();
-
-  if (import.meta.env.DEV) {
-    console.log('[SafeTyper UI] Positioning icon:', { position, cachedPosition });
-  }
-
-  // Only update DOM if position changed
-  if (
-    !cachedPosition ||
-    cachedPosition.left !== position.left ||
-    cachedPosition.top !== position.top
-  ) {
-    iconContainer.style.left = `${position.left}px`;
-    iconContainer.style.top = `${position.top}px`;
-    stateManager.setCachedPosition(position);
-
-    if (import.meta.env.DEV) {
-      console.log('[SafeTyper UI] Icon position updated:', position);
-    }
-  }
-
-  iconContainer.style.display = iconIsHidden() ? 'none' : 'flex';
-
-  if (import.meta.env.DEV) {
-    console.log('[SafeTyper UI] Icon display set to flex');
-    console.log('[SafeTyper UI] Icon final styles:', {
-      display: iconContainer.style.display,
-      left: iconContainer.style.left,
-      top: iconContainer.style.top,
-      position: window.getComputedStyle(iconContainer).position,
-      visibility: window.getComputedStyle(iconContainer).visibility,
-      opacity: window.getComputedStyle(iconContainer).opacity,
-    });
-  }
+  if (iconContainer.style.display !== 'flex') iconContainer.style.display = 'flex';
+  iconContainer.style.visibility = 'visible';
+  watchField(element);
 }
 
 /**
@@ -451,30 +435,13 @@ export function hideIcon(): void {
 }
 
 /**
- * Position icon near a text selection Range
+ * Selection changes keep the icon on the field corner.
+ * The range is not measured, so the user's selection stays as they left it.
  */
-export function positionIconAtSelection(range: Range): void {
-  if (iconIsHidden()) {
-    hideIcon();
-    return;
-  }
-  const iconContainer = stateManager.getIconContainer();
-  if (!iconContainer) return;
-
-  const position = calculateSelectionIconPosition(range);
-  const cachedPosition = stateManager.getCachedPosition();
-
-  if (
-    !cachedPosition ||
-    cachedPosition.left !== position.left ||
-    cachedPosition.top !== position.top
-  ) {
-    iconContainer.style.left = `${position.left}px`;
-    iconContainer.style.top = `${position.top}px`;
-    stateManager.setCachedPosition(position);
-  }
-
-  iconContainer.style.display = iconIsHidden() ? 'none' : 'flex';
+export function positionIconAtSelection(_range: Range): void {
+  const field = stateManager.getSelectionAnchorElement() ?? stateManager.getActiveInput();
+  if (!field) return;
+  positionIcon(field);
 }
 
 function sessionForField(
