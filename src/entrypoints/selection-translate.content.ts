@@ -15,12 +15,12 @@ export default defineContentScript({
   matchAboutBlank: false,
   cssInjectionMode: 'manual',
   runAt: 'document_idle',
-  async main() {
+  main() {
     if (!contentScriptShouldStart(window, document)) return;
     const marker = window as Window & { __safetyperTranslateBoot?: boolean };
     if (marker.__safetyperTranslateBoot) return;
     marker.__safetyperTranslateBoot = true;
-    await injectFrameStyles(TRANSLATE_FRAME_STYLE);
+    void injectFrameStyles(TRANSLATE_FRAME_STYLE);
     startSelectionTranslate();
   },
 });

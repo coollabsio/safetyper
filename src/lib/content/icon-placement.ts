@@ -54,3 +54,16 @@ export function iconPositionMoved(previous: Position | null, next: Position): bo
   if (!previous) return true;
   return Math.abs(previous.left - next.left) >= 1 || Math.abs(previous.top - next.top) >= 1;
 }
+
+export function iconTransformValue(position: Position): string {
+  return `translate(${position.left}px, ${position.top}px)`;
+}
+
+/**
+ * The first intersection observation is often a false "off screen" before layout.
+ * Hide only after the field has actually been seen on screen.
+ */
+export function iconStaysShown(seenOnScreen: boolean, intersecting: boolean): boolean {
+  if (!seenOnScreen) return true;
+  return intersecting;
+}

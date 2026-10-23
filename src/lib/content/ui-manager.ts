@@ -17,7 +17,12 @@ import {
   rememberGroupColorTheme,
 } from './category-colors';
 import { groupFill, highestPriorityGroup } from './group-colors';
-import { getIconSizeSetting, iconIsHidden, setIconSizeSetting } from './icon-metrics';
+import {
+  getIconSizeSetting,
+  iconIsHidden,
+  iconPixelSize,
+  setIconSizeSetting,
+} from './icon-metrics';
 import popupCss from '../../styles/popup-widget.css?inline';
 import {
   countByGroup,
@@ -42,7 +47,7 @@ import {
   removeSuggestion,
   type Suggestion,
 } from './suggestions';
-import { iconPositionMoved } from './icon-placement';
+import { iconPositionMoved, iconStaysShown, iconTransformValue } from './icon-placement';
 import {
   calculateIconPosition,
   calculatePopupPosition,
@@ -119,6 +124,10 @@ export function updateTheme(isDark: boolean): void {
 function applyIconChrome(host: HTMLElement): void {
   const size = getIconSizeSetting();
   host.setAttribute('data-size', size);
+  if (!host.classList.contains('safetyper-icon')) return;
+  const pixels = iconPixelSize();
+  host.style.width = `${pixels}px`;
+  host.style.height = `${pixels}px`;
 }
 
 /**
@@ -262,8 +271,16 @@ export function createIcon(): HTMLDivElement {
   badge.setAttribute('aria-hidden', 'true');
   iconContainer.appendChild(badge);
 
+  // Critical box, in case the frame stylesheet has not arrived yet.
+  // Without position:fixed the transform parks the icon at the end of the page.
+  iconContainer.style.position = 'fixed';
   iconContainer.style.left = '0';
   iconContainer.style.top = '0';
+  iconContainer.style.zIndex = '2147483646';
+  iconContainer.style.boxSizing = 'border-box';
+  iconContainer.style.width = `${iconPixelSize()}px`;
+  iconContainer.style.height = `${iconPixelSize()}px`;
+  iconContainer.style.display = 'none';
   // preventDefault keeps the click from moving the caret or blurring the field.
   iconContainer.addEventListener('mousedown', (event) => event.preventDefault());
   iconContainer.addEventListener('click', showPopup);
@@ -336,6 +353,7 @@ let stopWatchingField: (() => void) | null = null;
 let iconFrame = 0;
 let viewportListening = false;
 let fieldVisible = true;
+let seenOnScreen = false;
 
 function paintIconPosition(): void {
   const field = watchedField;
@@ -345,7 +363,7 @@ function paintIconPosition(): void {
 
   const position = calculateIconPosition(field);
   if (!iconPositionMoved(stateManager.getCachedPosition(), position)) return;
-  iconContainer.style.transform = `translate(${position.left}px, ${position.top}px)`;
+  iconContainer.style.transform = iconTransformValue(position);
   stateManager.setCachedPosition(position);
 }
 
@@ -373,6 +391,7 @@ function watchField(element: HTMLElement): void {
   stopWatchingField?.();
   watchedField = element;
   fieldVisible = true;
+  seenOnScreen = false;
   stateManager.setCachedPosition(null);
   ensureViewportListeners();
 
@@ -382,7 +401,9 @@ function watchField(element: HTMLElement): void {
     typeof IntersectionObserver === 'undefined'
       ? null
       : new IntersectionObserver((entries) => {
-          const visible = entries.some((entry) => entry.isIntersecting);
+          const intersecting = entries.some((entry) => entry.isIntersecting);
+          if (intersecting) seenOnScreen = true;
+          const visible = iconStaysShown(seenOnScreen, intersecting);
           const icon = stateManager.getIconContainer();
           if (visible !== fieldVisible) {
             fieldVisible = visible;
@@ -401,7 +422,11 @@ function watchField(element: HTMLElement): void {
     }
     watchedField = null;
     stopWatchingField = null;
+    seenOnScreen = false;
   };
+  // Write the corner immediately. A hidden document never runs the animation
+  // frame, which used to leave the icon at 0,0 until something else moved.
+  paintIconPosition();
   scheduleIconPosition();
 }
 

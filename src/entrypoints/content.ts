@@ -28,6 +28,7 @@ import {
 } from '~/lib/content/dom-utils';
 import { CONFIG } from '~/lib/content/config';
 import { startAutoCheck } from '~/lib/content/auto-check-runner';
+import { startContentFeatures } from '~/lib/content/content-boot';
 import { CONTENT_FRAME_STYLE, injectFrameStyles } from '~/lib/content/frame-styles';
 import { CONTENT_SCRIPT_EXCLUDE_MATCHES, contentScriptShouldStart } from '~/lib/content/page-guard';
 
@@ -41,7 +42,7 @@ export default defineContentScript({
   matchAboutBlank: false,
   // CSS is inserted only after the guard below. Manifest CSS would enter every frame first.
   cssInjectionMode: 'manual',
-  async main() {
+  main() {
     if (!contentScriptShouldStart(window, document)) return;
 
     // Manifest registration plus the dev-mode programmatic registration can
@@ -51,17 +52,10 @@ export default defineContentScript({
     if (marker.__safetyperContent) return;
     marker.__safetyperContent = true;
 
-    await injectFrameStyles(CONTENT_FRAME_STYLE);
-
     if (import.meta.env.DEV) {
       console.log('[SafeTyper] Content script starting...');
       console.log('[SafeTyper] Location:', window.location.href);
     }
-
-    // Load theme before setting up UI
-    await loadTheme();
-    await loadIconPreferences();
-    mountIconStateGallery();
 
     // Listen for theme changes from settings
     browser.storage.onChanged.addListener((changes, areaName) => {
@@ -366,10 +360,24 @@ export default defineContentScript({
       console.log('[SafeTyper] MutationObserver initialized');
     }
 
-    stopAutoCheck = startAutoCheck();
-
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', cleanup);
+    startContentFeatures({
+      injectStyles: () => injectFrameStyles(CONTENT_FRAME_STYLE),
+      listen: () => {
+        stopAutoCheck = startAutoCheck();
+        window.addEventListener('beforeunload', cleanup);
+      },
+      prepareUi: async () => {
+        await loadTheme();
+        await loadIconPreferences();
+        mountIconStateGallery();
+      },
+      revealFocusedField: () => {
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && isEditableElement(active)) {
+          handleFocus({ target: active } as unknown as FocusEvent);
+        }
+      },
+    });
 
     // Log initialization
     if (import.meta.env.DEV) {
