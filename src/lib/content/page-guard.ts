@@ -49,6 +49,25 @@ export function sameMatchList(
   return sortedLeft.every((item, index) => item === sortedRight[index]);
 }
 
+/**
+ * Chrome and Firefox both reject a content-script entry when any match pattern
+ * is invalid, which skips the script on every page. Keep the grammar strict.
+ */
+const MATCH_PATTERN =
+  /^(?:<all_urls>|(?:https?|\*|file|ftp|ws|wss):\/\/(?:\*|\*\.[^/*]+|[^/*]+)\/[^?#\s]*)$/;
+
+export function isValidMatchPattern(pattern: string): boolean {
+  if (!MATCH_PATTERN.test(pattern)) return false;
+  if (pattern === '<all_urls>') return true;
+  const host = pattern.slice(
+    pattern.indexOf('://') + 3,
+    pattern.indexOf('/', pattern.indexOf('://') + 3)
+  );
+  if (host.includes('*') && !host.startsWith('*.')) return false;
+  if (host.startsWith('*.') && (host.length < 3 || host.slice(2).includes('*'))) return false;
+  return true;
+}
+
 export const CONTENT_FRAME_STYLE = 'content-scripts/content.css';
 export const TRANSLATE_FRAME_STYLE = 'content-scripts/selection-translate.css';
 
@@ -360,23 +379,58 @@ export function ancestorsShareOrigin(win: Window): boolean {
   }
 }
 
+/** Top documents stay available even when `window.top` is blocked. */
+export function readTopFrame(win: Window): boolean {
+  try {
+    if (win.top === win) return true;
+  } catch {
+    // A cross-origin top window can throw. The parent check still recognizes
+    // a top document, whose parent is itself.
+  }
+  try {
+    return win.parent === win;
+  } catch {
+    return false;
+  }
+}
+
+function readHref(win: Window): string {
+  try {
+    return win.location.href;
+  } catch {
+    return '';
+  }
+}
+
 export function readFrameDecision(win: Window, doc: Document): FrameDecision {
-  const topFrame = win.top === win;
+  const topFrame = readTopFrame(win);
   const sameOriginAncestors = topFrame || ancestorsShareOrigin(win);
+  let editorDocument = false;
+  if (!topFrame && !sameOriginAncestors) {
+    try {
+      editorDocument = documentLooksLikeEditor(doc);
+    } catch {
+      editorDocument = false;
+    }
+  }
   return {
-    href: win.location.href,
+    href: readHref(win),
     topFrame,
     sameOriginAncestors,
-    editorDocument: topFrame || sameOriginAncestors ? false : documentLooksLikeEditor(doc),
+    editorDocument,
   };
 }
 
-/** Fail closed: a guard error must leave the frame untouched. */
+/**
+ * Nested frames fail closed so a guard error cannot touch a captcha widget.
+ * A top-level document still starts: an exception here must not disable the
+ * icon on an ordinary page.
+ */
 export function contentScriptShouldStart(win: Window, doc: Document): boolean {
   try {
     return shouldRunContentScript(readFrameDecision(win, doc));
   } catch (error) {
-    console.error('[SafeTyper] Leaving this frame untouched:', error);
-    return false;
+    console.error('[SafeTyper] Frame guard failed:', error);
+    return readTopFrame(win);
   }
 }

@@ -8,6 +8,8 @@ import {
   anchorIconPosition,
   iconCornerInset,
   iconPositionMoved,
+  iconStaysShown,
+  iconTransformValue,
   type FieldBox,
 } from './icon-placement';
 
@@ -38,6 +40,15 @@ function field(partial: Partial<FieldBox>): FieldBox {
 
 function run(): void {
   const placed = anchorIconPosition(field({}), 24);
+  const transform = iconTransformValue(placed);
+  assert(transform.startsWith('translate('), 'the first paint writes a transform');
+  assert(
+    !transform.includes('translate(0px, 0px)'),
+    'a field away from the origin is not left at 0,0'
+  );
+  assert(iconStaysShown(false, false), 'the icon stays shown before intersection is confirmed');
+  assert(!iconStaysShown(true, false), 'the icon hides after the field leaves the screen');
+  assert(iconStaysShown(true, true), 'the icon shows again when the field returns');
   assertEqual(placed.left, 100 + 320 - 24 - 16, 'sits inside the right padding');
   assertEqual(placed.top, 40 + 140 - 24 - 12, 'sits inside the bottom padding');
 

@@ -29,7 +29,43 @@ const REMOVED_GROQ_MODELS = [
   'mixtral-8x7b-32768',
 ];
 
+function installFrameStyles(): void {
+  // Register before any other onMessage listener. Chrome invokes listeners in
+  // registration order and can close the port when an earlier listener returns
+  // undefined, which left injectFrameStyles pending forever.
+  browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!sender.id || sender.id !== browser.runtime.id) return;
+    if (!message || message.action !== 'injectFrameStyles') return;
+    const file = typeof message.file === 'string' ? message.file : '';
+    if (!isFrameStyleFile(file)) {
+      sendResponse({ success: false, error: 'Unknown stylesheet' });
+      return false;
+    }
+    const tabId = sender.tab?.id;
+    const frameId = sender.frameId;
+    if (tabId == null || typeof frameId !== 'number') {
+      sendResponse({ success: false, error: 'Missing frame' });
+      return false;
+    }
+    void browser.scripting
+      .insertCSS({
+        target: { tabId, frameIds: [frameId] },
+        files: [file],
+      })
+      .then(() => {
+        sendResponse({ success: true });
+      })
+      .catch((error: unknown) => {
+        const detail = error instanceof Error ? error.message : 'Could not insert CSS';
+        console.error('[SafeTyper] Failed to insert frame styles:', error);
+        sendResponse({ success: false, error: detail });
+      });
+    return true;
+  });
+}
+
 export default defineBackground(() => {
+  installFrameStyles();
   installSelectionTranslate();
   console.log('Background script initialized', { id: browser.runtime.id });
 
@@ -57,7 +93,7 @@ export default defineBackground(() => {
 
       const excludes = [...CONTENT_SCRIPT_EXCLUDE_MATCHES];
       const current =
-        existingScript?.allFrames !== true &&
+        existingScript?.allFrames === true &&
         (existingScript?.css ?? []).length === 0 &&
         sameMatchList(existingScript?.excludeMatches, excludes);
       if (existingScript && current) {
@@ -76,7 +112,7 @@ export default defineBackground(() => {
             // push the stylesheet into every matching document, including captcha frames.
             js: ['content-scripts/content.js'],
             runAt: 'document_idle',
-            allFrames: false,
+            allFrames: true,
           },
         ]);
         console.log('[Background] ✅ Content script registered successfully');
@@ -271,34 +307,6 @@ export default defineBackground(() => {
       return false;
     }
 
-    if (message.action === 'injectFrameStyles') {
-      const file = typeof message.file === 'string' ? message.file : '';
-      if (!isFrameStyleFile(file)) {
-        sendResponse({ success: false, error: 'Unknown stylesheet' });
-        return false;
-      }
-      const tabId = sender.tab?.id;
-      const frameId = sender.frameId;
-      if (tabId == null || typeof frameId !== 'number') {
-        sendResponse({ success: false, error: 'Missing frame' });
-        return false;
-      }
-      void browser.scripting
-        .insertCSS({
-          target: { tabId, frameIds: [frameId] },
-          files: [file],
-        })
-        .then(() => {
-          sendResponse({ success: true });
-        })
-        .catch((error: unknown) => {
-          const detail = error instanceof Error ? error.message : 'Could not insert CSS';
-          console.error('[SafeTyper] Failed to insert frame styles:', error);
-          sendResponse({ success: false, error: detail });
-        });
-      return true;
-    }
-
     if (message.action === 'openPopup') {
       // Since we can't directly open the popup, we'll open a new tab with the popup page
       browser.tabs.create({ url: browser.runtime.getURL('/popup.html') });
@@ -324,8 +332,7 @@ export default defineBackground(() => {
           if (!message.force) {
             const stored = await browser.storage.local.get([providerConfig.cachedModelsStorageKey]);
             const cached = stored[providerConfig.cachedModelsStorageKey] as
-              | { models?: unknown; fetchedAt?: number }
-              | undefined;
+              { models?: unknown; fetchedAt?: number } | undefined;
             if (
               cached &&
               typeof cached.fetchedAt === 'number' &&

@@ -6,11 +6,13 @@
 import {
   CONTENT_FRAME_STYLE,
   CONTENT_SCRIPT_EXCLUDE_MATCHES,
+  contentScriptShouldStart,
   controlSignalsAreProtected,
   EDITOR_INPUT_MIN_HEIGHT,
   EDITOR_INPUT_MIN_WIDTH,
   excludeMatchCovers,
   formLooksLikeAuth,
+  isValidMatchPattern,
   isBlockedFrameUrl,
   isCaptchaResponseName,
   isFrameStyleFile,
@@ -101,8 +103,23 @@ function run(): void {
 
   for (const pattern of CONTENT_SCRIPT_EXCLUDE_MATCHES) {
     assert(pattern.startsWith('*://'), `${pattern} is a match pattern`);
+    assert(isValidMatchPattern(pattern), `${pattern} is a valid Chrome and Firefox match pattern`);
     assert(!pattern.includes('<all_urls>'), 'exclude list does not restate all urls');
   }
+  assert(!isValidMatchPattern('*://*.google.com'), 'a match pattern needs a path');
+  assert(!isValidMatchPattern('*://*.*.google.com/*'), 'a host cannot contain two wildcards');
+  assert(
+    !isValidMatchPattern('https://example.com/path?q=1'),
+    'query strings are not part of a match pattern'
+  );
+  assert(
+    !excludeMatchCovers('https://example.com/'),
+    'a normal page is not excluded by the manifest patterns'
+  );
+  assert(
+    !excludeMatchCovers('https://github.com/coollabsio/safetyper'),
+    'github stays outside the captcha exclude list'
+  );
   assert(
     CONTENT_SCRIPT_EXCLUDE_MATCHES.includes('*://challenges.cloudflare.com/*'),
     'cloudflare challenges are excluded'
@@ -274,6 +291,45 @@ function run(): void {
       editorDocument: true,
     }),
     'a cross-origin editor document still runs'
+  );
+  assert(
+    shouldRunContentScript({
+      href: 'https://example.com/notes',
+      topFrame: true,
+      sameOriginAncestors: true,
+      editorDocument: false,
+    }),
+    'a normal top-level page runs even before an editor is detected'
+  );
+
+  const topPage = {
+    get top() {
+      throw new Error('SecurityError');
+    },
+    get parent() {
+      return topPage;
+    },
+    location: { href: 'https://github.com/' },
+  };
+  assert(
+    contentScriptShouldStart(topPage as unknown as Window, {} as Document),
+    'a top-level page still starts when window.top throws'
+  );
+
+  const widget = {
+    top: {},
+    parent: {
+      location: {
+        get href() {
+          throw new Error('cross-origin');
+        },
+      },
+    },
+    location: { href: 'https://cdn.example.com/widget.html' },
+  };
+  assert(
+    !contentScriptShouldStart(widget as unknown as Window, {} as Document),
+    'a cross-origin widget still fails closed when the guard cannot read it'
   );
 
   const bare: EditorSnapshot = {
