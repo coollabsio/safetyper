@@ -332,7 +332,8 @@ export default defineBackground(() => {
           if (!message.force) {
             const stored = await browser.storage.local.get([providerConfig.cachedModelsStorageKey]);
             const cached = stored[providerConfig.cachedModelsStorageKey] as
-              { models?: unknown; fetchedAt?: number } | undefined;
+              | { models?: unknown; fetchedAt?: number }
+              | undefined;
             if (
               cached &&
               typeof cached.fetchedAt === 'number' &&
