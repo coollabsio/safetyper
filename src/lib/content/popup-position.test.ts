@@ -5,6 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import {
+  lockedPopupBox,
   placeBottomSheet,
   placeEditorCard,
   placePopupNearRect,
@@ -76,6 +77,15 @@ function run(): void {
   });
   assertEqual(editor.left, 30, 'editor card moves left so its right edge stays inside');
   assertEqual(editor.left + 348 <= 390 - 12, true, 'editor card clears the right margin');
+
+  const held = lockedPopupBox({ width: 360, height: 122 }, { width: 360, height: 89 });
+  assertEqual(held.width, 360, 'loading keeps the prompt width');
+  assertEqual(held.height, 122, 'a one-line loading message cannot shrink the card');
+  const grown = lockedPopupBox({ width: 360, height: 122 }, { width: 360, height: 680 });
+  assertEqual(grown.height, 680, 'a taller result may grow the card');
+  const recheck = lockedPopupBox({ width: 360, height: 680 }, { width: 280, height: 48 });
+  assertEqual(recheck.width, 360, 'a re-check keeps the results width');
+  assertEqual(recheck.height, 680, 'a re-check cannot shrink the open results');
 
   assertStruckContrast();
 }

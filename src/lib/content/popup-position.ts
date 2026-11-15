@@ -81,6 +81,20 @@ export function placeBottomSheet(
  * Keep the editor card inside the viewport. The preferred point is where the
  * card would sit under the quote. Clamping uses the card's border box.
  */
+/**
+ * The box must not get smaller when a loading line replaces a prompt or a list.
+ * A taller result may grow it. The top-left stays where the caller left it.
+ */
+export function lockedPopupBox(
+  previous: { width: number; height: number },
+  next: { width: number; height: number }
+): { width: number; height: number } {
+  return {
+    width: Math.max(previous.width, next.width),
+    height: Math.max(previous.height, next.height),
+  };
+}
+
 export function placeEditorCard(input: {
   preferredLeft: number;
   preferredTop: number;

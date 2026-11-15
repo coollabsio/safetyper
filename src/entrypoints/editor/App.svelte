@@ -350,7 +350,6 @@
     const controller = new AbortController();
     abort = controller;
     checking = true;
-    card = null;
     const token = ++loadToken;
     armLoadHint(token);
     const blocks = collectBlocks(editor.state.doc).filter((block) => block.text.trim().length > 0);
@@ -380,6 +379,8 @@
             kind: 'checking',
             message: `Checking paragraph ${index + 1} of ${chunks.length}…`,
           };
+          await tick();
+          if (card) placeCard();
           try {
             const parsed = await fetchIssues(chunkText(chunk), controller.signal);
             rawCount += parsed.length;

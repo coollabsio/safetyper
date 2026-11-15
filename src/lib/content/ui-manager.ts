@@ -10,6 +10,7 @@ import { OLLAMA_LOADING_HINT_MS } from '../ai/timeout';
 import { cancelAutoCheck, getAutoCheckSnapshot, refreshAutoCheckIssues } from './auto-check-state';
 import { dismissalsFor, rememberDismissal, withoutDismissed } from './dismissals';
 import {
+  lockedPopupBox,
   placeBottomSheet,
   placePopupNearRect,
   usesBottomSheet,
@@ -461,6 +462,7 @@ export function positionIcon(element: HTMLElement): void {
   if (iconContainer.style.display !== 'flex') iconContainer.style.display = 'flex';
   iconContainer.style.visibility = 'visible';
   watchField(element);
+  syncFieldIcon();
 }
 
 /**
@@ -641,7 +643,7 @@ export function showFieldIssues(issues: Suggestion[], focusId?: string): void {
   }
   choosePopupAnchor(shown, focusId);
   renderSuggestionCards(content, session, shown.length === 0 ? -1 : 0);
-  setTimeout(() => repositionPopup(popup), 0);
+  setTimeout(() => placeOpenPopup(popup, 'open'), 0);
 }
 
 /**
@@ -863,6 +865,7 @@ export function closePopup(): void {
       activeKeyDown = null;
     }
   }
+  syncFieldIcon();
 }
 
 /**
@@ -999,6 +1002,14 @@ function markPlacement(popup: HTMLElement, placement: 'sheet' | 'card'): void {
   }
 }
 
+function syncFieldIcon(): void {
+  const icon = stateManager.getIconContainer();
+  if (!icon || icon.style.display === 'none') return;
+  const sheet = stateManager.getPopup()?.dataset.placement === 'sheet';
+  icon.style.visibility = sheet ? 'hidden' : 'visible';
+  icon.style.pointerEvents = sheet ? 'none' : '';
+}
+
 function applyBottomSheet(popup: HTMLElement): void {
   const visual = window.visualViewport;
   const box = visual
@@ -1015,12 +1026,14 @@ function applyBottomSheet(popup: HTMLElement): void {
   popup.style.top = `${placed.top}px`;
   popup.style.width = `${placed.width}px`;
   popup.style.height = `${placed.height}px`;
+  syncFieldIcon();
 }
 
 function clearSheetBox(popup: HTMLElement): void {
   markPlacement(popup, 'card');
   popup.style.width = '';
   popup.style.height = '';
+  syncFieldIcon();
 }
 
 /** Move a card only when it would leave the screen. A shorter list keeps its top. */
@@ -1040,6 +1053,7 @@ function nudgePopupIntoView(popup: HTMLElement): void {
 }
 
 function placeOpenPopup(popup: HTMLElement, reason: 'open' | 'anchor' | 'content'): void {
+  if (popup.dataset.hold === '1' && reason === 'content') return;
   if (usesBottomSheet(window.innerWidth)) {
     applyBottomSheet(popup);
     popupPlaced = true;
@@ -1757,6 +1771,39 @@ function visibleCardCount(session: SuggestionSession): number {
 /**
  * Handle grammar check button click
  */
+function holdPopupBox(popup: HTMLElement): void {
+  const rect = popup.getBoundingClientRect();
+  const size = lockedPopupBox(
+    { width: 280, height: 96 },
+    { width: rect.width, height: rect.height }
+  );
+  popup.dataset.hold = '1';
+  popup.dataset.holdWidth = String(Math.round(size.width));
+  popup.dataset.holdHeight = String(Math.round(size.height));
+  popup.style.minWidth = `${size.width}px`;
+  popup.style.minHeight = `${size.height}px`;
+}
+
+function showInlineLoading(content: HTMLElement): void {
+  if (content.querySelector('.st-loading-overlay')) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'st-loading-overlay';
+  overlay.setAttribute('role', 'status');
+  const text = document.createElement('p');
+  text.className = 'st-loading';
+  text.textContent = 'Checking grammar...';
+  overlay.append(text);
+  content.append(overlay);
+}
+
+function releasePopupBox(popup: HTMLElement): void {
+  delete popup.dataset.hold;
+  delete popup.dataset.holdWidth;
+  delete popup.dataset.holdHeight;
+  popup.style.minWidth = '';
+  popup.style.minHeight = '';
+}
+
 async function handleGrammarCheck(): Promise<void> {
   cancelAutoCheck();
   let mode = stateManager.getInteractionMode();
@@ -1814,11 +1861,9 @@ async function handleGrammarCheck(): Promise<void> {
     if (content) {
       popup.dataset.busy = '1';
       const count = popupRoot(popup)?.querySelector('.st-count');
-      if (count) count.textContent = 'Checking…';
-      popup.dataset.hadList = content.querySelector('.st-list') ? '1' : '';
-      if (!content.querySelector('.st-list')) {
-        content.innerHTML = '<p class="st-loading">Checking grammar...</p>';
-      }
+      if (count && count.textContent) count.textContent = 'Checking…';
+      holdPopupBox(popup);
+      showInlineLoading(content);
     }
   }
   void browser.storage.local.get('selectedProvider').then((stored) => {
@@ -1893,9 +1938,8 @@ async function handleGrammarCheck(): Promise<void> {
       },
       visible.length === 0 ? -1 : 0
     );
-    const firstList = currentPopup.dataset.hadList !== '1';
-    delete currentPopup.dataset.hadList;
-    setTimeout(() => placeOpenPopup(currentPopup, firstList ? 'open' : 'content'), 0);
+    releasePopupBox(currentPopup);
+    if (!usesBottomSheet(window.innerWidth)) nudgePopupIntoView(currentPopup);
   } catch (error: unknown) {
     if (generation !== checkGeneration) return;
     if (error instanceof GrammarCheckCancelled) {
@@ -1943,5 +1987,6 @@ function showCheckError(message: string): void {
   });
   actions.append(retry);
   content.append(error, actions);
+  if (popup.dataset.hold === '1') releasePopupBox(popup);
   placeOpenPopup(popup, 'content');
 }
