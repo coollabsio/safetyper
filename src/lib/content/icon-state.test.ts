@@ -5,7 +5,13 @@
 
 import { SUGGESTION_GROUPS } from '../categories';
 import { GROUP_COLORS, GROUP_PRIORITY, highestPriorityGroup } from './group-colors';
-import { ICON_PIXELS, iconIsHidden, iconPixelSize, setIconSizeSetting } from './icon-metrics';
+import {
+  formatIssueCount,
+  ICON_PIXELS,
+  iconIsHidden,
+  iconPixelSize,
+  setIconSizeSetting,
+} from './icon-metrics';
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -63,6 +69,12 @@ function run(): void {
   assertEqual(iconPixelSize(), 24, 'hidden placement still uses the original disc');
   setIconSizeSetting('nope');
   assertEqual(iconPixelSize(), 24, 'unknown size falls back to medium');
+
+  assertEqual(formatIssueCount(0), '', 'zero hides the badge');
+  assertEqual(formatIssueCount(9), '9', 'single digits stay as written');
+  assertEqual(formatIssueCount(21), '21', 'the badge matches the panel count');
+  assertEqual(formatIssueCount(99), '99', 'ninety nine still fits');
+  assertEqual(formatIssueCount(100), '99+', 'larger counts collapse to one token');
 
   console.log('icon state tests passed');
 }

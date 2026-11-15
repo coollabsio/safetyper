@@ -352,9 +352,13 @@
 }
 
 .st-quote del {
-  color: var(--st-text-muted);
+  color: #6e6e78;
   text-decoration: line-through;
   margin-right: 6px;
+}
+
+.st-root[data-theme='dark'] .st-quote del {
+  color: #b0b0b8;
 }
 
 .st-quote strong {
@@ -520,6 +524,37 @@
   font-weight: 650;
 }
 
+.safetyper-popup-content {
+  position: relative;
+}
+
+.st-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--st-bg);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .st-loading-overlay {
+    animation: st-loading-fade 120ms var(--st-ease);
+  }
+}
+
+@keyframes st-loading-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 .st-loading,
 .st-error {
   margin: 0;
@@ -532,6 +567,75 @@
 
 .st-root[data-theme='dark'] .st-error {
   color: #fca5a5;
+}
+
+.st-root[data-placement='sheet'] {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 16px 16px 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.st-root[data-placement='sheet'] .st-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding-bottom: 10px;
+  background: var(--st-bg);
+}
+
+.st-root[data-placement='sheet'] .safetyper-popup-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.st-card.is-leaving {
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    max-height 180ms var(--st-ease),
+    opacity 160ms var(--st-ease),
+    padding 180ms var(--st-ease),
+    margin 180ms var(--st-ease);
+}
+
+@media (pointer: coarse) {
+  .st-chip {
+    height: 44px;
+    padding: 0 12px;
+  }
+
+  .st-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .st-btn {
+    height: 44px;
+    padding: 0 14px;
+  }
+
+  .st-accept-all,
+  .st-rewrite {
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .st-card.is-leaving,
+  .st-loading-overlay {
+    transition: none;
+    animation: none;
+  }
 }
 
 .st-manual {
