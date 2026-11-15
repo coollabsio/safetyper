@@ -5,6 +5,7 @@
   import { storage } from '#imports';
   import { browser } from 'wxt/browser';
   import { groupLabel } from '~/lib/categories';
+  import { placeEditorCard } from '~/lib/content/popup-position';
   import { applyGroupColorVariables } from '~/lib/content/category-colors';
   import { ChatError, OLLAMA_ORIGINS_VALUE, resolveProvider } from '~/lib/ai/chat';
   import { isAbortError, OLLAMA_LOADING_HINT_MS } from '~/lib/ai/timeout';
@@ -153,22 +154,28 @@
     }
     const start = editor.view.coordsAtPos(range.from);
     const end = editor.view.coordsAtPos(Math.max(range.from, range.to - 1));
-    const width = 300;
-    const height = 168;
+    const cardWidth = Math.min(320, window.innerWidth - 24);
+    const cardHeight = 168;
     const paper = editorHost?.getBoundingClientRect();
     const paperRight = paper?.right ?? window.innerWidth - 16;
     const lineBottom = Math.max(start.bottom, end.bottom);
     const lineTop = Math.min(start.top, end.top);
     // Sit under the quote, on the right side of the page, so a left-edge underline stays readable.
-    let left = paperRight - width - 16;
+    let left = paperRight - cardWidth - 16;
     let top = lineBottom + 12;
-    if (left < 12) left = 12;
-    if (left + width > window.innerWidth - 12) left = window.innerWidth - width - 12;
-    if (top + height > window.innerHeight - 8) {
-      const above = lineTop - height - 12;
+    if (top + cardHeight > window.innerHeight - 8) {
+      const above = lineTop - cardHeight - 12;
       if (above >= 8) top = above;
     }
-    card = { top, left, issue };
+    const placed = placeEditorCard({
+      preferredLeft: left,
+      preferredTop: top,
+      cardWidth,
+      cardHeight,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+    });
+    card = { top: placed.top, left: placed.left, issue };
   }
 
   function selectIssue(key: string): void {

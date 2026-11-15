@@ -310,7 +310,11 @@ body,
   --st-group-text: var(--st-brand-text);
   position: fixed;
   z-index: 20;
+  box-sizing: border-box;
   width: min(320px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 16px);
+  overflow: auto;
   padding: 0.85rem 0.85rem 0.85rem 0.7rem;
   border-radius: 8px;
   border-left: 3px solid var(--st-group-accent);
@@ -353,7 +357,11 @@ body,
 }
 
 .quote-line del {
-  color: var(--st-text-muted);
+  color: #6e6e78;
+}
+
+:root[data-theme='dark'] .quote-line del {
+  color: #b0b0b8;
 }
 
 .quote-line strong {

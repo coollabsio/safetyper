@@ -30,3 +30,11 @@ export function iconPixelSize(): number {
 export function iconIsHidden(): boolean {
   return setting === 'hidden';
 }
+
+/** Visible badge text. Zero hides the badge. Counts above 99 stay one token. */
+export function formatIssueCount(count: number): string {
+  if (!Number.isFinite(count) || count <= 0) return '';
+  const whole = Math.floor(count);
+  if (whole > 99) return '99+';
+  return String(whole);
+}

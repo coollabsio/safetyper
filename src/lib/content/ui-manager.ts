@@ -9,7 +9,12 @@ import { checkGrammar, GrammarCheckCancelled, rewritePassage } from './api-clien
 import { OLLAMA_LOADING_HINT_MS } from '../ai/timeout';
 import { cancelAutoCheck, getAutoCheckSnapshot, refreshAutoCheckIssues } from './auto-check-state';
 import { dismissalsFor, rememberDismissal, withoutDismissed } from './dismissals';
-import { placePopupNearRect } from './popup-position';
+import {
+  placeBottomSheet,
+  placePopupNearRect,
+  usesBottomSheet,
+  type SafeInsets,
+} from './popup-position';
 import { suggestionClientRect } from './underlines';
 import {
   applyGroupColorVariables,
@@ -18,6 +23,7 @@ import {
 } from './category-colors';
 import { groupFill, highestPriorityGroup } from './group-colors';
 import {
+  formatIssueCount,
   getIconSizeSetting,
   iconIsHidden,
   iconPixelSize,
@@ -68,6 +74,10 @@ let manualRequestId: string | null = null;
 let loadingHint = 0;
 let suggestionCloseTimer = 0;
 let popupDragged = false;
+let popupPlaced = false;
+let viewportFollow: (() => void) | null = null;
+let badgeCount = 0;
+let badgeIssues: Array<{ group?: unknown; subcategory?: unknown; category?: unknown }> = [];
 let activeSession: SuggestionSession | null = null;
 
 function popupContent(popup: HTMLElement | null): HTMLElement | null {
@@ -118,7 +128,10 @@ export function updateTheme(isDark: boolean): void {
   if (iconContainer) {
     iconContainer.setAttribute('data-theme', currentTheme);
   }
+  if (badgeCount > 0) setIssueCount(badgeCount, badgeIssues);
   paintPopup(stateManager.getPopup());
+  const open = stateManager.getPopup();
+  if (open) placeOpenPopup(open, 'anchor');
 }
 
 function applyIconChrome(host: HTMLElement): void {
@@ -325,6 +338,8 @@ export function setIssueCount(
   if (!iconContainer) return;
   const badge = iconContainer.querySelector('.safetyper-badge');
   if (!(badge instanceof HTMLElement)) return;
+  badgeCount = count;
+  badgeIssues = issues;
   if (count <= 0) {
     badge.classList.remove('is-visible');
     badge.textContent = '';
@@ -333,10 +348,10 @@ export function setIssueCount(
     iconContainer.setAttribute('aria-label', 'Check grammar');
     return;
   }
-  badge.textContent = count > 9 ? '9+' : String(count);
+  badge.textContent = formatIssueCount(count);
   badge.classList.add('is-visible');
   const group = highestPriorityGroup(issues);
-  badge.style.background = group ? groupFill(group, 'light') : '';
+  badge.style.background = group ? groupFill(group, currentTheme) : '';
   iconContainer.setAttribute('data-results', 'true');
   iconContainer.setAttribute(
     'aria-label',
@@ -531,11 +546,20 @@ function mountPopupShell(): HTMLDivElement {
   root.querySelector('.st-close')?.addEventListener('click', closePopup);
   anchorFollow = () => {
     const open = stateManager.getPopup();
-    if (!open || popupDragged || popupAnchorMode !== 'text') return;
-    repositionPopup(open);
+    if (!open || popupDragged) return;
+    if (usesBottomSheet(window.innerWidth) || popupAnchorMode === 'text') {
+      placeOpenPopup(open, 'anchor');
+    }
+  };
+  viewportFollow = () => {
+    const open = stateManager.getPopup();
+    if (!open || popupDragged || !usesBottomSheet(window.innerWidth)) return;
+    placeOpenPopup(open, 'anchor');
   };
   window.addEventListener('scroll', anchorFollow, true);
   window.addEventListener('resize', anchorFollow);
+  window.visualViewport?.addEventListener('resize', viewportFollow);
+  window.visualViewport?.addEventListener('scroll', viewportFollow);
   root.querySelector('.st-rewrite')?.addEventListener('click', () => {
     toggleRewriteMenu();
   });
@@ -587,18 +611,10 @@ function mountPopupShell(): HTMLDivElement {
     focusControl(button, true);
   });
 
-  const iconContainer = stateManager.getIconContainer();
-  if (iconContainer) {
-    const iconRect = iconContainer.getBoundingClientRect();
-    const activeField = stateManager.getActiveInput();
-    const position = placeBesideField(iconRect, activeField?.getBoundingClientRect() ?? null);
-    popup.style.left = `${position.left}px`;
-    popup.style.top = `${position.top}px`;
-  }
-
   document.body.appendChild(popup);
   stateManager.setPopup(popup);
   makePopupDraggable(popup);
+  placeOpenPopup(popup, 'open');
   setTimeout(() => {
     document.addEventListener('click', handleOutsideClick);
   }, 0);
@@ -739,6 +755,7 @@ function makePopupDraggable(popupElement: HTMLDivElement): void {
   let initialTop: number;
 
   function dragStart(e: MouseEvent) {
+    if (popupElement.dataset.placement === 'sheet') return;
     const target = e.composedPath()[0];
     if (!(target instanceof Element) || !target.closest('.st-header')) return;
     if (target.closest('button, a, input, textarea')) return;
@@ -819,6 +836,12 @@ export function closePopup(): void {
     window.removeEventListener('resize', anchorFollow);
     anchorFollow = null;
   }
+  if (viewportFollow) {
+    window.visualViewport?.removeEventListener('resize', viewportFollow);
+    window.visualViewport?.removeEventListener('scroll', viewportFollow);
+    viewportFollow = null;
+  }
+  popupPlaced = false;
   const popup = stateManager.getPopup();
   if (popup) {
     window.clearTimeout(suggestionCloseTimer);
@@ -939,6 +962,96 @@ function placeBesideField(
   if (clear) return clear.candidate;
   const best = scored.slice().sort((a, b) => a.overlap - b.overlap)[0];
   return best?.candidate ?? calculatePopupPosition(iconRect, width, height);
+}
+
+function readSafeInsets(): SafeInsets {
+  const probe = document.createElement('div');
+  probe.style.position = 'fixed';
+  probe.style.visibility = 'hidden';
+  probe.style.pointerEvents = 'none';
+  probe.style.paddingTop = 'env(safe-area-inset-top)';
+  probe.style.paddingRight = 'env(safe-area-inset-right)';
+  probe.style.paddingBottom = 'env(safe-area-inset-bottom)';
+  probe.style.paddingLeft = 'env(safe-area-inset-left)';
+  document.body.append(probe);
+  const style = getComputedStyle(probe);
+  const px = (value: string): number => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const insets = {
+    top: px(style.paddingTop),
+    right: px(style.paddingRight),
+    bottom: px(style.paddingBottom),
+    left: px(style.paddingLeft),
+  };
+  probe.remove();
+  return insets;
+}
+
+function markPlacement(popup: HTMLElement, placement: 'sheet' | 'card'): void {
+  popup.dataset.placement = placement;
+  const root = popupRoot(popup);
+  if (root) root.dataset.placement = placement;
+  const header = root?.querySelector('.st-header');
+  if (header instanceof HTMLElement) {
+    header.title = placement === 'sheet' ? '' : 'Drag to move';
+  }
+}
+
+function applyBottomSheet(popup: HTMLElement): void {
+  const visual = window.visualViewport;
+  const box = visual
+    ? {
+        width: visual.width,
+        height: visual.height,
+        offsetLeft: visual.offsetLeft,
+        offsetTop: visual.offsetTop,
+      }
+    : { width: window.innerWidth, height: window.innerHeight, offsetLeft: 0, offsetTop: 0 };
+  const placed = placeBottomSheet(box, readSafeInsets());
+  markPlacement(popup, 'sheet');
+  popup.style.left = `${placed.left}px`;
+  popup.style.top = `${placed.top}px`;
+  popup.style.width = `${placed.width}px`;
+  popup.style.height = `${placed.height}px`;
+}
+
+function clearSheetBox(popup: HTMLElement): void {
+  markPlacement(popup, 'card');
+  popup.style.width = '';
+  popup.style.height = '';
+}
+
+/** Move a card only when it would leave the screen. A shorter list keeps its top. */
+function nudgePopupIntoView(popup: HTMLElement): void {
+  const rect = popup.getBoundingClientRect();
+  const margin = 8;
+  let top = Number.parseFloat(popup.style.top);
+  let left = Number.parseFloat(popup.style.left);
+  if (!Number.isFinite(top)) top = rect.top;
+  if (!Number.isFinite(left)) left = rect.left;
+  if (rect.bottom > window.innerHeight - margin) top -= rect.bottom - (window.innerHeight - margin);
+  if (top < margin) top = margin;
+  if (rect.right > window.innerWidth - margin) left -= rect.right - (window.innerWidth - margin);
+  if (left < margin) left = margin;
+  popup.style.top = `${top}px`;
+  popup.style.left = `${left}px`;
+}
+
+function placeOpenPopup(popup: HTMLElement, reason: 'open' | 'anchor' | 'content'): void {
+  if (usesBottomSheet(window.innerWidth)) {
+    applyBottomSheet(popup);
+    popupPlaced = true;
+    return;
+  }
+  clearSheetBox(popup);
+  if (reason === 'content' && popupPlaced) {
+    nudgePopupIntoView(popup);
+    return;
+  }
+  repositionPopup(popup);
+  popupPlaced = true;
 }
 
 function repositionPopup(popup: HTMLElement): void {
@@ -1178,6 +1291,10 @@ function acceptVisible(content: HTMLElement, session: SuggestionSession): void {
   }
   writeSession(session);
   session.initialEmpty = false;
+  if (session.anchor && getAutoCheckSnapshot().field === session.anchor) {
+    refreshAutoCheckIssues();
+  }
+  setIssueCount(session.suggestions.length, session.suggestions);
   renderSuggestionCards(content, session);
 }
 
@@ -1207,7 +1324,7 @@ async function runRewrite(
       renderSuggestionCards(content, session);
       setTimeout(() => {
         const open = stateManager.getPopup();
-        if (open) repositionPopup(open);
+        if (open) placeOpenPopup(open, 'content');
       }, 0);
     }
   }
@@ -1379,10 +1496,41 @@ function renderSuggestionCards(
   repositionPopupIfOpen();
 }
 
+function renderAfterLeave(card: HTMLElement | null, render: () => void): void {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || !card?.isConnected) {
+    render();
+    return;
+  }
+  const height = card.getBoundingClientRect().height;
+  card.style.boxSizing = 'border-box';
+  card.style.overflow = 'hidden';
+  card.style.maxHeight = `${height}px`;
+  card.classList.add('is-leaving');
+  requestAnimationFrame(() => {
+    card.style.maxHeight = '0px';
+    card.style.opacity = '0';
+    card.style.marginTop = '0px';
+    card.style.marginBottom = '0px';
+    card.style.paddingTop = '0px';
+    card.style.paddingBottom = '0px';
+  });
+  let finished = false;
+  const finish = (): void => {
+    if (finished) return;
+    finished = true;
+    render();
+  };
+  card.addEventListener('transitionend', (event) => {
+    if (event.target === card && event.propertyName === 'max-height') finish();
+  });
+  window.setTimeout(finish, 240);
+}
+
 function repositionPopupIfOpen(): void {
   const popup = stateManager.getPopup();
   if (!popup) return;
-  repositionPopup(popup);
+  placeOpenPopup(popup, 'content');
 }
 
 function renderRewriteCard(
@@ -1507,7 +1655,7 @@ function renderIssueCard(
         session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
         session.initialEmpty = false;
         session.notice = '';
-        renderSuggestionCards(content, session, focusAt());
+        renderAfterLeave(card, () => renderSuggestionCards(content, session, focusAt()));
       });
       return;
     }
@@ -1527,7 +1675,11 @@ function renderIssueCard(
     }
     session.initialEmpty = false;
     session.notice = '';
-    renderSuggestionCards(content, session, focusAt());
+    if (session.anchor && getAutoCheckSnapshot().field === session.anchor) {
+      refreshAutoCheckIssues();
+    }
+    setIssueCount(session.suggestions.length, session.suggestions);
+    renderAfterLeave(card, () => renderSuggestionCards(content, session, focusAt()));
   });
   const dismiss = document.createElement('button');
   dismiss.type = 'button';
@@ -1549,13 +1701,14 @@ function renderIssueCard(
     }
     if (session.anchor && getAutoCheckSnapshot().field === session.anchor) {
       refreshAutoCheckIssues();
-    } else {
-      setIssueCount(session.suggestions.length, session.suggestions);
     }
-    renderSuggestionCards(
-      content,
-      session,
-      indexAfterRemoval(cardIndex, visibleCardCount(session))
+    setIssueCount(session.suggestions.length, session.suggestions);
+    renderAfterLeave(card, () =>
+      renderSuggestionCards(
+        content,
+        session,
+        indexAfterRemoval(cardIndex, visibleCardCount(session))
+      )
     );
   });
   actions.append(accept, dismiss);
@@ -1575,10 +1728,12 @@ function renderIssueCard(
           session.suggestions = removeSuggestionsForWord(session.suggestions, word);
           session.initialEmpty = false;
           session.notice = `Added "${word}" to your dictionary.`;
-          renderSuggestionCards(
-            content,
-            session,
-            indexAfterRemoval(cardIndex, visibleCardCount(session))
+          renderAfterLeave(card, () =>
+            renderSuggestionCards(
+              content,
+              session,
+              indexAfterRemoval(cardIndex, visibleCardCount(session))
+            )
           );
         },
         (error: unknown) => {
@@ -1660,7 +1815,10 @@ async function handleGrammarCheck(): Promise<void> {
       popup.dataset.busy = '1';
       const count = popupRoot(popup)?.querySelector('.st-count');
       if (count) count.textContent = 'Checking…';
-      content.innerHTML = '<p class="st-loading">Checking grammar...</p>';
+      popup.dataset.hadList = content.querySelector('.st-list') ? '1' : '';
+      if (!content.querySelector('.st-list')) {
+        content.innerHTML = '<p class="st-loading">Checking grammar...</p>';
+      }
     }
   }
   void browser.storage.local.get('selectedProvider').then((stored) => {
@@ -1735,7 +1893,9 @@ async function handleGrammarCheck(): Promise<void> {
       },
       visible.length === 0 ? -1 : 0
     );
-    setTimeout(() => repositionPopup(currentPopup), 0);
+    const firstList = currentPopup.dataset.hadList !== '1';
+    delete currentPopup.dataset.hadList;
+    setTimeout(() => placeOpenPopup(currentPopup, firstList ? 'open' : 'content'), 0);
   } catch (error: unknown) {
     if (generation !== checkGeneration) return;
     if (error instanceof GrammarCheckCancelled) {
@@ -1783,5 +1943,5 @@ function showCheckError(message: string): void {
   });
   actions.append(retry);
   content.append(error, actions);
-  repositionPopup(popup);
+  placeOpenPopup(popup, 'content');
 }
