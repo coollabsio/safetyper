@@ -61,7 +61,13 @@ jobs:
           FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
           FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
         run: |
-          npx wxt submit \
+          # `wxt submit` on wxt 0.20.11 runs publish-browser-extension 3.0.2.
+          # That release passes a formdata-node FormData to fetch. Node 24
+          # (the default on ubuntu-latest / Ubuntu 26.04) stringifies it and
+          # sends Content-Type: text/plain;charset=UTF-8, which AMO rejects
+          # with 415. 6.2.0 uploads with Node's FormData. It still reads the
+          # FIREFOX_* env vars and these zip flags.
+          node ./node_modules/publish-browser-extension/bin/publish-extension.mjs \
             --firefox-zip .output/safetyper-${{ steps.version.outputs.version }}-firefox.zip \
             --firefox-sources-zip .output/safetyper-${{ steps.version.outputs.version }}-sources.zip
 
