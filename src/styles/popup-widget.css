@@ -539,6 +539,19 @@
   pointer-events: auto;
 }
 
+/* The overlay box ends at the content padding edge. Coolify buttons paint a
+   2px depth shadow (3px on hover, plus translate) past that edge, so the
+   green and grey lips show under the overlay. Keep their layout, hide the
+   paint, and clip anything that still sticks out. */
+.safetyper-popup-content:has(.st-loading-overlay) > :not(.st-loading-overlay) {
+  visibility: hidden;
+}
+
+.safetyper-popup-content:has(.st-loading-overlay),
+.st-root[data-placement='sheet'] .safetyper-popup-content:has(.st-loading-overlay) {
+  overflow: hidden;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .st-loading-overlay {
     animation: st-loading-fade 120ms var(--st-ease);
