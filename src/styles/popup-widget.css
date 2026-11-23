@@ -26,6 +26,7 @@
   display: block;
   width: min(360px, calc(100vw - 16px));
   max-height: min(680px, calc(100vh - 16px));
+  container-type: inline-size;
   overflow: auto;
   box-sizing: border-box;
   padding: 12px;
@@ -88,6 +89,11 @@
   cursor: grabbing;
 }
 
+/* Read-only copy puts a long label in the header. Grow the card so it fits. */
+.st-root[data-copy-full='1'] {
+  width: min(440px, calc(100vw - 16px));
+}
+
 .st-logo {
   width: 18px;
   height: 18px;
@@ -105,6 +111,7 @@
   font-size: 14px;
   font-weight: 650;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .st-count {
@@ -132,6 +139,7 @@
   font-size: 13px;
   font-weight: 600;
   padding: 4px 6px;
+  white-space: nowrap;
 }
 
 .st-rewrite:hover,
@@ -248,12 +256,42 @@
 }
 
 .st-accept-all {
+  flex-shrink: 0;
   border: 0;
   background: transparent;
   color: var(--st-brand-text);
   font-size: 13px;
   font-weight: 600;
   padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.st-accept-all:disabled {
+  color: var(--st-brand-text);
+  opacity: 1;
+  cursor: default;
+}
+
+.st-copy-short {
+  display: none;
+}
+
+/* A phone sheet clips the long phrase once Close and Rewrite keep a 44px target.
+   "Copy full · N" leaves the wordmark and the suggestion count on one line. */
+@container (max-width: 380px) {
+  .st-accept-all .st-copy-long {
+    display: none;
+  }
+
+  .st-accept-all .st-copy-short {
+    display: inline;
+  }
+}
+
+@container (max-width: 400px) {
+  .st-header-row {
+    gap: 2px;
+  }
 }
 
 .st-accept-all:hover {
@@ -261,6 +299,7 @@
 }
 
 .st-close {
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
   border: 0;

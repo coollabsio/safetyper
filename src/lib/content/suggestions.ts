@@ -258,9 +258,33 @@ export function applySuggestion(
   };
 }
 
-export function applySuggestions(text: string, suggestions: Suggestion[]): string {
+export interface AppliedSuggestions {
+  text: string;
+  /** How many suggestions actually replaced a span. A miss is not counted. */
+  applied: number;
+}
+
+/**
+ * Apply suggestions from the end of the text, same order as a bulk accept.
+ * `applied` counts only replacements that landed, so a copy label can match
+ * the text that will be written.
+ */
+export function applySuggestionsOutcome(
+  text: string,
+  suggestions: Suggestion[]
+): AppliedSuggestions {
   const ordered = [...suggestions].sort((a, b) => b.start - a.start);
-  return ordered.reduce((current, suggestion) => applySuggestion(current, suggestion).text, text);
+  let applied = 0;
+  const next = ordered.reduce((current, suggestion) => {
+    const result = applySuggestion(current, suggestion);
+    if (result.changed) applied += 1;
+    return result.text;
+  }, text);
+  return { text: next, applied };
+}
+
+export function applySuggestions(text: string, suggestions: Suggestion[]): string {
+  return applySuggestionsOutcome(text, suggestions).text;
 }
 
 /**
