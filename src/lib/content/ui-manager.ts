@@ -49,8 +49,15 @@ import {
   removeSuggestionsForWord,
 } from './preferences';
 import {
+  copyFullTextCompactLabel,
+  copyFullTextExplanation,
+  copyFullTextLabel,
+  COPY_FULL_TEXT_FEEDBACK,
+  COPY_FULL_TEXT_FEEDBACK_MS,
+} from './copy-full-text';
+import {
   applySuggestion,
-  applySuggestions,
+  applySuggestionsOutcome,
   removeSuggestion,
   type Suggestion,
 } from './suggestions';
@@ -74,6 +81,11 @@ let checkGeneration = 0;
 let manualRequestId: string | null = null;
 let loadingHint = 0;
 let suggestionCloseTimer = 0;
+let copyFullTextFeedbackTimer = 0;
+let copyFullTextFeedbackSession: SuggestionSession | null = null;
+let copyFullTextFeedbackUntil = 0;
+let copyFullTextBusy = false;
+let cardCopyTimer = 0;
 let popupDragged = false;
 let popupPlaced = false;
 let viewportFollow: (() => void) | null = null;
@@ -844,6 +856,11 @@ export function closePopup(): void {
     viewportFollow = null;
   }
   popupPlaced = false;
+  window.clearTimeout(copyFullTextFeedbackTimer);
+  window.clearTimeout(cardCopyTimer);
+  copyFullTextFeedbackSession = null;
+  copyFullTextFeedbackUntil = 0;
+  copyFullTextBusy = false;
   const popup = stateManager.getPopup();
   if (popup) {
     window.clearTimeout(suggestionCloseTimer);
@@ -1271,19 +1288,56 @@ function toggleRewriteMenu(): void {
   if (first instanceof HTMLButtonElement) focusControl(first, toggle.matches(':focus-visible'));
 }
 
+function copyFullTextFeedbackShowing(session: SuggestionSession): boolean {
+  return copyFullTextFeedbackSession === session && Date.now() < copyFullTextFeedbackUntil;
+}
+
+function fillCopyFullTextButton(button: HTMLButtonElement, applied: number): void {
+  button.replaceChildren();
+  const full = document.createElement('span');
+  full.className = 'st-copy-long';
+  full.textContent = copyFullTextLabel(applied);
+  const compact = document.createElement('span');
+  compact.className = 'st-copy-short';
+  compact.textContent = copyFullTextCompactLabel(applied);
+  button.append(full, compact);
+  const explanation = copyFullTextExplanation(applied);
+  button.title = explanation;
+  button.setAttribute('aria-label', explanation);
+}
+
+function showCopyFullTextFeedback(content: HTMLElement, session: SuggestionSession): void {
+  copyFullTextFeedbackSession = session;
+  copyFullTextFeedbackUntil = Date.now() + COPY_FULL_TEXT_FEEDBACK_MS;
+  renderSuggestionCards(content, session);
+  window.clearTimeout(copyFullTextFeedbackTimer);
+  copyFullTextFeedbackTimer = window.setTimeout(() => {
+    if (copyFullTextFeedbackSession === session) {
+      copyFullTextFeedbackSession = null;
+      copyFullTextFeedbackUntil = 0;
+    }
+    if (!content.isConnected || activeSession !== session) return;
+    renderSuggestionCards(content, session);
+  }, COPY_FULL_TEXT_FEEDBACK_MS);
+}
+
 function acceptVisible(content: HTMLElement, session: SuggestionSession): void {
   const visible = visibleSuggestions(session);
   if (session.isComplex) {
-    const corrected = applySuggestions(session.workingText, visible);
-    void copyText(corrected).then((ok) => {
+    if (copyFullTextBusy) return;
+    copyFullTextBusy = true;
+    const corrected = applySuggestionsOutcome(session.workingText, visible);
+    void copyText(corrected.text).then((ok) => {
+      copyFullTextBusy = false;
+      if (!content.isConnected || activeSession !== session) return;
       if (!ok) {
-        showManualCopy(content, corrected);
+        showManualCopy(content, corrected.text);
         return;
       }
       const visibleIds = new Set(visible.map((item) => item.id));
       session.suggestions = session.suggestions.filter((item) => !visibleIds.has(item.id));
       session.initialEmpty = false;
-      renderSuggestionCards(content, session);
+      showCopyFullTextFeedback(content, session);
     });
     return;
   }
@@ -1425,25 +1479,42 @@ function renderSuggestionCards(
       count.textContent = `${visible.length} of ${remaining}`;
     }
   }
+  const copyFeedback = session.isComplex && copyFullTextFeedbackShowing(session);
+  if (root) {
+    if (session.isComplex && (visible.length > 0 || copyFeedback)) root.dataset.copyFull = '1';
+    else delete root.dataset.copyFull;
+  }
   if (acceptAll instanceof HTMLButtonElement) {
-    acceptAll.hidden = visible.length === 0;
-    acceptAll.textContent = session.isComplex ? 'Copy all' : 'Accept all';
-    acceptAll.setAttribute(
-      'aria-label',
-      session.filter === 'all'
-        ? session.isComplex
-          ? 'Copy all corrected text'
-          : 'Accept all suggestions'
-        : session.isComplex
-          ? `Copy ${groupLabel(session.filter)} suggestions`
+    const applied = session.isComplex
+      ? applySuggestionsOutcome(session.workingText, visible).applied
+      : 0;
+    acceptAll.hidden = visible.length === 0 && !copyFeedback;
+    if (session.isComplex && copyFeedback) {
+      acceptAll.disabled = true;
+      acceptAll.textContent = COPY_FULL_TEXT_FEEDBACK;
+      acceptAll.title = COPY_FULL_TEXT_FEEDBACK;
+      acceptAll.setAttribute('aria-label', COPY_FULL_TEXT_FEEDBACK);
+    } else if (session.isComplex) {
+      acceptAll.disabled = false;
+      fillCopyFullTextButton(acceptAll, applied);
+    } else {
+      acceptAll.disabled = false;
+      acceptAll.textContent = 'Accept all';
+      acceptAll.removeAttribute('title');
+      acceptAll.setAttribute(
+        'aria-label',
+        session.filter === 'all'
+          ? 'Accept all suggestions'
           : `Accept ${groupLabel(session.filter)} suggestions`
-    );
+      );
+    }
     acceptAll.onclick = () => {
+      if (acceptAll.disabled) return;
       acceptVisible(content, session);
     };
   }
   if (rewriteButton instanceof HTMLButtonElement) {
-    rewriteButton.hidden = idle;
+    rewriteButton.hidden = idle && !copyFeedback;
     rewriteButton.disabled = session.rewriteBusy;
   }
   if (filters instanceof HTMLElement) renderFilters(filters, content, session);
@@ -1651,25 +1722,34 @@ function renderIssueCard(
   const accept = document.createElement('button');
   accept.type = 'button';
   accept.className = 'st-btn st-btn-primary';
-  accept.textContent = session.isComplex ? 'Copy fixed text' : 'Accept';
+  accept.textContent = session.isComplex ? 'Copy this fix' : 'Accept';
   accept.setAttribute(
     'aria-label',
     session.isComplex
-      ? `Copy fixed text for ${original || 'this suggestion'}`
+      ? `Copy this fix for ${original || 'this suggestion'}`
       : `Accept change from ${original || 'empty'} to ${fixed || 'empty'}`
   );
   accept.addEventListener('click', () => {
     const focusAt = () => indexAfterRemoval(cardIndex, visibleCardCount(session));
     if (session.isComplex) {
+      accept.disabled = true;
       void copyText(suggestion.replacement).then((ok) => {
+        if (!content.isConnected || activeSession !== session) return;
         if (!ok) {
+          accept.disabled = false;
           showManualCopy(content, suggestion.replacement);
           return;
         }
-        session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
-        session.initialEmpty = false;
-        session.notice = '';
-        renderAfterLeave(card, () => renderSuggestionCards(content, session, focusAt()));
+        accept.textContent = 'Copied';
+        accept.setAttribute('aria-label', 'Copied');
+        window.clearTimeout(cardCopyTimer);
+        cardCopyTimer = window.setTimeout(() => {
+          if (!content.isConnected || activeSession !== session) return;
+          session.suggestions = session.suggestions.filter((item) => item.id !== suggestion.id);
+          session.initialEmpty = false;
+          session.notice = '';
+          renderAfterLeave(card, () => renderSuggestionCards(content, session, focusAt()));
+        }, COPY_FULL_TEXT_FEEDBACK_MS);
       });
       return;
     }
